@@ -1,0 +1,2 @@
+/* The stylesheet moved to quest/ with the shared pages; this keeps the mock's imports working. */
+@import '../quest/quest.css';

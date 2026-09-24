@@ -1,0 +1,235 @@
+/* Quest themes. Every colour the quest pages use is a variable here, so a theme
+   is one block. Lengths carry units, even in keyframes. */
+
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/eb-garamond/400.css';
+@import '@fontsource/eb-garamond/600.css';
+
+.quest-theme {
+  --font-body: inherit;
+  --font-display: inherit;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at 70% 35%, var(--glow), transparent 60%),
+    var(--bg);
+}
+
+/* Warm paper, dark ink: an RPG map. */
+.quest-theme[data-theme='parchment'] {
+  --npc: #4d7c0f;
+  --bg: #efe6cf;
+  --glow: rgba(200, 144, 28, 0.14);
+  --panel: #f8f1df;
+  --panel-border: #d6c59b;
+  --plate: #fffaf0;
+  --plate-border: #c9b584;
+  --ink: #2b2113;
+  --ink-soft: #5a4a2f;
+  --ink-faint: #85755a;
+  --dots: #d8c9a2;
+  --edge-off: #a8966c;
+  --gold: #c38a12;
+  --gold-ink: #ffffff;
+  --done-plate: #fbefcc;
+  --avail: #1d74ad;
+  --avail-plate: #e8f3fb;
+  --await: #c05a14;
+  --await-plate: #fcebdc;
+  --side: #7a55c2;
+  --locked-medal: #e7dcc2;
+  --chip: rgba(0, 0, 0, 0.05);
+}
+
+/* Dark done right: deep navy, white text. */
+.quest-theme[data-theme='midnight'] {
+  --npc: #a3e635;
+  --bg: #0f1522;
+  --glow: rgba(56, 189, 248, 0.1);
+  --panel: #161e2e;
+  --panel-border: #2b3652;
+  --plate: #1c2639;
+  --plate-border: #3d4c6b;
+  --ink: #ffffff;
+  --ink-soft: #cbd5e1;
+  --ink-faint: #94a3b8;
+  --dots: #222d45;
+  --edge-off: #56648a;
+  --gold: #fbbf24;
+  --gold-ink: #3b2a05;
+  --done-plate: #3a2e0f;
+  --avail: #38bdf8;
+  --avail-plate: #0f3552;
+  --await: #fb923c;
+  --await-plate: #3d2410;
+  --side: #a78bfa;
+  --locked-medal: #27334c;
+  --chip: rgba(255, 255, 255, 0.07);
+}
+
+/* Vellum, ink, gold leaf and a crimson seal. */
+.quest-theme[data-theme='medieval'] {
+  --npc: #3f6212;
+  --font-body: 'EB Garamond', Georgia, serif;
+  --font-display: 'Cinzel', 'EB Garamond', serif;
+  --bg: #e6d6ad;
+  --glow: rgba(255, 246, 214, 0.55);
+  --panel: #eee0bb;
+  --panel-border: #9c7c45;
+  --plate: #f7edd3;
+  --plate-border: #7d5f30;
+  --ink: #26170a;
+  --ink-soft: #553b1c;
+  --ink-faint: #7d6242;
+  --dots: #cdb886;
+  --edge-off: #95794d;
+  --gold: #a8751a;
+  --gold-ink: #fff6dc;
+  --done-plate: #f1dfaa;
+  --avail: #24497f;
+  --avail-plate: #e5e9f0;
+  --await: #8e1f1f;
+  --await-plate: #f2dccf;
+  --side: #50662a;
+  --locked-medal: #e3d2a6;
+  --chip: rgba(70, 45, 10, 0.08);
+  background:
+    radial-gradient(ellipse at center, transparent 45%, rgba(90, 55, 15, 0.28) 100%),
+    radial-gradient(ellipse at 70% 35%, var(--glow), transparent 60%),
+    var(--bg);
+}
+
+.quest-theme[data-theme='medieval'] .quest-plate {
+  border-style: double;
+  border-width: 4px;
+}
+
+.quest-theme[data-theme='medieval'] .quest-plate.quest-discovered {
+  border-style: dashed;
+  border-width: 2px;
+}
+
+.quest-display {
+  font-family: var(--font-display);
+}
+
+@keyframes quest-pulse {
+  0% {
+    box-shadow: 0 0 0 0px color-mix(in srgb, var(--avail) 60%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--avail) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0px color-mix(in srgb, var(--avail) 0%, transparent);
+  }
+}
+
+@keyframes quest-working {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+.quest-working-dot {
+  animation: quest-working 1.4s ease-in-out infinite;
+}
+
+/* Mini-map nodes: SVG fill has to come from CSS for theme variables to apply. */
+.react-flow__minimap-node.mm-done {
+  fill: var(--gold);
+}
+.react-flow__minimap-node.mm-available {
+  fill: var(--avail);
+}
+.react-flow__minimap-node.mm-locked {
+  fill: var(--edge-off);
+}
+.react-flow__minimap-node.mm-awaiting {
+  fill: var(--await);
+}
+.react-flow__minimap-node.mm-side {
+  fill: var(--side);
+  opacity: 0.6;
+}
+.react-flow__minimap-node.mm-goal {
+  fill: var(--gold);
+}
+
+/* The "light bulb" behind a selected card: a warm halo that flickers on, then holds. */
+@keyframes quest-bulb-on {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  18% {
+    opacity: 0.25;
+  }
+  30% {
+    opacity: 1;
+  }
+  38% {
+    opacity: 0.6;
+  }
+  55%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.quest-bulb {
+  display: none;
+}
+
+/* The selected card glows from its own edges: a rim of light that follows the
+   rounded outline evenly, strongest at the border and fading outwards, with a
+   faint spill inside. */
+.quest-lit {
+  border-color: #f2b53a !important;
+}
+
+.quest-lit::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgba(255, 214, 120, 0.9),
+    0 0 8px 2px rgba(255, 205, 105, 0.85),
+    0 0 22px 6px rgba(255, 195, 90, 0.55),
+    0 0 48px 14px rgba(255, 185, 75, 0.28),
+    inset 0 0 14px 2px rgba(255, 210, 120, 0.35);
+}
+
+@keyframes quest-flow {
+  to {
+    stroke-dashoffset: -24px;
+  }
+}
+
+.quest-available {
+  animation: quest-pulse 2.2s ease-out infinite;
+}
+
+.quest-flow {
+  stroke-dasharray: 4px 20px;
+  animation: quest-flow 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-available,
+  .quest-working-dot,
+  .quest-flow {
+    animation: none;
+  }
+}

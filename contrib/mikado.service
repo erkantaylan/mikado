@@ -1,0 +1,14 @@
+[Unit]
+Description=mikado - quests over GitHub issues (API and dashboard on 127.0.0.1:47291)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Data lives in ~/.local/share/mikado; gh supplies the GitHub login.
+ExecStart=%h/.local/bin/mikado serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

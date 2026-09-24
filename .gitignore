@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# frontend build (embedded into the Go binary; .gitkeep keeps go:embed compiling)
+src/internal/web/dist/*
+!src/internal/web/dist/.gitkeep
+src/web/node_modules/.tmp/
+*.tsbuildinfo
+
+# built binary
+/bin/
+/src/mikado
+
+# logs / editors / OS
+*.log
+.vite/
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

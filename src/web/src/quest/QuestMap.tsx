@@ -1,0 +1,671 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Background, ControlButton, Controls, MiniMap, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import { Ban, Check, Crown, ExternalLink, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles, Trophy } from 'lucide-react'
+import './quest.css'
+import type { Item, QuestModel, QuestState, Status } from './model'
+import { Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { glossary } from './glossary'
+import {
+  AlsoIn,
+  FocusWhenPlaced,
+  LayoutWhenMeasured,
+  buildGraph,
+  edgeTypes,
+  miniClass,
+  nodeTypes,
+  stroke,
+  type Placed,
+  type QuestNode,
+} from './graph'
+import { ThemeMenu, useTheme } from './theme'
+
+// ---- side panel ------------------------------------------------------------
+
+const logIcon: Record<string, string> = {
+  create: '★',
+  add: '+',
+  remove: '−',
+  assign: '⚔',
+  unassign: '⚔',
+  done: '✓',
+  undone: '↺',
+  cancel: '⦸',
+  uncancel: '↺',
+  start: '▸',
+  stop: '■',
+  need: '→',
+  unneed: '↛',
+  final: '♛',
+  edit: '✎',
+}
+const logColour: Record<string, string> = {
+  create: 'var(--gold)',
+  add: 'var(--avail)',
+  remove: '#e11d48',
+  assign: 'var(--ink-faint)',
+  done: 'var(--gold)',
+  cancel: 'var(--ink-faint)',
+  start: 'var(--avail)',
+  final: 'var(--gold)',
+}
+
+// How the chronicle names a deed: an issue by repo#n, another deed by its key. A deed that has
+// left the quest is only known by its id.
+function logName(m: QuestModel, id: string): string {
+  const i = m.byId.get(id)
+  if (!i) return id.startsWith('card:') ? 'deed' : m.short(id)
+  return m.refOf(i) ? m.short(id) : (i.key ?? 'deed')
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+function Panel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section>
+      <h2 className="quest-display mb-2 text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function Row({ m, item, onPick, right }: { m: QuestModel; item: Item; onPick: (id: string) => void; right: ReactNode }) {
+  return (
+    <li>
+      <button
+        onClick={() => onPick(item.id)}
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-left text-[14px] hover:border-[var(--ink-faint)]"
+      >
+        <span className="min-w-0 truncate">
+          <Label item={item} tag={m.short(item.id)} /> {item.title.replace(/^Polish: /, '')}
+        </span>
+        {right}
+      </button>
+    </li>
+  )
+}
+
+function Legend() {
+  const line = (style: CSSProperties) => (
+    <svg width="36" height="10" className="shrink-0">
+      <line x1="0" y1="5" x2="36" y2="5" style={style} />
+    </svg>
+  )
+  const dot = (style: CSSProperties, icon: ReactNode) => (
+    <span style={style} className="grid size-7 shrink-0 place-items-center rounded-full border-2">
+      {icon}
+    </span>
+  )
+  return (
+    <ul className="space-y-2.5 text-[14px] text-[var(--ink-soft)]">
+      <li className="flex items-center gap-2">{dot(medal.done, <Check size={14} strokeWidth={3} />)} Fulfilled: finished</li>
+      <li className="flex items-center gap-2">{dot(medal.available, <Sparkles size={14} />)} Open: everything it requires is fulfilled</li>
+      <li className="flex items-center gap-2">
+        {dot(medal.locked, <span className="text-[12px] font-bold">2</span>)} Sealed: the badge counts the deeds it still requires
+      </li>
+      <li className="flex items-center gap-2">{dot(medal.awaiting, <Hourglass size={14} />)} Awaiting reply: a petition waiting on someone</li>
+      <li className="flex items-center gap-2">
+        <Working /> someone has taken it up right now
+      </li>
+      <li className="flex items-center gap-2">{dot(sideMedal, <Gem size={14} />)} Side quest: optional, earns an achievement</li>
+      <li className="flex items-center gap-2">{dot(medal.available, <Crown size={14} />)} Crowning deed: fulfil it and the quest is fulfilled</li>
+      <li className="flex items-center gap-2">
+        <Npc /> just for fun, nothing reads it
+      </li>
+      <li className="flex items-center gap-2">{line(stroke.done)} Powered: comes from a fulfilled deed</li>
+      <li className="flex items-center gap-2">{line(stroke.locked)} Not powered yet: its deed is not fulfilled</li>
+      <li className="flex items-center gap-2">{line(stroke.side)} Side quest, hung on its deed</li>
+      <li className="flex items-center gap-2">
+        <span className="h-5 w-9 shrink-0 rounded border-2 border-dashed border-[var(--ink-faint)]" /> Dashed plate: unearthed on the way
+      </li>
+      <li className="flex items-center gap-2">
+        {dot(medal.cancelled, <Ban size={14} />)} Abandoned: won't be done — blocks nothing, counts for nothing
+      </li>
+    </ul>
+  )
+}
+
+/** Every word mikado uses, with what it means and the command behind it (glossary.ts). */
+function Glossary() {
+  return (
+    <dl className="space-y-3">
+      {glossary.map((t) => (
+        <div key={t.id}>
+          <dt className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[15px] font-semibold text-[var(--ink)]">{t.term}</span>
+            {t.also && <span className="text-[13px] text-[var(--ink-soft)]">or {t.also}, the same thing</span>}
+          </dt>
+          <dd className="text-[14px] leading-snug text-[var(--ink-soft)]">{t.text}</dd>
+          {t.cli && <dd className="mt-0.5 font-mono text-[12px] break-words text-[var(--ink-faint)]">{t.cli}</dd>}
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPick: (id: string) => void; onClose: () => void }) {
+  const status = m.statusOf(item)
+  const before = m.needs.filter((n) => n.from === item.id).flatMap((n) => m.byId.get(n.to) ?? [])
+  const opens = m.needs.filter((n) => n.to === item.id).flatMap((n) => m.byId.get(n.from) ?? [])
+  const ref = m.refOf(item)
+  const url = ref ? m.urlOf(item) : undefined
+  // Every deed named here is a way to it: picking one does what picking a side-panel row does.
+  const Mini = ({ i }: { i: Item }) => (
+    <li>
+      <button
+        onClick={() => onPick(i.id)}
+        className="flex w-full items-start gap-2 rounded-md px-1.5 py-1 text-left hover:bg-[var(--chip)]"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="whitespace-nowrap">
+            <Label item={i} tag={m.short(i.id)} />
+          </span>{' '}
+          {i.title}
+        </span>{' '}
+        <span className="shrink-0 pt-px text-[12px] font-bold uppercase" style={{ color: stateColour[m.statusOf(i)] }}>
+          {words[m.statusOf(i)]}
+        </span>
+      </button>
+    </li>
+  )
+  return (
+    <section className="space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="font-mono text-[12px] text-[var(--ink-faint)]">
+            {item.key && (
+              <>
+                <Key id={item.key} />
+                {' · '}
+              </>
+            )}
+            {!ref ? (
+              item.kind === 'wait' ? 'Petition' : 'Errand'
+            ) : url ? (
+              <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--ink)] hover:underline">
+                {ref}
+              </a>
+            ) : (
+              ref
+            )}
+          </div>
+          <div className="text-[16px] font-semibold">{item.title}</div>
+          {url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md border-2 border-[var(--ink)] bg-[var(--ink)] px-2.5 py-1 text-[13px] font-semibold text-[var(--bg)] hover:opacity-85"
+            >
+              Open on GitHub <ExternalLink size={14} />
+            </a>
+          )}
+        </div>
+        <button onClick={onClose} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close details">
+          ✕
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[13px] font-bold tracking-wider uppercase" style={{ color: stateColour[status] }}>
+          {words[status]}
+        </span>
+        <Hero name={item.assignee} />
+      </div>
+      {item.kind === 'wait' &&
+        (status === 'awaiting' || status === 'locked' ? (
+          <p className="rounded bg-[var(--await-plate)] p-2 text-[14px]">
+            Awaiting reply from <b>{item.waitingOn}</b> since {item.since} ({m.daysSince(item)} days).
+            {item.assignee && ` ${item.assignee} is chasing it.`}
+          </p>
+        ) : (
+          <p className="rounded bg-[var(--chip)] p-2 text-[14px]">
+            Petitioned <b>{item.waitingOn}</b> on {item.since}.
+          </p>
+        ))}
+      {item.foundWhile && (
+        <p className="rounded bg-[var(--chip)] p-2 text-[14px]">
+          Unearthed while on{' '}
+          {m.byId.has(item.foundWhile) ? (
+            <button onClick={() => onPick(item.foundWhile!)} className="font-bold underline decoration-dotted underline-offset-2 hover:decoration-solid">
+              {m.short(item.foundWhile)}
+            </button>
+          ) : (
+            <b>{m.short(item.foundWhile)}</b>
+          )}
+          : {item.reason}
+        </p>
+      )}
+      {!!item.alsoIn?.length && (
+        <div>
+          <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Also in</div>
+          <AlsoIn quests={item.alsoIn} label={false} />
+        </div>
+      )}
+      {before.length > 0 && (
+        <div>
+          <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Requires</div>
+          <ul className="space-y-0.5 text-[14px]">{before.map((i) => <Mini key={i.id} i={i} />)}</ul>
+        </div>
+      )}
+      <div>
+        <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Opens</div>
+        <ul className="space-y-0.5 text-[14px]">
+          {item.sideOf ? (
+            <li>Nothing — optional polish on {m.short(item.sideOf)}.</li>
+          ) : opens.length ? (
+            opens.map((i) => <Mini key={i.id} i={i} />)
+          ) : (
+            <li className="font-semibold">The quest itself: this is its crowning deed.</li>
+          )}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+// ---- page ------------------------------------------------------------------
+
+export type QuestMapProps = {
+  model: QuestModel
+  state?: QuestState // from the API; the mock has none
+  boardHref: string
+  banner?: ReactNode // e.g. a GitHub warning, shown under the header
+}
+
+// The side panel lives outside <ReactFlow>, so the provider wraps the whole page
+// to let it move the map.
+export default function QuestMap(props: QuestMapProps) {
+  return (
+    <ReactFlowProvider>
+      <QuestMapInner {...props} />
+    </ReactFlowProvider>
+  )
+}
+
+type PanelTab = 'quest' | 'chronicle' | 'legend' | 'glossary'
+const panelTabs: PanelTab[] = ['quest', 'chronicle', 'legend', 'glossary']
+
+/** The side panel's tab, remembered per browser. */
+function usePanelTab(): [PanelTab, (t: PanelTab) => void] {
+  const [tab, setTab] = useState<PanelTab>(() => {
+    try {
+      const saved = localStorage.getItem('mikado.panel.tab')
+      if (saved === 'log') return 'chronicle' // the tab's earlier name
+      if (panelTabs.includes(saved as PanelTab)) return saved as PanelTab
+    } catch {
+      // storage may be unavailable; the default is fine
+    }
+    return 'quest'
+  })
+  const choose = useCallback((t: PanelTab) => {
+    setTab(t)
+    try {
+      localStorage.setItem('mikado.panel.tab', t)
+    } catch {
+      // not remembering is fine
+    }
+  }, [])
+  return [tab, choose]
+}
+
+function PanelTabs({ tab, onChange, logCount }: { tab: PanelTab; onChange: (t: PanelTab) => void; logCount: number }) {
+  const tabs: [PanelTab, string][] = [
+    ['quest', 'Quest'],
+    ['chronicle', `Chronicle · ${logCount}`],
+    ['legend', 'Legend'],
+    ['glossary', 'Glossary'],
+  ]
+  return (
+    <div role="tablist" className="flex shrink-0 gap-1 border-b border-[var(--panel-border)] px-3 pt-3">
+      {tabs.map(([id, label]) => (
+        <button
+          key={id}
+          role="tab"
+          aria-selected={tab === id}
+          onClick={() => onChange(id)}
+          className={`-mb-px rounded-t-md border px-3 py-1.5 text-[13px] font-semibold tracking-wide transition ${
+            tab === id
+              ? 'border-[var(--panel-border)] border-b-[var(--panel)] bg-[var(--panel)] text-[var(--ink)]'
+              : 'border-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** The deed named by `?deed=` (or `?task=`, or the older `?card=`) — M142, m-142, c142 or 142 — if it is on this chart. */
+function cardFromUrl(m: QuestModel): string | null {
+  const q = new URLSearchParams(location.search)
+  const raw = q.get('deed') ?? q.get('task') ?? q.get('card')
+  if (!raw) return null
+  const n = raw.trim().toLowerCase().replace(/^[mc]-?/, '')
+  if (!/^\d+$/.test(n)) return null
+  return [...m.items, ...m.sideQuests].find((i) => i.key?.toLowerCase() === `m${n}`)?.id ?? null
+}
+
+function QuestMapInner({ model: m, state, boardHref, banner }: QuestMapProps) {
+  const { goal, items, sideQuests, log } = m
+  const [theme, setTheme] = useTheme()
+  // `?deed=M142` (as `mikado open M142` links) opens the chart with that deed selected.
+  const [wanted] = useState(() => cardFromUrl(m))
+  const [selected, setSelected] = useState<string | null>(wanted)
+  const [tab, setTab] = usePanelTab()
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [miniOpen, setMiniOpen] = useState(() => {
+    try {
+      return localStorage.getItem('mikado.mock.minimap') !== 'hidden'
+    } catch {
+      return true
+    }
+  })
+  const toggleMini = () =>
+    setMiniOpen((open) => {
+      try {
+        localStorage.setItem('mikado.mock.minimap', open ? 'hidden' : 'shown')
+      } catch {
+        // not remembering is fine
+      }
+      return !open
+    })
+
+  // A new width or font means new sizes: the map is mounted afresh, measured and laid out again.
+  // Everything tied to one mount is tagged with this epoch so nothing from the last one leaks in.
+  const epoch = `${panelOpen}-${theme}`
+  const [placedAt, setPlacedAt] = useState<{ epoch: string; map: Placed } | null>(null)
+  const positions = placedAt?.epoch === epoch ? placedAt.map : null
+  const onPlaced = useCallback((map: Placed) => setPlacedAt({ epoch, map }), [epoch])
+
+  // A deed that was selected and then left the quest is no longer selected.
+  const sel = selected ? m.byId.get(selected) : undefined
+  const selectedId = sel ? sel.id : null
+  const graph = useMemo(() => buildGraph(m, selectedId, state), [m, selectedId, state])
+
+  // Nodes live in React Flow state so their measured sizes come back to us. New data only
+  // restyles: each node keeps its measured size and position. A new card is kept out of
+  // sight until the next layout has placed it.
+  const [nodes, setNodes, onNodesChange] = useNodesState<QuestNode>([])
+  const [nodesEpoch, setNodesEpoch] = useState<string | null>(null)
+  const lastEpoch = useRef<string | null>(null)
+  useEffect(() => {
+    const fresh = lastEpoch.current !== epoch
+    lastEpoch.current = epoch
+    setNodesEpoch(epoch)
+    setNodes((ns) => {
+      const old = new Map((fresh ? [] : ns).map((n) => [n.id, n]))
+      return graph.nodes.map((n) => {
+        const o = old.get(n.id)
+        const p = positions?.get(n.id)
+        const style: CSSProperties | undefined = positions && !p ? { visibility: 'hidden' } : undefined
+        return (o ? { ...o, data: n.data, position: p ?? o.position, style } : { ...n, position: p ?? n.position, style }) as QuestNode
+      })
+    })
+  }, [epoch, graph, positions, setNodes])
+  // Nodes kept from a previous mount carry that mount's sizes; the new one must measure its own.
+  const flowNodes = nodesEpoch === epoch ? nodes : []
+  const edges = useMemo(() => {
+    const unplaced = (id: string) => !!positions && !positions.has(id)
+    return graph.edges.map((e) => (unplaced(e.source) || unplaced(e.target) ? { ...e, hidden: true } : e))
+  }, [graph, positions])
+
+  const placed =
+    !!positions &&
+    flowNodes.length > 0 &&
+    flowNodes.every((n) => {
+      const p = positions.get(n.id)
+      return !!p && p.x === n.position.x && p.y === n.position.y
+    })
+  // Once shown, a mount stays shown: a later re-layout moves cards in place instead of blanking the map.
+  const [shownEpoch, setShownEpoch] = useState<string | null>(null)
+  useEffect(() => {
+    if (placed) setShownEpoch(epoch)
+  }, [placed, epoch])
+  const shown = placed || shownEpoch === epoch
+
+  const statusOf = m.statusOf
+  const count = (s: Status) => items.filter((i) => statusOf(i) === s).length
+  const available = items.filter((i) => statusOf(i) === 'available')
+  const awaiting = items.filter((i) => statusOf(i) === 'awaiting')
+  const heroless = items.filter((i) => !i.done && !i.assignee).length
+  const working = items.filter((i) => i.working && !i.done).length
+  const frontier = useMemo(
+    () => (wanted ? [wanted] : m.items.filter((i) => m.statusOf(i) === 'available' || (i.working && !i.done)).map((i) => i.id)),
+    [m, wanted],
+  )
+
+  // Picking a deed in the side panel selects it and flies the chart to it.
+  const { getInternalNode, setCenter, getViewport } = useReactFlow()
+  const centre = (id: string, zoom?: number) => {
+    const n = getInternalNode(id)
+    if (!n) return
+    const { x, y } = n.internals.positionAbsolute
+    setCenter(x + (n.measured.width ?? 0) / 2, y + (n.measured.height ?? 0) / 2, { zoom: zoom ?? getViewport().zoom, duration: 500 })
+  }
+  // Selecting a deed from anywhere shows its details and flies the chart to it.
+  const focus = (id: string) => {
+    setSelected(id)
+    setTab('quest')
+    centre(id, 1)
+  }
+  // A deed clicked on the chart is selected; if it is partly out of view (say, at the
+  // edge next to the panel), the chart slides it in, keeping the zoom.
+  const mapRef = useRef<HTMLElement>(null)
+  const reveal = (id: string) => {
+    const n = getInternalNode(id)
+    const box = mapRef.current?.getBoundingClientRect()
+    if (!n || !box) return
+    const { x, y, zoom } = getViewport()
+    const left = n.internals.positionAbsolute.x * zoom + x
+    const top = n.internals.positionAbsolute.y * zoom + y
+    const right = left + (n.measured.width ?? 0) * zoom
+    const bottom = top + (n.measured.height ?? 0) * zoom
+    const margin = 24
+    if (left < margin || top < margin || right > box.width - margin || bottom > box.height - margin) centre(id)
+  }
+  const dark = theme === 'midnight'
+
+  return (
+    <div data-theme={theme} className="quest-theme flex h-screen flex-col">
+      <header className="flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+            <Trophy size={20} />
+          </span>
+          <div className="min-w-0">
+            <a href={boardHref} className="text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
+              ← Quest Board
+            </a>
+            <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
+              <span className="truncate" title={goal.title}>
+                {goal.title}
+              </span>
+              <QuestStateChip state={state} />
+            </h1>
+            <div className="truncate text-[14px] text-[var(--ink-soft)]">
+              {goal.doneWhen ? (
+                <>
+                  Crowned by{' '}
+                  <button
+                    onClick={() => focus(goal.doneWhen!)}
+                    title={m.byId.get(goal.doneWhen)?.title}
+                    className="font-mono font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
+                  >
+                    {logName(m, goal.doneWhen)}
+                  </button>
+                </>
+              ) : (
+                'No crowning deed yet'
+              )}{' '}
+              · {plural(items.filter(m.counted).length, 'deed')} · {plural(sideQuests.length, 'side quest')}
+            </div>
+          </div>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Pill n={count('done')} label="fulfilled" colour={stateColour.done} />
+          <Pill n={count('available')} label="open" colour="var(--avail)" />
+          <Pill n={working} label="underway" colour="var(--avail)" />
+          <Pill n={count('awaiting')} label="awaiting reply" colour="var(--await)" />
+          <Pill n={count('locked')} label="sealed" colour="var(--ink)" />
+          {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" />}
+          <Pill n={heroless} label="no hero" colour="#e11d48" />
+          <span className="ml-2" />
+          <ThemeMenu theme={theme} onChange={setTheme} />
+          <button
+            onClick={() => setPanelOpen((o) => !o)}
+            className="ml-1 grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
+            title={panelOpen ? 'Hide side panel' : 'Show side panel'}
+          >
+            {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+          </button>
+        </div>
+      </header>
+      {banner}
+
+      <div className="flex min-h-0 flex-1">
+        <main ref={mapRef} className="relative min-w-0 flex-1">
+          {!shown && <div className="absolute inset-0 z-10 grid place-items-center text-[var(--ink-soft)]">Drawing the chart…</div>}
+          {/* Rendered before it is laid out (invisibly) so the deeds can be measured first. */}
+          <div className="h-full" style={{ opacity: shown ? 1 : 0 }}>
+            <ReactFlow
+              key={epoch} // a new width or font means new sizes: measure and lay out again
+              colorMode={dark ? 'dark' : 'light'}
+              nodes={flowNodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodeClick={(_, n) => {
+                if (n.id === 'goal' || n.id === selectedId) return setSelected(null)
+                setSelected(n.id)
+                setTab('quest')
+                reveal(n.id)
+              }}
+              onNodeDoubleClick={(_, n) => (n.id === 'goal' ? centre('goal', 1) : focus(n.id))}
+              zoomOnDoubleClick={false}
+              onPaneClick={() => setSelected(null)}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              minZoom={0.2}
+              proOptions={{ hideAttribution: true }}
+              style={{ background: 'transparent' }}
+            >
+              <Background gap={24} size={1.5} color="var(--dots)" bgColor="transparent" />
+              <Controls showInteractive={false}>
+                <ControlButton
+                  onClick={toggleMini}
+                  title={miniOpen ? 'Hide the overview' : 'Show the overview'}
+                  aria-label={miniOpen ? 'Hide the overview' : 'Show the overview'}
+                  aria-pressed={miniOpen}
+                >
+                  <MapIcon size={14} style={{ opacity: miniOpen ? 1 : 0.45 }} />
+                </ControlButton>
+              </Controls>
+              <LayoutWhenMeasured onPlaced={onPlaced} />
+              <FocusWhenPlaced placed={placed} frontier={frontier} />
+              {miniOpen && (
+                <MiniMap
+                  pannable
+                  zoomable
+                  nodeClassName={miniClass}
+                  nodeBorderRadius={6}
+                  maskColor="color-mix(in srgb, var(--bg) 55%, transparent)"
+                  style={{ background: 'var(--panel)', border: '1px solid var(--panel-border)', borderRadius: 8 }}
+                />
+              )}
+            </ReactFlow>
+          </div>
+        </main>
+
+        {panelOpen && (
+          <aside className="relative z-10 flex w-[400px] shrink-0 flex-col border-l border-[var(--panel-border)] bg-[var(--panel)] shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]">
+            <PanelTabs tab={tab} onChange={setTab} logCount={log.length} />
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
+            {tab === 'quest' && (
+              <>
+            {sel && <Details m={m} item={sel} onPick={focus} onClose={() => setSelected(null)} />}
+
+            <Panel title="Open now">
+              <ul className="space-y-1.5">
+                {available.map((i) => (
+                  <Row
+                    key={i.id}
+                    m={m}
+                    item={i}
+                    onPick={focus}
+                    right={
+                      <span className="flex shrink-0 items-center gap-2">
+                        {i.working && <Working compact by={i.workingBy} />}
+                        <Hero name={i.assignee} />
+                      </span>
+                    }
+                  />
+                ))}
+              </ul>
+            </Panel>
+
+            <Panel title="Awaiting reply">
+              <ul className="space-y-1.5">
+                {awaiting.map((i) => (
+                  <Row
+                    key={i.id}
+                    m={m}
+                    item={i}
+                    onPick={focus}
+                    right={
+                      <span className="shrink-0 text-[12px] font-semibold text-[var(--await)]">
+                        {m.daysSince(i)}d · {i.waitingOn}
+                      </span>
+                    }
+                  />
+                ))}
+              </ul>
+            </Panel>
+
+            <Panel title="Side quests — achievements">
+              <ul className="space-y-1.5">
+                {sideQuests.map((q) => (
+                  <Row key={q.id} m={m} item={q} onPick={focus} right={<Hero name={q.assignee} />} />
+                ))}
+              </ul>
+            </Panel>
+
+              </>
+            )}
+
+            {tab === 'legend' && <Legend />}
+
+            {tab === 'glossary' && <Glossary />}
+
+            {tab === 'chronicle' && (
+              <ol className="space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
+                {log.map((e, k) => (
+                  <li key={k} className="text-[14px] leading-snug">
+                    <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>
+                      {logIcon[e.kind] ?? '·'}
+                    </span>
+                    <span className="text-[var(--ink-faint)]">{e.at}</span>{' '}
+                    {e.id && (
+                      <button
+                        onClick={() => focus(e.id!)}
+                        className={`font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
+                          e.kind === 'remove' ? 'line-through' : ''
+                        }`}
+                      >
+                        {logName(m, e.id)}
+                      </button>
+                    )}{' '}
+                    <span className="text-[var(--ink-soft)]">{e.text}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  )
+}
