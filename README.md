@@ -193,3 +193,7 @@ make test       # go test ./... (store tests use a temp database and a fake GitH
 ./bin/mikado version
 ./bin/mikado serve --addr 127.0.0.1:47291
 ```
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
