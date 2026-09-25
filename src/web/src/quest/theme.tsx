@@ -23,7 +23,7 @@ function initial(): ThemeId {
   } catch {
     // storage may be unavailable; the default is fine
   }
-  return 'parchment'
+  return 'wartable'
 }
 
 /** The mock's theme, remembered per browser so both pages agree. */
