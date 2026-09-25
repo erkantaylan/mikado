@@ -1,11 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Ban, Hourglass, Sparkles, Trophy } from 'lucide-react'
+import { Ban, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { QuestState } from './model'
-import { Achievements, QuestStateChip } from './look'
+import { QuestStateChip } from './look'
 import { ThemeMenu, useTheme } from './theme'
 
-// One quest on the Quest Board. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
+// One quest on the Quest Board, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
 export type BoardQuest = {
   slug: string
   title: string
@@ -19,6 +19,7 @@ export type BoardQuest = {
   state?: QuestState
   cancelled?: number
   inProgress?: number
+  archivedAt?: string // set while archived: kept off the shelves above
 }
 
 const cancelled = (q: BoardQuest) => q.state === 'cancelled'
@@ -42,16 +43,13 @@ function Heroes({ names }: { names: string[] }) {
   )
 }
 
-function QuestCard({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: string }) {
+// The row's columns, shared by every row so the shelves line up. Narrow screens wrap instead.
+const columns = 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px_96px]'
+
+function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: string }) {
   const pct = q.main.total ? Math.round((q.main.done / q.main.total) * 100) : 0
   const done = mainDone(q)
-  const card: CSSProperties = cancelled(q)
-    ? { borderColor: 'var(--edge-off)', background: 'var(--panel)', opacity: 0.8 }
-    : perfect(q)
-      ? { borderColor: 'var(--side)', background: 'var(--plate)' }
-      : done
-        ? { borderColor: 'var(--gold)', background: 'var(--done-plate)' }
-        : { borderColor: 'var(--plate-border)', background: 'var(--plate)' }
+  const accent = cancelled(q) ? 'var(--edge-off)' : perfect(q) ? 'var(--side)' : done ? 'var(--gold)' : 'var(--plate-border)'
   const medal: CSSProperties = cancelled(q)
     ? { background: 'var(--panel)', borderColor: 'var(--edge-off)', color: 'var(--ink-faint)' }
     : perfect(q)
@@ -62,66 +60,74 @@ function QuestCard({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: s
 
   const body = (
     <div
-      style={card}
-      className={`quest-plate flex h-full flex-col gap-3 rounded-xl border-2 p-4 transition ${
-        href ? 'hover:-translate-y-0.5 hover:shadow-lg' : ''
+      style={{ borderLeftColor: accent, opacity: cancelled(q) || q.archivedAt ? 0.8 : undefined }}
+      className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
+        href ? 'transition-colors hover:bg-[var(--panel)]' : ''
       }`}
     >
-      <div className="flex items-start gap-3">
-        <span style={medal} className="grid size-12 shrink-0 place-items-center rounded-full border-2">
-          {cancelled(q) ? <Ban size={22} /> : <Trophy size={22} />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className={`quest-display text-[17px] leading-snug font-semibold ${cancelled(q) ? 'line-through decoration-1' : ''}`}>
+      <span style={medal} className="grid size-9 shrink-0 place-items-center rounded-full border-2">
+        {cancelled(q) ? <Ban size={17} /> : <Trophy size={17} />}
+      </span>
+      {/* On a narrow screen the title takes the medal's line; the rest wraps below it. */}
+      <div className="min-w-0 basis-[calc(100%-3.25rem)] md:basis-auto">
+        <div className="flex items-center gap-2">
+          <span
+            className={`quest-display truncate text-[16px] leading-snug font-semibold ${cancelled(q) ? 'line-through decoration-1' : ''}`}
+            title={q.title}
+          >
             {q.title}
-          </div>
-          <div className="mt-0.5 text-[13px] text-[var(--ink-soft)]">
-            {[...q.repos, `last move ${q.lastActivity}`].join(' · ')}
-          </div>
+          </span>
+          <QuestStateChip state={q.state} />
         </div>
-        <QuestStateChip state={q.state} />
+        <div className="truncate text-[13px] text-[var(--ink-soft)]">
+          {[...q.repos, `last move ${q.lastActivity}`].join(' · ')}
+        </div>
       </div>
 
-      <div>
-        <div className="mb-1 flex justify-between text-[14px] text-[var(--ink-soft)]">
-          <span>Main quest</span>
-          <span className="font-semibold text-[var(--ink)]">
-            {q.main.done} / {q.main.total}
-          </span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
+      <div className="flex min-w-[150px] flex-1 items-center gap-2 md:w-[170px] md:flex-none" title="Main quest: deeds fulfilled">
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
           <div className="h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
         </div>
+        <span className="w-12 text-right text-[14px] font-semibold tabular-nums">
+          {q.main.done}/{q.main.total}
+        </span>
       </div>
 
-      <Achievements done={q.achievements.done} total={q.achievements.total} />
+      <span
+        className="text-[14px] whitespace-nowrap text-[var(--ink-soft)] tabular-nums"
+        title="Achievements: side quests fulfilled"
+      >
+        <span style={{ color: q.achievements.done > 0 ? 'var(--side)' : 'var(--edge-off)' }}>★</span> {q.achievements.done}/
+        {q.achievements.total}
+      </span>
 
-      <div className="mt-auto flex items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-x-3 text-[14px] font-medium">
-          {!!q.inProgress && (
-            <span className="flex items-center gap-1.5 text-[var(--avail)]">
-              <span className="quest-working-dot size-2 rounded-full bg-[var(--avail)]" /> {q.inProgress} underway
-            </span>
-          )}
-          {q.available > 0 && (
-            <span className="flex items-center gap-1 text-[var(--avail)]">
-              <Sparkles size={15} /> {q.available} open
-            </span>
-          )}
-          {q.awaiting > 0 && (
-            <span className="flex items-center gap-1 text-[var(--await)]">
-              <Hourglass size={15} /> {q.awaiting} awaiting reply
-            </span>
-          )}
-          {!!q.cancelled && (
-            <span className="flex items-center gap-1 text-[var(--ink-faint)]">
-              <Ban size={15} /> {q.cancelled} abandoned
-            </span>
-          )}
-          {!href && noMap && <span className="font-normal text-[var(--ink-faint)]">{noMap}</span>}
-        </div>
+      <div className="flex flex-wrap gap-x-3 text-[14px] font-medium">
+        {!!q.inProgress && (
+          <span className="flex items-center gap-1.5 text-[var(--avail)]" title="underway">
+            <span className="quest-working-dot size-2 rounded-full bg-[var(--avail)]" /> {q.inProgress}
+          </span>
+        )}
+        {q.available > 0 && (
+          <span className="flex items-center gap-1 text-[var(--avail)]" title="open">
+            <Sparkles size={15} /> {q.available}
+          </span>
+        )}
+        {q.awaiting > 0 && (
+          <span className="flex items-center gap-1 text-[var(--await)]" title="awaiting reply">
+            <Hourglass size={15} /> {q.awaiting}
+          </span>
+        )}
+        {!!q.cancelled && (
+          <span className="flex items-center gap-1 text-[var(--ink-faint)]" title="abandoned">
+            <Ban size={15} /> {q.cancelled}
+          </span>
+        )}
+        {!href && noMap && <span className="font-normal text-[var(--ink-faint)]">{noMap}</span>}
+      </div>
+
+      <span className="flex justify-end">
         <Heroes names={q.heroes} />
-      </div>
+      </span>
     </div>
   )
   return href ? (
@@ -133,14 +139,23 @@ function QuestCard({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: s
   )
 }
 
-function Section({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
+/** A shelf's rows, one list with hairlines between them. */
+function Rows({ children }: { children: ReactNode }) {
+  return (
+    <div className="quest-plate divide-y divide-[var(--plate-border)] overflow-hidden rounded-xl border-2 border-[var(--plate-border)]">
+      {children}
+    </div>
+  )
+}
+
+function Section({ title, hint, children }: { title: string; hint: string; children: ReactNode[] }) {
   return (
     <section>
       <div className="mb-3 flex items-baseline gap-3">
         <h2 className="quest-display text-[13px] font-bold tracking-[0.2em] uppercase">{title}</h2>
         <span className="text-[14px] text-[var(--ink-soft)]">{hint}</span>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">{children}</div>
+      {children.length > 0 && <Rows>{children}</Rows>}
     </section>
   )
 }
@@ -156,12 +171,14 @@ export type QuestBoardProps = {
 
 export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, empty }: QuestBoardProps) {
   const [theme, setTheme] = useTheme()
-  const active = quests.filter((q) => !cancelled(q) && !mainDone(q))
-  const bonus = quests.filter((q) => !cancelled(q) && mainDone(q) && !perfect(q))
-  const hundred = quests.filter((q) => !cancelled(q) && perfect(q))
-  const gone = quests.filter(cancelled)
+  const shelved = quests.filter((q) => !q.archivedAt)
+  const archived = quests.filter((q) => q.archivedAt)
+  const active = shelved.filter((q) => !cancelled(q) && !mainDone(q))
+  const bonus = shelved.filter((q) => !cancelled(q) && mainDone(q) && !perfect(q))
+  const hundred = shelved.filter((q) => !cancelled(q) && perfect(q))
+  const gone = shelved.filter(cancelled)
   const sum = (f: (q: BoardQuest) => number) => active.reduce((n, q) => n + f(q), 0)
-  const card = (q: BoardQuest) => <QuestCard key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} />
+  const row = (q: BoardQuest) => <QuestRow key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} />
 
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">
@@ -195,18 +212,33 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
       ) : (
         <main className="mx-auto max-w-7xl space-y-8 p-6">
           <Section title="Underway" hint="the main quest still has deeds to fulfil">
-            {active.map(card)}
+            {active.map(row)}
           </Section>
           <Section title="Main quest fulfilled" hint="finished — achievements still there if you're into it">
-            {bonus.map(card)}
+            {bonus.map(row)}
           </Section>
           <Section title="100%" hint="main quest and every achievement">
-            {hundred.map(card)}
+            {hundred.map(row)}
           </Section>
           {gone.length > 0 && (
             <Section title="Abandoned" hint="the crowning deed won't be done, so neither will the quest">
-              {gone.map(card)}
+              {gone.map(row)}
             </Section>
+          )}
+          {archived.length > 0 && (
+            // Closed by default; the browser keeps it open across the 15 s refresh.
+            <details className="group">
+              <summary className="mb-3 flex cursor-pointer list-none items-baseline gap-3 select-none">
+                <h2 className="quest-display text-[13px] font-bold tracking-[0.2em] whitespace-nowrap uppercase">
+                  <ChevronRight size={14} className="mr-1 inline align-[-2px] transition-transform group-open:rotate-90" />
+                  Archived ({archived.length})
+                </h2>
+                <span className="text-[14px] text-[var(--ink-soft)]">
+                  put away with <span className="font-mono">mikado quest archive</span> — charts still open
+                </span>
+              </summary>
+              <Rows>{archived.map(row)}</Rows>
+            </details>
           )}
         </main>
       )}
