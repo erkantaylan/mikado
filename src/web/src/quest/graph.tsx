@@ -206,7 +206,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         {!!item.alsoIn?.length && <AlsoIn quests={item.alsoIn} />}
         <div className="flex items-center justify-between">
           <span
-            className="text-[12px] font-bold tracking-wider uppercase"
+            className="quest-status text-[12px] font-bold tracking-wider uppercase"
             style={{ color: side && status !== 'done' ? 'var(--side)' : status === 'done' ? spentText : stateColour[status] }}
           >
             {label}

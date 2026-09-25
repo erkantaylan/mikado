@@ -819,9 +819,26 @@
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='done'] .quest-plate:not(.quest-lit) {
   filter: brightness(0.58) saturate(0.7);
 }
-/* Awaiting reply: warmer ochre. */
+/* Awaiting reply: the paper is stained red from its edges in, as if the wait has bled into it, so a deed
+   held up by someone else stands out from across the table. The sheet is stretched to each card, so the
+   stains stay at its edges; a wash of clean paper over the middle keeps the writing readable on a short card,
+   where the stained border would otherwise reach under the text. */
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='awaiting'] {
-  --wt-tint: rgba(214, 150, 60, 0.2);
+  --wt-ink-rule: #6e1410;
+  --wt-shadow: 0 1px 1px rgba(60, 8, 4, 0.4), 0 4px 12px -2px rgba(90, 12, 6, 0.45), 0 0 10px 1px rgba(150, 30, 18, 0.35);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='awaiting'] .quest-plate {
+  background:
+    radial-gradient(ellipse 72% 62% at center, rgba(246, 236, 214, 0.9) 35%, rgba(246, 236, 214, 0.55) 70%, rgba(246, 236, 214, 0) 100%),
+    #efdcc4 url('../assets/wartable/paper-awaiting.webp') center / 100% 100% no-repeat !important;
+}
+/* The paper carries the red, so the small red words on it (Petition, the status, No hero) turn dark brown,
+   with a pale halo that lifts them off the stains at the card's edges. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='awaiting'] :is(.quest-kind, .quest-status, .quest-nohero) {
+  color: #3d1a0c !important;
+  text-shadow:
+    0 0 2px rgba(246, 236, 214, 0.95),
+    0 0 5px rgba(246, 236, 214, 0.8);
 }
 /* Abandoned: faded sepia paper with a jagged strip torn off its right side,
    wider towards the bottom. The tear is a fixed clip-path (the same on every

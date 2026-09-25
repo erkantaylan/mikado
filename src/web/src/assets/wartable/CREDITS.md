@@ -1,7 +1,7 @@
 # War table theme: asset credits
 
-Assets for the "War table" dashboard theme (deed M100). Every file here is CC0
-or CC BY 3.0. Nothing else is allowed in this folder.
+Assets for the "War table" dashboard theme (deed M100). Every file here is CC0,
+CC BY 3.0, or made for mikado (listed at the end). Nothing else is allowed in this folder.
 
 ## Textures (CC0)
 
@@ -72,5 +72,6 @@ with a CSS `mask-image`, or used as a `border-image` 9-slice.
 | File | Source | Licence / changes |
 |---|---|---|
 | `map.webp` | Generated with Google Gemini for mikado (2026-09-25) from a text prompt: a blank parchment campaign map, no labels | Made for this project; resized to 2400px and saved as WebP |
-| `flag.svg` | Drawn by hand for mikado (deed M108): a brass pennant on a dark pole | Made for this project |
+| `flag.svg` | Drawn by hand for mikado (deed M108): a brass pennant on a dark pole | Made for this project; pole shortened (2026-09-26) |
 | `crown-castle.webp`, `emblem.webp`, `seal.webp`, `seal-broken.webp` | Generated with Google Gemini for mikado (2026-09-25) as one asset sheet, then cut apart with the white background removed | Made for this project; 256px WebP with transparency |
+| `paper-awaiting.webp` | Generated with Google Gemini for mikado (2026-09-26) from the prompt: the card paper (`paper-card.webp`, as a reference) stained dark red from its edges in, like dried blood soaked into the fibres | Made for this project; white margin cropped, 768px WebP q80 |
