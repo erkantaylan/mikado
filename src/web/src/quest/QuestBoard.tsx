@@ -89,7 +89,6 @@ function Linked({ label, quests }: { label: string; quests?: QuestLink[] }) {
 function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: string }) {
   const pct = q.main.total ? Math.round((q.main.done / q.main.total) * 100) : 0
   const done = mainDone(q)
-  const accent = cancelled(q) ? 'var(--edge-off)' : perfect(q) ? 'var(--side)' : done ? 'var(--gold)' : 'var(--plate-border)'
   const medal: CSSProperties = cancelled(q)
     ? { background: 'var(--panel)', borderColor: 'var(--edge-off)', color: 'var(--ink-faint)' }
     : perfect(q)
@@ -100,8 +99,8 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
 
   const body = (
     <div
-      style={{ borderLeftColor: accent, opacity: cancelled(q) || q.archivedAt ? 0.8 : undefined }}
-      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
+      style={{ opacity: cancelled(q) || q.archivedAt ? 0.8 : undefined }}
+      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
         href ? 'transition-colors hover:bg-[var(--panel)]' : ''
       }`}
     >
