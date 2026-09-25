@@ -77,8 +77,8 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section>
-      <h2 className="quest-display mb-2 text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{title}</h2>
+    <section className="quest-section">
+      <h2 className="quest-display quest-section-title mb-2 text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{title}</h2>
       {children}
     </section>
   )
@@ -1208,7 +1208,8 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
               {tab === 'chronicle' && (
                 <ol className="quest-chronicle space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
                   {log.map((e, k) => (
-                    <li key={k} className="text-[14px] leading-snug">
+                    // A new day is marked so the war table can set a little space above it; the other themes ignore it.
+                    <li key={k} data-newday={k > 0 && e.at !== log[k - 1].at ? '' : undefined} className="text-[14px] leading-snug">
                       <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>
                         {logIcon[e.kind] ?? '·'}
                       </span>

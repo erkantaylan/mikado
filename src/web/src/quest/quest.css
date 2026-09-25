@@ -491,28 +491,75 @@
     url('../assets/wartable/paper-card.webp') center top / 512px;
   box-shadow: none;
 }
-/* Lists are ruled like a ledger's page. */
+/* Section headings (Open now, Awaiting reply, the legend's parts): brass ink
+   in Cinzel, air above, and under each a single brass sword laid along the
+   page, a double rule ending in a hilt (Kenney's divider as a mask). Nothing
+   else in the ledger is ruled, so the heading is the only line on the page. */
+.quest-theme[data-theme='wartable'] .quest-ledger .quest-section-title {
+  position: relative;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #6b4812;
+}
+.quest-theme[data-theme='wartable'] .quest-ledger .quest-section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  background: #8f6a26;
+  opacity: 0.85;
+  -webkit-mask:
+    url('../assets/wartable/kenney/divider-fade-003.png') right center / 48px 9px no-repeat,
+    linear-gradient(#000 0 0) left 3px / calc(100% - 14px) 1px no-repeat,
+    linear-gradient(#000 0 0) left 5px / calc(100% - 14px) 1px no-repeat;
+  mask:
+    url('../assets/wartable/kenney/divider-fade-003.png') right center / 48px 9px no-repeat,
+    linear-gradient(#000 0 0) left 3px / calc(100% - 14px) 1px no-repeat,
+    linear-gradient(#000 0 0) left 5px / calc(100% - 14px) 1px no-repeat;
+}
+/* More air above a heading than between any two rows (on top of the gap the
+   panel already keeps between its parts). */
+.quest-theme[data-theme='wartable'] .quest-ledger .quest-section + .quest-section {
+  margin-top: 12px;
+}
+/* Rows are not ruled: a little space between them, and a soft plate under the
+   one the pointer is on, reaching just past the text on either side. */
 .quest-theme[data-theme='wartable'] .quest-rows > li {
   margin: 0;
 }
+.quest-theme[data-theme='wartable'] .quest-rows > li + li {
+  margin-top: 4px;
+}
 .quest-theme[data-theme='wartable'] .quest-row {
   border: 0;
-  border-bottom: 1px solid rgba(110, 80, 40, 0.3);
-  border-radius: 0;
+  border-radius: 4px;
   background: transparent;
-  padding-left: 4px;
-  padding-right: 4px;
+  width: calc(100% + 12px);
+  margin-left: -6px;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 .quest-theme[data-theme='wartable'] .quest-row:hover {
-  background: var(--chip);
+  background: rgba(150, 110, 50, 0.13);
 }
-.quest-theme[data-theme='wartable'] .quest-rows > li:first-child .quest-row {
-  border-top: 1px solid rgba(110, 80, 40, 0.3);
-}
+/* The chronicle: unruled too. An entry that wraps hangs under its text, not
+   its mark, so each entry still reads as one; a new day starts with a little
+   more space. */
 .quest-theme[data-theme='wartable'] .quest-chronicle > li {
   margin: 0;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(110, 80, 40, 0.25);
+  padding: 4px 0 4px 16px;
+  text-indent: -16px;
+}
+.quest-theme[data-theme='wartable'] .quest-chronicle > li > * {
+  text-indent: 0;
+}
+.quest-theme[data-theme='wartable'] .quest-chronicle > li[data-newday] {
+  margin-top: 10px;
 }
 
 /* Reading the ledger. Headings and tabs keep Cinzel, and commands their
