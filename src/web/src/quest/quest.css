@@ -568,11 +568,13 @@
   display: none;
 }
 
-/* ---- the deeds: parchment notes pinned to the map ----
-   Each deed is a sheet of paper pinned on the map. Its state is told by a small
-   mark on the corner (a broken seal, a whole seal, a brass check, an hourglass),
-   a tint of the paper and the coloured status word; nothing else competes with
-   the title. The plates' colours come from inline styles (look.tsx), so the
+/* ---- the deeds: parchment notes laid on the map ----
+   Each deed is a sheet of paper on the map. Whether it can be started is told
+   by one small mark on its top-left corner (a whole seal, a broken seal, an
+   hourglass, a planted flag), what sort of card it is by small marks on its
+   top-right, and whether it is still in play by the paper itself (stepped
+   back when fulfilled, torn when abandoned); nothing else competes with the
+   title. The plates' colours come from inline styles (look.tsx), so the
    paper overrides them with !important. */
 .quest-theme[data-theme='wartable'] .quest-deed {
   --wt-ink-rule: rgba(62, 40, 18, 0.72);
@@ -605,110 +607,133 @@
   font-size: 15.5px; /* set in Cinzel capitals, which read larger */
 }
 
-/* The pin: a small brass head at the top centre, with its shadow on the paper. */
-.quest-theme[data-theme='wartable'] .quest-deed::before {
-  content: '';
+/* ---- one question per spot ----
+   Top-left, the gate: can it be started? Top-right, the kind: what sort of
+   card is it? Bottom-left the status in words, bottom-right the hero. The
+   top centre stays empty. (look.tsx draws Gate and Kinds.) */
+.quest-theme[data-theme='wartable'] .wt-gate {
   position: absolute;
-  z-index: 11;
-  top: -5px;
-  left: calc(50% - 6px);
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff1c2 0 1.5px, #d9aa4c 3px, #8a5f1c 6px);
-  box-shadow:
-    0 0 0 0.5px rgba(60, 35, 5, 0.7),
-    1.5px 2.5px 2px rgba(30, 18, 5, 0.45);
-  pointer-events: none;
+  z-index: 10;
+  display: grid;
+  place-items: center;
 }
-.quest-theme[data-theme='wartable'] .quest-stack::before {
-  left: calc(50% - 11px); /* over the front sheet, not the stack behind it */
-}
-.quest-theme[data-theme='wartable'] .quest-deed[data-side]::before {
-  /* A side quest's scrap is held by a smaller iron tack. */
-  top: -4px;
-  width: 9px;
-  height: 9px;
-  left: calc(50% - 4.5px);
-  background: radial-gradient(circle at 35% 30%, #e4e0d8 0 1px, #7d776c 2.5px, #3b3730 4.5px);
-}
-
-/* ---- the state marks, in the corner badge's place ---- */
-.quest-theme[data-theme='wartable'] .quest-medal {
-  animation: none;
-  box-shadow: none !important;
-}
-/* Seals: the painted wax replaces the badge; the lucide icon is dropped. */
-.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='available'], [data-mark='locked']) {
+/* Sealed and open: the painted wax, whole with the count still to go, or broken. */
+.quest-theme[data-theme='wartable'] .wt-gate:is([data-gate='available'], [data-gate='locked']) {
   width: 38px;
   height: 38px;
   top: -14px;
   left: -14px;
-  border: 0;
-  border-radius: 0;
-  background: center / contain no-repeat !important;
+  background: center / contain no-repeat;
   filter: drop-shadow(0 1.5px 1.5px rgba(40, 10, 5, 0.45));
 }
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='available'] {
-  background-image: url('../assets/wartable/seal-broken.webp') !important;
+.quest-theme[data-theme='wartable'] .wt-gate:is([data-gate='available'], [data-gate='locked'])[data-small] {
+  width: 32px;
+  height: 32px;
+  top: -12px;
+  left: -12px;
 }
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='locked'] {
-  background-image: url('../assets/wartable/seal.webp') !important;
-  color: #fbeedd !important;
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='available'] {
+  background-image: url('../assets/wartable/seal-broken.webp');
 }
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='locked'] > span {
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='locked'] {
+  background-image: url('../assets/wartable/seal.webp');
+  color: #fbeedd;
+}
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='locked'] > span {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
   text-shadow: 0 1px 1px rgba(40, 5, 3, 0.8);
 }
-.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='available'], [data-mark='locked']) > svg {
-  display: none;
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='locked'][data-small] > span {
+  font-size: 14px;
 }
-/* Fulfilled and awaiting: a small ink-ringed paper disc with a game-icons mark in it. */
-.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='done'], [data-mark='awaiting'], [data-mark='cancelled']) {
+/* Awaiting reply: an hourglass on a small ink-ringed paper disc. */
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='awaiting'] {
   width: 32px;
   height: 32px;
   top: -11px;
   left: -11px;
-  border-width: 1.5px;
-  background: #f4ead0 url('../assets/wartable/paper-card.webp') center / 256px !important;
-  box-shadow: 0 1px 2px rgba(40, 24, 8, 0.35) !important;
+  border: 1.5px solid #a8661a;
+  border-radius: 50%;
+  background: #f4ead0 url('../assets/wartable/paper-card.webp') center / 256px;
+  box-shadow: 0 1px 2px rgba(40, 24, 8, 0.35);
 }
-.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='done'], [data-mark='awaiting']) > svg {
-  display: none;
-}
-.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='done'], [data-mark='awaiting'])::before {
-  content: '';
-  width: 19px;
-  height: 19px;
-  background: var(--wt-mark);
-  mask: var(--wt-icon) center / contain no-repeat;
-}
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='done'] {
-  --wt-mark: linear-gradient(160deg, #d9aa4c, #8a5f1c);
-  --wt-icon: url('../assets/wartable/icons/check.svg');
-  border-color: #a47a2c !important;
-}
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='awaiting'] {
-  --wt-mark: #8a4b12;
-  --wt-icon: url('../assets/wartable/icons/hourglass.svg');
-  border-color: #a8661a !important;
-}
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='cancelled'] {
-  border-color: rgba(90, 70, 45, 0.5) !important;
-  color: #7a6446 !important;
-}
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='cancelled'] > svg {
-  width: 14px;
-  height: 14px;
-}
-/* A side quest keeps its gem, on paper with green ink. */
-.quest-theme[data-theme='wartable'] .quest-medal[data-mark='side'] {
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='awaiting'][data-small] {
+  width: 28px;
+  height: 28px;
   top: -9px;
   left: -9px;
-  border-width: 1.5px;
-  background: #f4ead0 url('../assets/wartable/paper-card.webp') center / 256px !important;
-  box-shadow: 0 1px 2px rgba(40, 24, 8, 0.3) !important;
+}
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='awaiting']::before {
+  content: '';
+  width: 60%;
+  height: 60%;
+  background: #8a4b12;
+  mask: url('../assets/wartable/icons/hourglass.svg') center / contain no-repeat;
+}
+/* Fulfilled: a small brass flag planted in the corner, its pole stuck into the paper. */
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='done'] {
+  width: 24px;
+  height: 28px;
+  top: -22px;
+  left: 1px;
+  background: url('../assets/wartable/flag.svg') center / contain no-repeat;
+  filter: drop-shadow(1.5px 1.5px 1px rgba(40, 24, 8, 0.4));
+}
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='done'][data-small] {
+  width: 20px;
+  height: 23px;
+  top: -17px;
+  left: 2px;
+}
+/* Where the pole goes into the paper. */
+.quest-theme[data-theme='wartable'] .wt-gate[data-gate='done']::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  bottom: 0;
+  width: 6px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: rgba(50, 30, 10, 0.55);
+}
+
+/* The kind: small marks at the end of the first line, in muted ink. A plain deed has none. */
+.quest-theme[data-theme='wartable'] .wt-kinds {
+  gap: 5px;
+}
+.quest-theme[data-theme='wartable'] .wt-kind {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  color: var(--ink-soft);
+  cursor: help;
+}
+.quest-theme[data-theme='wartable'] .wt-kind:not([data-kind='side'])::before {
+  content: '';
+  width: 100%;
+  height: 100%;
+  background: currentColor;
+  mask: var(--wt-icon) center / contain no-repeat;
+}
+.quest-theme[data-theme='wartable'] .wt-kind[data-kind='side'] {
+  color: var(--side);
+}
+.quest-theme[data-theme='wartable'] .wt-kind[data-kind='unearthed'] {
+  --wt-icon: url('../assets/wartable/icons/spade.svg');
+  color: #6d5434;
+}
+.quest-theme[data-theme='wartable'] .wt-kind[data-kind='quest'] {
+  --wt-icon: url('../assets/wartable/icons/castle.svg');
+  color: #85611f;
+}
+.quest-theme[data-theme='wartable'] .wt-kind[data-kind='npc'] {
+  --wt-icon: url('../assets/wartable/icons/banner.svg');
+  color: var(--npc);
 }
 
 /* ---- the paper, per state ---- */
@@ -749,28 +774,44 @@
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='awaiting'] {
   --wt-tint: rgba(214, 150, 60, 0.2);
 }
-/* Abandoned: faded sepia, struck through with a hand-drawn ink X. */
+/* Abandoned: faded sepia paper with a jagged strip torn off its right side,
+   wider towards the bottom. The tear is a fixed clip-path (the same on every
+   card), with a pale rim of torn fibres along it; the shadow comes from a
+   drop-shadow on the card, as a clip-path would cut off the paper's own. */
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] {
+  --wt-tear: polygon(0 0, calc(100% - 6px) 0%, calc(100% - 3px) 4%, calc(100% - 9px) 9%, calc(100% - 5px) 14%, calc(100% - 12px) 19%, calc(100% - 8px) 25%, calc(100% - 15px) 31%, calc(100% - 10px) 37%, calc(100% - 17px) 43%, calc(100% - 12px) 49%, calc(100% - 20px) 55%, calc(100% - 15px) 61%, calc(100% - 22px) 67%, calc(100% - 17px) 73%, calc(100% - 25px) 79%, calc(100% - 19px) 85%, calc(100% - 26px) 91%, calc(100% - 21px) 96%, calc(100% - 27px) 100%, 0 100%);
+  --wt-tear-rim: polygon(calc(100% - 6px) 0%, calc(100% - 3px) 4%, calc(100% - 9px) 9%, calc(100% - 5px) 14%, calc(100% - 12px) 19%, calc(100% - 8px) 25%, calc(100% - 15px) 31%, calc(100% - 10px) 37%, calc(100% - 17px) 43%, calc(100% - 12px) 49%, calc(100% - 20px) 55%, calc(100% - 15px) 61%, calc(100% - 22px) 67%, calc(100% - 17px) 73%, calc(100% - 25px) 79%, calc(100% - 19px) 85%, calc(100% - 26px) 91%, calc(100% - 21px) 96%, calc(100% - 27px) 100%, calc(100% - 29.5px) 100%, calc(100% - 23.5px) 96%, calc(100% - 28.5px) 91%, calc(100% - 21.5px) 85%, calc(100% - 27.5px) 79%, calc(100% - 19.5px) 73%, calc(100% - 24.5px) 67%, calc(100% - 17.5px) 61%, calc(100% - 22.5px) 55%, calc(100% - 14.5px) 49%, calc(100% - 19.5px) 43%, calc(100% - 12.5px) 37%, calc(100% - 17.5px) 31%, calc(100% - 10.5px) 25%, calc(100% - 14.5px) 19%, calc(100% - 7.5px) 14%, calc(100% - 11.5px) 9%, calc(100% - 5.5px) 4%, calc(100% - 8.5px) 0%);
+  --wt-tear-shadow: drop-shadow(0 1px 1px rgba(40, 24, 8, 0.3)) drop-shadow(0 3px 4px rgba(40, 24, 8, 0.25));
   --wt-tint: rgba(214, 204, 186, 0.45);
   --wt-ink-rule: rgba(62, 40, 18, 0.35);
-  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.2), 0 3px 8px -2px rgba(40, 24, 8, 0.25);
+  filter: var(--wt-tear-shadow);
 }
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate {
   filter: sepia(0.35) saturate(0.6);
-  isolation: isolate; /* the X below lies on the paper, under the writing */
+  clip-path: var(--wt-tear);
+  box-shadow: none !important;
+  padding-right: 34px; /* the writing stays clear of the tear */
 }
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate > * {
   opacity: 0.72;
 }
-.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate::before {
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate::after {
   content: '';
   position: absolute;
-  inset: 6px 10px;
-  z-index: -1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  background: #fbf7ec;
+  clip-path: var(--wt-tear-rim);
   pointer-events: none;
-  opacity: 0.32;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%235a3418' stroke-width='2' stroke-linecap='round' vector-effect='non-scaling-stroke'%3E%3Cpath vector-effect='non-scaling-stroke' d='M3 6 C 30 30, 62 58, 97 95'/%3E%3Cpath vector-effect='non-scaling-stroke' d='M96 4 C 70 34, 38 62, 4 96'/%3E%3C/g%3E%3C/svg%3E")
-    center / 100% 100% no-repeat;
+}
+.quest-theme[data-theme='wartable'] .quest-stack[data-status='cancelled'] .quest-behind {
+  clip-path: var(--wt-tear);
+  box-shadow: none;
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'][data-dim] {
+  filter: grayscale(0.85) contrast(0.42) brightness(1.28) var(--wt-tear-shadow);
 }
 /* NPC: a red ink border and a faint red wash, whatever its state. */
 .quest-theme[data-theme='wartable'] .quest-deed[data-npc] {
@@ -795,10 +836,6 @@
   padding-bottom: 6px;
   gap: 4px;
 }
-/* Unearthed: a dashed ink rule (the dash comes from the plate's own class). */
-.quest-theme[data-theme='wartable'] .quest-deed .quest-discovered {
-  border-width: 1.5px;
-}
 /* Selected: the warm rim of light, on brass. */
 .quest-theme[data-theme='wartable'] .quest-deed .quest-plate.quest-lit {
   border-color: #c98a1e !important;
@@ -812,7 +849,7 @@
   animation: none;
 }
 
-/* Underway: a small blue pennant instead of the pill. */
+/* Underway: a small blue pennant instead of the pill, just left of the kind marks. */
 .quest-theme[data-theme='wartable'] .quest-working {
   border-radius: 0;
   padding: 2px 12px 2px 8px;
@@ -827,7 +864,7 @@
   background: #f6d98a;
 }
 
-/* ---- quest cards: a stack of pinned sheets ---- */
+/* ---- quest cards: a stack of sheets ---- */
 .quest-theme[data-theme='wartable'] .quest-behind {
   background: #e6d7b2 url('../assets/wartable/paper-card.webp') center / 512px !important;
   border-width: 1.5px;
@@ -893,6 +930,60 @@
 .quest-theme[data-theme='wartable'] .quest-goal .quest-goal-title {
   font-size: 18px;
   line-height: 1.25;
+}
+
+/* ---- the legend: the cards' own marks, set in a row ---- */
+.quest-theme[data-theme='wartable'] .wt-legend-mark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 32px;
+}
+.quest-theme[data-theme='wartable'] .wt-legend .wt-gate {
+  position: relative;
+  inset: auto;
+}
+.quest-theme[data-theme='wartable'] .wt-legend .wt-gate[data-gate='done'] {
+  left: 3px; /* the flag leans right; centre it by its bulk */
+}
+.quest-theme[data-theme='wartable'] .wt-scrap {
+  position: relative;
+  width: 42px;
+  height: 28px;
+  filter: sepia(0.35) saturate(0.6) var(--wt-tear-shadow); /* like the torn cards */
+  /* the same tear, at the sample's scale */
+  --wt-tear-shadow: drop-shadow(0 1px 1px rgba(40, 24, 8, 0.3)) drop-shadow(0 3px 4px rgba(40, 24, 8, 0.25));
+  --wt-tear: polygon(0 0, calc(100% - 2.4px) 0%, calc(100% - 1.2px) 4%, calc(100% - 3.6px) 9%, calc(100% - 2.0px) 14%, calc(100% - 4.8px) 19%, calc(100% - 3.2px) 25%, calc(100% - 6.0px) 31%, calc(100% - 4.0px) 37%, calc(100% - 6.8px) 43%, calc(100% - 4.8px) 49%, calc(100% - 8.0px) 55%, calc(100% - 6.0px) 61%, calc(100% - 8.8px) 67%, calc(100% - 6.8px) 73%, calc(100% - 10.0px) 79%, calc(100% - 7.6px) 85%, calc(100% - 10.4px) 91%, calc(100% - 8.4px) 96%, calc(100% - 10.8px) 100%, 0 100%);
+  --wt-tear-rim: polygon(calc(100% - 2.4px) 0%, calc(100% - 1.2px) 4%, calc(100% - 3.6px) 9%, calc(100% - 2.0px) 14%, calc(100% - 4.8px) 19%, calc(100% - 3.2px) 25%, calc(100% - 6.0px) 31%, calc(100% - 4.0px) 37%, calc(100% - 6.8px) 43%, calc(100% - 4.8px) 49%, calc(100% - 8.0px) 55%, calc(100% - 6.0px) 61%, calc(100% - 8.8px) 67%, calc(100% - 6.8px) 73%, calc(100% - 10.0px) 79%, calc(100% - 7.6px) 85%, calc(100% - 10.4px) 91%, calc(100% - 8.4px) 96%, calc(100% - 10.8px) 100%, calc(100% - 12.3px) 100%, calc(100% - 9.9px) 96%, calc(100% - 11.9px) 91%, calc(100% - 9.1px) 85%, calc(100% - 11.5px) 79%, calc(100% - 8.3px) 73%, calc(100% - 10.3px) 67%, calc(100% - 7.5px) 61%, calc(100% - 9.5px) 55%, calc(100% - 6.3px) 49%, calc(100% - 8.3px) 43%, calc(100% - 5.5px) 37%, calc(100% - 7.5px) 31%, calc(100% - 4.7px) 25%, calc(100% - 6.3px) 19%, calc(100% - 3.5px) 14%, calc(100% - 5.1px) 9%, calc(100% - 2.7px) 4%, calc(100% - 3.9px) 0%);
+}
+.quest-theme[data-theme='wartable'] .wt-scrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(62, 40, 18, 0.35);
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(214, 204, 186, 0.45), rgba(214, 204, 186, 0.45)),
+    #f3e9cf url('../assets/wartable/paper-card.webp') center / 256px;
+  clip-path: var(--wt-tear);
+}
+.quest-theme[data-theme='wartable'] .wt-scrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  background: #fbf7ec;
+  clip-path: var(--wt-tear-rim);
+}
+.quest-theme[data-theme='wartable'] .wt-crown {
+  width: 32px;
+  height: 32px;
+  background: url('../assets/wartable/crown-castle.webp') center bottom / contain no-repeat;
+  filter: drop-shadow(0 1px 1.5px rgba(40, 24, 8, 0.45));
 }
 
 /* The header's quest medallion. */

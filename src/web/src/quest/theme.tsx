@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { Check, Palette } from 'lucide-react'
 
 export const THEMES = [
@@ -8,6 +8,12 @@ export const THEMES = [
 ] as const
 
 export type ThemeId = (typeof THEMES)[number]['id']
+
+/** The theme the chart is drawn in, for the parts (the deed cards) that are drawn differently per theme. */
+export const ThemeContext = createContext<ThemeId>('wartable')
+
+/** True when the chart is drawn as the war table. */
+export const useWarTable = () => useContext(ThemeContext) === 'wartable'
 
 const KEY = 'mikado.mock.theme'
 

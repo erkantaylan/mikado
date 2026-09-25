@@ -2,7 +2,8 @@ import type { CSSProperties } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { Ban, Check, ExternalLink, Flag, Layers } from 'lucide-react'
 import type { Item, QuestCard, Status } from './model'
-import { Key, Working, glow, medal, plate, spentText, stateColour, words } from './look'
+import { Gate, Key, Kinds, Working, glow, medal, plate, spentText, stateColour, words } from './look'
+import { useWarTable } from './theme'
 
 // A quest card: a deed on this chart that crowns another quest, drawn as one card standing for
 // that whole quest, its own deeds folded behind it. It counts as one deed here.
@@ -55,8 +56,11 @@ type Props = { item: Item; q: QuestCard; status: Status; dim: boolean; selected:
 
 /** The quest card node. */
 export function QuestCardView({ item, q, status, dim, selected }: Props) {
+  const wt = useWarTable()
   const done = status === 'done'
   const over = done || status === 'cancelled'
+  const underway = q.underway > 0 && !over
+  const working = <Working by={`${q.underway} ${q.underway === 1 ? 'deed' : 'deeds'} in ${q.slug}`} />
   const front: CSSProperties = { ...plate[status], ...(status === 'available' ? { boxShadow: glow('--avail', 18, 45) } : {}) }
   return (
     <div
@@ -75,18 +79,19 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
           className="quest-behind absolute top-0 left-0 rounded-lg border-2"
         />
       ))}
-      <span
-        style={medal[status]}
-        data-mark={status}
-        className={`quest-medal absolute -top-3 -left-3 z-10 grid size-9 place-items-center rounded-full border-2 ${status === 'available' ? 'quest-available' : ''}`}
-      >
-        {done ? <Check size={16} strokeWidth={3} /> : status === 'cancelled' ? <Ban size={16} /> : <Flag size={16} />}
-      </span>
-      {q.underway > 0 && !over && (
-        <span className="absolute -top-3 right-5 z-10">
-          <Working by={`${q.underway} ${q.underway === 1 ? 'deed' : 'deeds'} in ${q.slug}`} />
+      {wt ? (
+        // The war table's gate: can it be started? A seal counts the quest's deeds still to go, as its label does.
+        <Gate status={status} count={q.total - q.done} />
+      ) : (
+        <span
+          style={medal[status]}
+          data-mark={status}
+          className={`quest-medal absolute -top-3 -left-3 z-10 grid size-9 place-items-center rounded-full border-2 ${status === 'available' ? 'quest-available' : ''}`}
+        >
+          {done ? <Check size={16} strokeWidth={3} /> : status === 'cancelled' ? <Ban size={16} /> : <Flag size={16} />}
         </span>
       )}
+      {underway && !wt && <span className="absolute -top-3 right-5 z-10">{working}</span>}
       <div style={front} className={`quest-plate relative flex flex-col gap-1.5 rounded-lg border-2 py-2 pr-3 pl-5 ${selected ? 'quest-lit' : ''}`}>
         <div className="flex min-w-0 items-center gap-1.5 pl-2.5">
           <Key id={item.key} />
@@ -102,6 +107,7 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
           {q.archived && (
             <span className="shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase">archived</span>
           )}
+          {wt && <Kinds kinds={['quest']}>{underway && working}</Kinds>}
         </div>
         <span
           className={`quest-display quest-title leading-snug ${

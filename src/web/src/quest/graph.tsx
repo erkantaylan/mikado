@@ -14,7 +14,8 @@ import {
 } from '@xyflow/react'
 import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import type { Item, QuestModel, QuestRef, QuestState, Status } from './model'
-import { Achievements, Hero, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words } from './look'
+import { Achievements, Gate, Hero, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
+import { useWarTable } from './theme'
 import { QuestCardView } from './QuestCard'
 
 // ---- nodes -----------------------------------------------------------------
@@ -120,10 +121,17 @@ function npcPlate(status: Status): CSSProperties {
 
 function CardView({ data }: NodeProps<CardNode>) {
   const { item, tag, status, openBefore, days, dim, selected } = data
+  const wt = useWarTable()
   // A deed that crowns another quest stands for that whole quest here.
   if (item.crowns) return <QuestCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
+  const underway = item.working && !item.done
+  // War table: what sort of card it is, told by small marks on the top-right instead of words.
+  const kinds: Kind[] = []
+  if (side) kinds.push('side')
+  if (item.foundWhile) kinds.push('unearthed')
+  if (item.npc) kinds.push('npc')
   return (
     <div
       style={{ width: side ? SIDE_WIDTH : CARD_WIDTH }}
@@ -135,17 +143,22 @@ function CardView({ data }: NodeProps<CardNode>) {
       className={`quest-deed relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
-      {/* The state badge sits on the deed's corner. */}
-      <span
-        style={side && status !== 'done' ? sideMedal : medal[status]}
-        data-mark={side && status !== 'done' ? 'side' : status}
-        className={`quest-medal absolute -top-3 -left-3 z-10 grid place-items-center rounded-full border-2 ${side ? 'size-7' : 'size-9'} ${
-          status === 'available' && !side ? 'quest-available' : ''
-        }`}
-      >
-        <MedalIcon item={item} status={status} openBefore={openBefore} />
-      </span>
-      {item.working && !item.done && (
+      {wt ? (
+        // The war table's gate: can it be started?
+        <Gate status={status} count={openBefore} small={side} />
+      ) : (
+        /* The state badge sits on the deed's corner. */
+        <span
+          style={side && status !== 'done' ? sideMedal : medal[status]}
+          data-mark={side && status !== 'done' ? 'side' : status}
+          className={`quest-medal absolute -top-3 -left-3 z-10 grid place-items-center rounded-full border-2 ${side ? 'size-7' : 'size-9'} ${
+            status === 'available' && !side ? 'quest-available' : ''
+          }`}
+        >
+          <MedalIcon item={item} status={status} openBefore={openBefore} />
+        </span>
+      )}
+      {underway && !wt && (
         <span className="absolute -top-3 right-3 z-10">
           <Working by={item.workingBy} />
         </span>
@@ -153,7 +166,7 @@ function CardView({ data }: NodeProps<CardNode>) {
       <div
         style={item.npc ? npcPlate(status) : side ? sidePlate : plate[status]}
         className={`quest-plate relative flex flex-col gap-1.5 rounded-lg py-2 pr-3 pl-5 ${side ? 'border' : 'border-2'} ${
-          item.foundWhile ? 'quest-discovered !border-dashed' : ''
+          item.foundWhile && !wt ? 'quest-discovered !border-dashed' : ''
         } ${selected ? 'quest-lit' : ''}`}
       >
         {/* The key would sit under the corner medal, so the row starts clear of it. */}
@@ -164,14 +177,22 @@ function CardView({ data }: NodeProps<CardNode>) {
               · Crowning deed
             </span>
           )}
-          {side && (
-            <span className="shrink-0 text-[12px] font-semibold tracking-wider whitespace-nowrap text-[var(--side)] uppercase">· Side quest</span>
-          )}
-          {item.npc && <Npc />}
-          {item.foundWhile && (
-            <span className="ml-auto shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase" title={item.reason}>
-              unearthed
-            </span>
+          {wt ? (
+            <Kinds kinds={kinds} reason={item.reason}>
+              {underway && <Working by={item.workingBy} />}
+            </Kinds>
+          ) : (
+            <>
+              {side && (
+                <span className="shrink-0 text-[12px] font-semibold tracking-wider whitespace-nowrap text-[var(--side)] uppercase">· Side quest</span>
+              )}
+              {item.npc && <Npc />}
+              {item.foundWhile && (
+                <span className="ml-auto shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase" title={item.reason}>
+                  unearthed
+                </span>
+              )}
+            </>
           )}
         </div>
         <span

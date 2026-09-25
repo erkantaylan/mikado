@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react'
-import { Layers } from 'lucide-react'
+import type { CSSProperties, ReactNode } from 'react'
+import { Gem, Layers } from 'lucide-react'
 import type { Item, Status } from './model'
 
 // Every colour is a theme variable (quest.css).
@@ -204,6 +204,61 @@ export function ArchivedChip() {
       title="Archived: off the Quest Board's shelves (mikado quest unarchive brings it back)"
     >
       Archived
+    </span>
+  )
+}
+
+// ---- the war table's card marks (quest.css draws them) ----------------------
+// On a war-table card each spot answers one question: the gate on the top-left
+// corner says whether the deed can be started, the kind marks on the top-right
+// what sort of card it is.
+
+const gateTitle: Record<Exclude<Status, 'cancelled'>, string> = {
+  locked: 'Sealed: it waits on deeds it requires',
+  available: 'Open: it can be started',
+  awaiting: 'Awaiting reply',
+  done: 'Fulfilled',
+}
+
+/** The gate mark: a whole seal with the count still to go, a broken seal, an hourglass or a planted flag. An abandoned deed has none. */
+export function Gate({ status, count, small = false }: { status: Status; count?: number; small?: boolean }) {
+  if (status === 'cancelled') return null
+  const title = status === 'locked' && count !== undefined ? `Sealed: ${count} still to go` : gateTitle[status]
+  return (
+    <span className="wt-gate" data-gate={status} data-small={small || undefined} title={title} role="img" aria-label={title}>
+      {status === 'locked' && count !== undefined && <span>{count}</span>}
+    </span>
+  )
+}
+
+export type Kind = 'side' | 'unearthed' | 'quest' | 'npc'
+
+export const kindTitle: Record<Kind, string> = {
+  side: 'Side quest: optional, earns an achievement',
+  unearthed: 'Unearthed: found along the way',
+  quest: 'Quest card: stands for another quest, with its own chart',
+  npc: 'NPC (right-click the deed on the chart to change)',
+}
+
+/** One kind mark: a gem, a spade, a castle or a red banner. */
+export function KindMark({ kind, title }: { kind: Kind; title?: string }) {
+  const t = title ?? kindTitle[kind]
+  return (
+    <span className="wt-kind" data-kind={kind} title={t} role="img" aria-label={t}>
+      {kind === 'side' && <Gem size={15} />}
+    </span>
+  )
+}
+
+/** The kind marks at the end of a card's first line, with underway (if any) just before them. */
+export function Kinds({ kinds, reason, children }: { kinds: Kind[]; reason?: string; children?: ReactNode }) {
+  if (!kinds.length && !children) return null
+  return (
+    <span className="wt-kinds ml-auto flex shrink-0 items-center gap-1.5">
+      {children}
+      {kinds.map((k) => (
+        <KindMark key={k} kind={k} title={k === 'unearthed' && reason ? `${kindTitle.unearthed} (${reason})` : undefined} />
+      ))}
     </span>
   )
 }

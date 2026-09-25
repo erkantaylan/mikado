@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css'
 import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import { titleOf, type Item, type QuestCard, type QuestModel, type QuestState, type Status } from './model'
-import { ArchivedChip, Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { ArchivedChip, Gate, Hero, Key, KindMark, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
   AlsoIn,
@@ -31,7 +31,7 @@ import {
   type QuestNode,
 } from './graph'
 import { Search } from './Search'
-import { ThemeMenu, useTheme } from './theme'
+import { ThemeContext, ThemeMenu, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
 import { QuestProgress, questCardWord, questHref } from './QuestCard'
 
@@ -144,6 +144,75 @@ function Legend() {
         {dot(medal.cancelled, <Ban size={14} />)} Abandoned: won't be done — blocks nothing, counts for nothing
       </li>
     </ul>
+  )
+}
+
+/**
+ * The war table's legend: the card read spot by spot, then the lines between cards. Every mark is
+ * the one the cards wear (the same components and quest.css rules), and the lines take the edges'
+ * own styles and class, so the legend follows any restyle of either.
+ */
+function WarLegend() {
+  const row = (mark: ReactNode, text: ReactNode) => (
+    <li className="flex items-center gap-2.5">
+      <span className="wt-legend-mark">{mark}</span>
+      <span>{text}</span>
+    </li>
+  )
+  const line = (flow: keyof typeof stroke, live = false) => (
+    <svg width="36" height="10" className="overflow-visible">
+      <path d="M0 5H36" fill="none" className="react-flow__edge-path" style={stroke[flow]} />
+      {live && <path d="M0 5H36" fill="none" stroke="var(--gold-ink)" strokeWidth={2} className="quest-flow" />}
+    </svg>
+  )
+  return (
+    <div className="wt-legend space-y-5 text-[14px] text-[var(--ink-soft)]">
+      <Panel title="Top-left: can it be started?">
+        <ul className="space-y-2.5">
+          {row(<Gate status="locked" count={2} />, 'Sealed: the whole seal counts the deeds it still requires')}
+          {row(<Gate status="available" />, 'Open: the seal is broken; everything it requires is fulfilled')}
+          {row(<Gate status="awaiting" />, 'Awaiting reply: a petition waiting on someone')}
+          {row(<Gate status="done" />, 'Fulfilled: a flag planted, the paper steps back')}
+          {row(<span className="wt-scrap" data-torn />, "Abandoned: torn paper, no mark — won't be done, blocks nothing, counts for nothing")}
+        </ul>
+      </Panel>
+      <Panel title="Top-right: what sort of card?">
+        <ul className="space-y-2.5">
+          {row(<KindMark kind="side" />, 'Side quest: optional, earns an achievement')}
+          {row(<KindMark kind="unearthed" />, 'Unearthed: found along the way')}
+          {row(<KindMark kind="quest" />, 'Quest card: stands for another quest, with its own chart')}
+          {row(<KindMark kind="npc" />, 'NPC: right-click a deed to mark or unmark it')}
+          {row(<Working />, 'Underway: someone has taken it up right now')}
+        </ul>
+        <p className="mt-2 text-[13px] text-[var(--ink-faint)]">A plain deed has no mark here.</p>
+      </Panel>
+      <Panel title="Along the bottom">
+        <ul className="space-y-2.5">
+          {row(
+            <span className="text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.available }}>
+              {words.available}
+            </span>,
+            'Bottom-left: the status, in words',
+          )}
+          {row(<Hero />, 'Bottom-right: the hero on it, or no hero yet')}
+        </ul>
+      </Panel>
+      <Panel title="The quest">
+        <ul className="space-y-2.5">
+          {row(<span className="wt-crown" />, 'Crowning deed: fulfil it and the quest is fulfilled')}
+        </ul>
+      </Panel>
+      <Panel title="Lines between cards">
+        <ul className="space-y-2.5">
+          {row(line('done', true), 'Powered: a fulfilled deed opening one you can do now')}
+          {row(line('held'), 'Powered, but its deed still waits on others')}
+          {row(line('spent'), 'Spent: between two fulfilled deeds')}
+          {row(line('locked'), 'Not powered yet: its deed is not fulfilled')}
+          {row(line('side'), 'Side quest, hung on its deed')}
+          {row(line('bridge'), 'Bridge: the deeds between are hidden')}
+        </ul>
+      </Panel>
+    </div>
   )
 }
 
@@ -915,254 +984,256 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
   const closeMenu = useCallback(() => setMenu(null), [])
 
   return (
-    <div data-theme={theme} className="quest-theme flex h-screen flex-col">
-      <header className="quest-header flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="quest-emblem grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-            <Trophy size={20} />
-          </span>
-          <div className="min-w-0">
-            <a href={boardHref} className="text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
-              ← Quest Board
-            </a>
-            <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
-              <QuestTitle title={goal.title} slug={slug} onRetitle={onRetitle} />
-              <QuestStateChip state={state} />
-              {archived && <ArchivedChip />}
-            </h1>
-            <div className="truncate text-[14px] text-[var(--ink-soft)]">
-              {goal.doneWhen ? (
-                <>
-                  Crowned by{' '}
-                  <button
-                    onClick={() => focus(goal.doneWhen!)}
-                    title={m.byId.get(goal.doneWhen)?.title}
-                    className="font-mono font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
-                  >
-                    {logName(m, goal.doneWhen)}
-                  </button>
-                </>
-              ) : (
-                'No crowning deed yet'
-              )}{' '}
-              · {plural(items.filter(m.counted).length, 'deed')} · {plural(sideQuests.length, 'side quest')}
+    <ThemeContext value={theme}>
+      <div data-theme={theme} className="quest-theme flex h-screen flex-col">
+        <header className="quest-header flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="quest-emblem grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+              <Trophy size={20} />
+            </span>
+            <div className="min-w-0">
+              <a href={boardHref} className="text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
+                ← Quest Board
+              </a>
+              <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
+                <QuestTitle title={goal.title} slug={slug} onRetitle={onRetitle} />
+                <QuestStateChip state={state} />
+                {archived && <ArchivedChip />}
+              </h1>
+              <div className="truncate text-[14px] text-[var(--ink-soft)]">
+                {goal.doneWhen ? (
+                  <>
+                    Crowned by{' '}
+                    <button
+                      onClick={() => focus(goal.doneWhen!)}
+                      title={m.byId.get(goal.doneWhen)?.title}
+                      className="font-mono font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
+                    >
+                      {logName(m, goal.doneWhen)}
+                    </button>
+                  </>
+                ) : (
+                  'No crowning deed yet'
+                )}{' '}
+                · {plural(items.filter(m.counted).length, 'deed')} · {plural(sideQuests.length, 'side quest')}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <Pill n={count('done')} label="fulfilled" colour={stateColour.done} coin="gold" />
-          <Pill n={count('available')} label="open" colour="var(--avail)" coin="enamel" />
-          <Pill n={working} label="underway" colour="var(--avail)" coin="bronze" />
-          <Pill n={count('awaiting')} label="awaiting reply" colour="var(--await)" coin="silver" />
-          <Pill n={count('locked')} label="sealed" colour="var(--ink)" coin="wax" />
-          {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" coin="iron" />}
-          <Pill n={heroless} label="no hero" colour="#e11d48" coin="crimson" />
-          <span className="ml-2" />
-          {slug && (
-            <Search
-              compact
-              here={slug}
-              select={(key) => {
-                const id = `c${key.slice(1)}`
-                if (!m.byId.has(id)) return false
-                focus(id)
-                return true
-              }}
-            />
-          )}
-          <ThemeMenu theme={theme} onChange={setTheme} />
-          <button
-            onClick={() => setPanelOpen((o) => !o)}
-            className="ml-1 grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
-            aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
-            title={panelOpen ? 'Hide side panel' : 'Show side panel'}
-          >
-            {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-          </button>
-        </div>
-      </header>
-      {banner}
-
-      <div className="flex min-h-0 flex-1">
-        <main ref={mapRef} className="relative min-w-0 flex-1">
-          {/* The war table's campaign map: a still backdrop, not part of the chart, so it stays put as the chart pans and zooms. */}
-          {theme === 'wartable' && <div className="wt-map wt-map-table" aria-hidden />}
-          {!shown && <div className="absolute inset-0 z-10 grid place-items-center text-[var(--ink-soft)]">Drawing the chart…</div>}
-          {/* Rendered before it is laid out (invisibly) so the deeds can be measured first. */}
-          <div className="h-full" style={{ opacity: shown ? 1 : 0 }}>
-            <ReactFlow
-              key={epoch} // a new width or font means new sizes: measure and lay out again
-              colorMode={dark ? 'dark' : 'light'}
-              nodes={flowNodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              nodeTypes={nodeTypes}
-              edgeTypes={edgeTypes}
-              onNodeClick={(_, n) => {
-                if (n.id === 'goal' || n.id === selectedId) return setSelected(null)
-                setSelected(n.id)
-                setTab('quest')
-                reveal(n.id)
-              }}
-              onNodeDoubleClick={(_, n) => (n.id === 'goal' ? centre('goal', 1) : focus(n.id))}
-              zoomOnDoubleClick={false}
-              onPaneClick={() => setSelected(null)}
-              // Without onSetNpc (the mock) a right-click is the browser's own.
-              onNodeContextMenu={
-                onSetNpc &&
-                ((e, n) => {
-                  if (n.type !== 'card') return
-                  e.preventDefault()
-                  setMenu({ id: n.id, x: e.clientX, y: e.clientY })
-                })
-              }
-              onMoveStart={closeMenu}
-              nodesDraggable={false}
-              nodesConnectable={false}
-              minZoom={0.2}
-              proOptions={{ hideAttribution: true }}
-              style={{ background: 'transparent' }}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <Pill n={count('done')} label="fulfilled" colour={stateColour.done} coin="gold" />
+            <Pill n={count('available')} label="open" colour="var(--avail)" coin="enamel" />
+            <Pill n={working} label="underway" colour="var(--avail)" coin="bronze" />
+            <Pill n={count('awaiting')} label="awaiting reply" colour="var(--await)" coin="silver" />
+            <Pill n={count('locked')} label="sealed" colour="var(--ink)" coin="wax" />
+            {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" coin="iron" />}
+            <Pill n={heroless} label="no hero" colour="#e11d48" coin="crimson" />
+            <span className="ml-2" />
+            {slug && (
+              <Search
+                compact
+                here={slug}
+                select={(key) => {
+                  const id = `c${key.slice(1)}`
+                  if (!m.byId.has(id)) return false
+                  focus(id)
+                  return true
+                }}
+              />
+            )}
+            <ThemeMenu theme={theme} onChange={setTheme} />
+            <button
+              onClick={() => setPanelOpen((o) => !o)}
+              className="ml-1 grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
+              aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
+              title={panelOpen ? 'Hide side panel' : 'Show side panel'}
             >
-              {theme !== 'wartable' && <Background gap={24} size={1.5} color="var(--dots)" bgColor="transparent" />}
-              <Controls showInteractive={false}>
-                <ControlButton
-                  onClick={toggleMini}
-                  title={miniOpen ? 'Hide the overview' : 'Show the overview'}
-                  aria-label={miniOpen ? 'Hide the overview' : 'Show the overview'}
-                  aria-pressed={miniOpen}
-                >
-                  <MapIcon size={14} style={{ opacity: miniOpen ? 1 : 0.45 }} />
-                </ControlButton>
-                <ControlButton
-                  onClick={() => setShowOpen((o) => !o)}
-                  // Else the menu's click-outside would close it, and this click open it again.
-                  onMouseDown={(e) => e.stopPropagation()}
-                  title="Show or hide finished deeds"
-                  aria-label="Show or hide finished deeds"
-                  aria-expanded={showOpen}
-                >
-                  {hidden.size ? <EyeOff size={14} /> : <Eye size={14} />}
-                </ControlButton>
-              </Controls>
-              <LayoutWhenMeasured onPlaced={onPlaced} />
-              <FocusWhenPlaced placed={placed} frontier={frontier} />
-              {miniOpen && (
-                <MiniMap
-                  pannable
-                  zoomable
-                  nodeClassName={miniClass}
-                  nodeBorderRadius={6}
-                  maskColor="color-mix(in srgb, var(--bg) 55%, transparent)"
-                  style={{ background: 'var(--panel)', border: '1px solid var(--panel-border)', borderRadius: 8 }}
-                />
-              )}
-            </ReactFlow>
+              {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+            </button>
           </div>
-          {showOpen && <ShowMenu hide={hide} counts={hideable} onChange={chooseHide} onClose={closeShow} />}
-          {shown && hidden.size > 0 && (
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--panel)] py-1 pr-1 pl-2.5 text-[13px] text-[var(--ink-soft)] shadow-sm">
-              <EyeOff size={14} />
-              <span>{hidden.size} hidden</span>
-              <span className="text-[var(--ink-faint)]">·</span>
-              <button
-                onClick={() => chooseHide(showAll)}
-                className="rounded-full px-1.5 font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
+        </header>
+        {banner}
+
+        <div className="flex min-h-0 flex-1">
+          <main ref={mapRef} className="relative min-w-0 flex-1">
+            {/* The war table's campaign map: a still backdrop, not part of the chart, so it stays put as the chart pans and zooms. */}
+            {theme === 'wartable' && <div className="wt-map wt-map-table" aria-hidden />}
+            {!shown && <div className="absolute inset-0 z-10 grid place-items-center text-[var(--ink-soft)]">Drawing the chart…</div>}
+            {/* Rendered before it is laid out (invisibly) so the deeds can be measured first. */}
+            <div className="h-full" style={{ opacity: shown ? 1 : 0 }}>
+              <ReactFlow
+                key={epoch} // a new width or font means new sizes: measure and lay out again
+                colorMode={dark ? 'dark' : 'light'}
+                nodes={flowNodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                onNodeClick={(_, n) => {
+                  if (n.id === 'goal' || n.id === selectedId) return setSelected(null)
+                  setSelected(n.id)
+                  setTab('quest')
+                  reveal(n.id)
+                }}
+                onNodeDoubleClick={(_, n) => (n.id === 'goal' ? centre('goal', 1) : focus(n.id))}
+                zoomOnDoubleClick={false}
+                onPaneClick={() => setSelected(null)}
+                // Without onSetNpc (the mock) a right-click is the browser's own.
+                onNodeContextMenu={
+                  onSetNpc &&
+                  ((e, n) => {
+                    if (n.type !== 'card') return
+                    e.preventDefault()
+                    setMenu({ id: n.id, x: e.clientX, y: e.clientY })
+                  })
+                }
+                onMoveStart={closeMenu}
+                nodesDraggable={false}
+                nodesConnectable={false}
+                minZoom={0.2}
+                proOptions={{ hideAttribution: true }}
+                style={{ background: 'transparent' }}
               >
-                show all
-              </button>
+                {theme !== 'wartable' && <Background gap={24} size={1.5} color="var(--dots)" bgColor="transparent" />}
+                <Controls showInteractive={false}>
+                  <ControlButton
+                    onClick={toggleMini}
+                    title={miniOpen ? 'Hide the overview' : 'Show the overview'}
+                    aria-label={miniOpen ? 'Hide the overview' : 'Show the overview'}
+                    aria-pressed={miniOpen}
+                  >
+                    <MapIcon size={14} style={{ opacity: miniOpen ? 1 : 0.45 }} />
+                  </ControlButton>
+                  <ControlButton
+                    onClick={() => setShowOpen((o) => !o)}
+                    // Else the menu's click-outside would close it, and this click open it again.
+                    onMouseDown={(e) => e.stopPropagation()}
+                    title="Show or hide finished deeds"
+                    aria-label="Show or hide finished deeds"
+                    aria-expanded={showOpen}
+                  >
+                    {hidden.size ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </ControlButton>
+                </Controls>
+                <LayoutWhenMeasured onPlaced={onPlaced} />
+                <FocusWhenPlaced placed={placed} frontier={frontier} />
+                {miniOpen && (
+                  <MiniMap
+                    pannable
+                    zoomable
+                    nodeClassName={miniClass}
+                    nodeBorderRadius={6}
+                    maskColor="color-mix(in srgb, var(--bg) 55%, transparent)"
+                    style={{ background: 'var(--panel)', border: '1px solid var(--panel-border)', borderRadius: 8 }}
+                  />
+                )}
+              </ReactFlow>
             </div>
+            {showOpen && <ShowMenu hide={hide} counts={hideable} onChange={chooseHide} onClose={closeShow} />}
+            {shown && hidden.size > 0 && (
+              <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--panel)] py-1 pr-1 pl-2.5 text-[13px] text-[var(--ink-soft)] shadow-sm">
+                <EyeOff size={14} />
+                <span>{hidden.size} hidden</span>
+                <span className="text-[var(--ink-faint)]">·</span>
+                <button
+                  onClick={() => chooseHide(showAll)}
+                  className="rounded-full px-1.5 font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
+                >
+                  show all
+                </button>
+              </div>
+            )}
+            {menuItem && onSetNpc && <DeedMenu key={menuItem.id} item={menuItem} x={menu!.x} y={menu!.y} onSetNpc={onSetNpc} onClose={closeMenu} />}
+          </main>
+
+          {panelOpen && (
+            <aside className="quest-ledger relative z-10 flex w-[400px] shrink-0 flex-col border-l border-[var(--panel-border)] bg-[var(--panel)] shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]">
+              <PanelTabs tab={tab} onChange={setTab} logCount={log.length} />
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
+              {tab === 'quest' && (
+                <>
+              {sel && <Details m={m} item={sel} onPick={focus} onClose={() => setSelected(null)} />}
+
+              <Panel title="Open now">
+                <ul className="quest-rows space-y-1.5">
+                  {available.map((i) => (
+                    <Row
+                      key={i.id}
+                      m={m}
+                      item={i}
+                      onPick={focus}
+                      right={
+                        <span className="flex shrink-0 items-center gap-2">
+                          {i.working && <Working compact by={i.workingBy} />}
+                          <Hero name={i.assignee} />
+                        </span>
+                      }
+                    />
+                  ))}
+                </ul>
+              </Panel>
+
+              <Panel title="Awaiting reply">
+                <ul className="quest-rows space-y-1.5">
+                  {awaiting.map((i) => (
+                    <Row
+                      key={i.id}
+                      m={m}
+                      item={i}
+                      onPick={focus}
+                      right={
+                        <span className="shrink-0 text-[12px] font-semibold text-[var(--await)]">
+                          {m.daysSince(i)}d · {i.waitingOn}
+                        </span>
+                      }
+                    />
+                  ))}
+                </ul>
+              </Panel>
+
+              <Panel title="Side quests — achievements">
+                <ul className="quest-rows space-y-1.5">
+                  {sideQuests.map((q) => (
+                    <Row key={q.id} m={m} item={q} onPick={focus} right={<Hero name={q.assignee} />} />
+                  ))}
+                </ul>
+              </Panel>
+
+                </>
+              )}
+
+              {tab === 'legend' && (theme === 'wartable' ? <WarLegend /> : <Legend />)}
+
+              {tab === 'glossary' && <Glossary />}
+
+              {tab === 'chronicle' && (
+                <ol className="quest-chronicle space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
+                  {log.map((e, k) => (
+                    <li key={k} className="text-[14px] leading-snug">
+                      <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>
+                        {logIcon[e.kind] ?? '·'}
+                      </span>
+                      <span className="text-[var(--ink-faint)]">{e.at}</span>{' '}
+                      {e.id && (
+                        <button
+                          onClick={() => focus(e.id!)}
+                          className={`quest-ref font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
+                            e.kind === 'remove' ? 'line-through' : ''
+                          }`}
+                        >
+                          {logName(m, e.id)}
+                        </button>
+                      )}{' '}
+                      <span className="text-[var(--ink-soft)]">{e.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              </div>
+              {version && <VersionLine version={version} className="shrink-0 px-4 py-1.5" />}
+            </aside>
           )}
-          {menuItem && onSetNpc && <DeedMenu key={menuItem.id} item={menuItem} x={menu!.x} y={menu!.y} onSetNpc={onSetNpc} onClose={closeMenu} />}
-        </main>
-
-        {panelOpen && (
-          <aside className="quest-ledger relative z-10 flex w-[400px] shrink-0 flex-col border-l border-[var(--panel-border)] bg-[var(--panel)] shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]">
-            <PanelTabs tab={tab} onChange={setTab} logCount={log.length} />
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
-            {tab === 'quest' && (
-              <>
-            {sel && <Details m={m} item={sel} onPick={focus} onClose={() => setSelected(null)} />}
-
-            <Panel title="Open now">
-              <ul className="quest-rows space-y-1.5">
-                {available.map((i) => (
-                  <Row
-                    key={i.id}
-                    m={m}
-                    item={i}
-                    onPick={focus}
-                    right={
-                      <span className="flex shrink-0 items-center gap-2">
-                        {i.working && <Working compact by={i.workingBy} />}
-                        <Hero name={i.assignee} />
-                      </span>
-                    }
-                  />
-                ))}
-              </ul>
-            </Panel>
-
-            <Panel title="Awaiting reply">
-              <ul className="quest-rows space-y-1.5">
-                {awaiting.map((i) => (
-                  <Row
-                    key={i.id}
-                    m={m}
-                    item={i}
-                    onPick={focus}
-                    right={
-                      <span className="shrink-0 text-[12px] font-semibold text-[var(--await)]">
-                        {m.daysSince(i)}d · {i.waitingOn}
-                      </span>
-                    }
-                  />
-                ))}
-              </ul>
-            </Panel>
-
-            <Panel title="Side quests — achievements">
-              <ul className="quest-rows space-y-1.5">
-                {sideQuests.map((q) => (
-                  <Row key={q.id} m={m} item={q} onPick={focus} right={<Hero name={q.assignee} />} />
-                ))}
-              </ul>
-            </Panel>
-
-              </>
-            )}
-
-            {tab === 'legend' && <Legend />}
-
-            {tab === 'glossary' && <Glossary />}
-
-            {tab === 'chronicle' && (
-              <ol className="quest-chronicle space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
-                {log.map((e, k) => (
-                  <li key={k} className="text-[14px] leading-snug">
-                    <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>
-                      {logIcon[e.kind] ?? '·'}
-                    </span>
-                    <span className="text-[var(--ink-faint)]">{e.at}</span>{' '}
-                    {e.id && (
-                      <button
-                        onClick={() => focus(e.id!)}
-                        className={`quest-ref font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
-                          e.kind === 'remove' ? 'line-through' : ''
-                        }`}
-                      >
-                        {logName(m, e.id)}
-                      </button>
-                    )}{' '}
-                    <span className="text-[var(--ink-soft)]">{e.text}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-            </div>
-            {version && <VersionLine version={version} className="shrink-0 px-4 py-1.5" />}
-          </aside>
-        )}
+        </div>
       </div>
-    </div>
+    </ThemeContext>
   )
 }

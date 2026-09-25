@@ -43,6 +43,13 @@ Icons made by Delapouite, available on https://game-icons.net, CC BY 3.0:
 | `icons/pin.svg` | https://game-icons.net/1x1/delapouite/pin.html |
 | `icons/check.svg` | https://game-icons.net/1x1/delapouite/check-mark.html |
 | `icons/stamp.svg` | https://game-icons.net/1x1/delapouite/stamper.html |
+| `icons/banner.svg` | https://game-icons.net/1x1/delapouite/vertical-banner.html |
+
+Icons made by Skoll, available on https://game-icons.net, CC BY 3.0:
+
+| File | Source |
+|---|---|
+| `icons/spade.svg` | https://game-icons.net/1x1/skoll/trench-spade.html |
 
 Raw SVGs taken from https://github.com/game-icons/icons (`<author>/<name>.svg`).
 
@@ -60,9 +67,10 @@ with a CSS `mask-image`, or used as a `border-image` 9-slice.
 | `kenney/divider-003.png` | `PNG/Default/Divider/divider-003.png` (96x22, sword-hilt divider end) |
 | `kenney/divider-fade-003.png` | `PNG/Default/Divider Fade/divider-fade-003.png` (96x22, same, fading line) |
 
-## Generated
+## Made for mikado (generated or drawn)
 
 | File | Source | Licence / changes |
 |---|---|---|
 | `map.webp` | Generated with Google Gemini for mikado (2026-09-25) from a text prompt: a blank parchment campaign map, no labels | Made for this project; resized to 2400px and saved as WebP |
+| `flag.svg` | Drawn by hand for mikado (deed M108): a brass pennant on a dark pole | Made for this project |
 | `crown-castle.webp`, `emblem.webp`, `seal.webp`, `seal-broken.webp` | Generated with Google Gemini for mikado (2026-09-25) as one asset sheet, then cut apart with the white background removed | Made for this project; 256px WebP with transparency |
