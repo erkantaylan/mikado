@@ -17,6 +17,7 @@ import type { Item, QuestModel, QuestRef, QuestState, Status } from './model'
 import { Achievements, Gate, Hero, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
 import { useWarTable } from './theme'
 import { QuestCardView } from './QuestCard'
+import { RailwayLine } from './railway'
 
 // ---- nodes -----------------------------------------------------------------
 
@@ -226,26 +227,20 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 // From a fulfilled deed: done opens a deed you can do now (bright, and it flows); held feeds one that still
 // waits on others; spent joins two fulfilled deeds, so it steps back.
 // A bridge stands in for a chain that runs through hidden deeds.
-type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
+export type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
 // torn: the line comes from an abandoned deed, whose paper the war table draws with a strip torn off its right side.
 // powered: the deed the line comes from is fulfilled (for a side quest's line: the side quest is).
 export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean; powered: boolean }, 'quest'>
 
-// Each colour and width reads a --edge-<flow> / --edge-<flow>-w token first and falls back to the
-// theme's own palette, so a theme can repaint the lines without touching the others (the war table
-// does, in quest.css).
+// How each kind of line is drawn in the parchment and midnight themes, from the theme's own palette.
 export const stroke: Record<Flow, CSSProperties> = {
-  done: {
-    stroke: 'var(--edge-done, var(--gold))',
-    strokeWidth: 'var(--edge-done-w, 3.5px)',
-    filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--gold) 70%, transparent))',
-  },
-  held: { stroke: 'var(--edge-held, var(--gold))', strokeWidth: 'var(--edge-held-w, 2.5px)', opacity: 0.75 },
-  spent: { stroke: 'var(--edge-spent, color-mix(in srgb, var(--gold) 40%, var(--edge-off)))', strokeWidth: 'var(--edge-spent-w, 2px)' },
-  locked: { stroke: 'var(--edge-locked, var(--edge-off))', strokeWidth: 'var(--edge-locked-w, 2.5px)' },
-  side: { stroke: 'var(--edge-side, var(--side))', strokeWidth: 'var(--edge-side-w, 1.5px)', strokeDasharray: '5 6' },
-  cancelled: { stroke: 'var(--edge-cancelled, var(--edge-off))', strokeWidth: 'var(--edge-cancelled-w, 1.5px)', strokeDasharray: '2 5', opacity: 0.6 },
-  bridge: { stroke: 'var(--edge-bridge, var(--ink-faint))', strokeWidth: 'var(--edge-bridge-w, 2px)', strokeDasharray: '10 4 2 4', opacity: 0.8 },
+  done: { stroke: 'var(--gold)', strokeWidth: '3.5px', filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--gold) 70%, transparent))' },
+  held: { stroke: 'var(--gold)', strokeWidth: '2.5px', opacity: 0.75 },
+  spent: { stroke: 'color-mix(in srgb, var(--gold) 40%, var(--edge-off))', strokeWidth: '2px' },
+  locked: { stroke: 'var(--edge-off)', strokeWidth: '2.5px' },
+  side: { stroke: 'var(--side)', strokeWidth: '1.5px', strokeDasharray: '5 6' },
+  cancelled: { stroke: 'var(--edge-off)', strokeWidth: '1.5px', strokeDasharray: '2 5', opacity: 0.6 },
+  bridge: { stroke: 'var(--ink-faint)', strokeWidth: '2px', strokeDasharray: '10 4 2 4', opacity: 0.8 },
 }
 
 // On the war table a line starts and ends a little under the cards, so it comes out from under the paper
@@ -272,22 +267,27 @@ export function questEdgePath(
   return { path, labelX, labelY }
 }
 
+/** A line between deeds in the parchment and midnight themes. */
 export function QuestEdgeView(props: EdgeProps<QuestEdge>) {
   const { data } = props
-  const { path } = questEdgePath(props, useWarTable())
+  const { path } = questEdgePath(props, false)
   const style = stroke[data!.flow]
   const opacity = data!.dim ? 0.15 : ((style.opacity as number | undefined) ?? 1)
   return (
     <>
-      {/* A pale halo under the line, lifting it off a busy backdrop. Hidden unless a theme shows it (the war table). */}
-      <path d={path} fill="none" className="quest-edge-halo" data-flow={data!.flow} style={{ opacity }} />
       <BaseEdge path={path} style={{ ...style, opacity }} />
       {data!.live && <path d={path} fill="none" stroke="var(--gold-ink)" strokeWidth={2} className="quest-flow" style={{ opacity }} />}
     </>
   )
 }
 
-export const edgeTypes = { quest: QuestEdgeView }
+// The war table lays narrow-gauge track instead (railway.tsx). The theme is only known inside the flow, so one
+// edge type picks per line.
+function QuestLine(props: EdgeProps<QuestEdge>) {
+  return useWarTable() ? <RailwayLine {...props} /> : <QuestEdgeView {...props} />
+}
+
+export const edgeTypes = { quest: QuestLine }
 
 // ---- graph -----------------------------------------------------------------
 

@@ -30,6 +30,7 @@ import {
   type Placed,
   type QuestNode,
 } from './graph'
+import { RailwaySample } from './railway'
 import { Search } from './Search'
 import { ThemeContext, ThemeMenu, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
@@ -149,8 +150,8 @@ function Legend() {
 
 /**
  * The war table's legend: the card read spot by spot, then the lines between cards. Every mark is
- * the one the cards wear (the same components and quest.css rules), and the lines take the edges'
- * own styles and class, so the legend follows any restyle of either.
+ * the one the cards wear (the same components and quest.css rules), and the lines are short lengths of
+ * the same track (railway.tsx), so the legend follows any restyle of either.
  */
 function WarLegend() {
   const row = (mark: ReactNode, text: ReactNode) => (
@@ -158,12 +159,6 @@ function WarLegend() {
       <span className="wt-legend-mark">{mark}</span>
       <span>{text}</span>
     </li>
-  )
-  const line = (flow: keyof typeof stroke, live = false) => (
-    <svg width="36" height="10" className="overflow-visible">
-      <path d="M0 5H36" fill="none" className="react-flow__edge-path" style={stroke[flow]} />
-      {live && <path d="M0 5H36" fill="none" stroke="var(--gold-ink)" strokeWidth={2} className="quest-flow" />}
-    </svg>
   )
   return (
     <div className="wt-legend space-y-5 text-[14px] text-[var(--ink-soft)]">
@@ -204,12 +199,14 @@ function WarLegend() {
       </Panel>
       <Panel title="Lines between cards">
         <ul className="space-y-2.5">
-          {row(line('done', true), 'Powered: a fulfilled deed opening one you can do now')}
-          {row(line('held'), 'Powered, but its deed still waits on others')}
-          {row(line('spent'), 'Spent: between two fulfilled deeds')}
-          {row(line('locked'), 'Not powered yet: its deed is not fulfilled')}
-          {row(line('side'), 'Side quest, hung on its deed')}
-          {row(line('bridge'), 'Bridge: the deeds between are hidden')}
+          {row(<RailwaySample flow="done" powered />, 'Powered: a fulfilled deed opening one you can do now; a cart of gold heads for it')}
+          {row(<RailwaySample flow="held" powered />, 'Powered, but its deed still waits on others')}
+          {row(<RailwaySample flow="spent" powered />, 'Spent: between two fulfilled deeds')}
+          {row(<RailwaySample flow="locked" powered={false} />, 'Not powered yet: planned track, no rails until its deed is fulfilled')}
+          {row(<RailwaySample flow="side" powered />, 'Side quest, fulfilled: green track to its deed')}
+          {row(<RailwaySample flow="side" powered={false} />, 'Side quest, not fulfilled yet: planned green track')}
+          {row(<RailwaySample flow="cancelled" powered={false} />, 'Abandoned: torn-up track')}
+          {row(<RailwaySample flow="bridge" powered={false} />, 'Bridge: a tunnel under the hidden deeds between')}
         </ul>
       </Panel>
     </div>
