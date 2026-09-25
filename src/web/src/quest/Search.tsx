@@ -22,7 +22,8 @@ export type SearchProps = {
   select?: (key: string) => boolean // select a deed on that chart; false if it is not there
 }
 
-export function Search({ here, select }: SearchProps) {
+/** compact: the button shows only its icon (the chart's header is crowded); the tooltip keeps the shortcut. */
+export function Search({ here, select, compact }: SearchProps & { compact?: boolean }) {
   const [open, setOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -44,11 +45,15 @@ export function Search({ here, select }: SearchProps) {
         onClick={() => setOpen(true)}
         aria-label="Search quests and deeds"
         title={`Search quests and deeds (${mac ? '⌘' : 'Ctrl'} K)`}
-        className="flex h-10 items-center gap-2 rounded-md border border-[var(--panel-border)] px-3 text-[var(--ink-soft)] hover:text-[var(--ink)]"
+        className={`flex h-10 shrink-0 items-center gap-2 rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)] ${compact ? 'w-10 justify-center' : 'px-3'}`}
       >
         <SearchIcon size={17} />
-        <span className="hidden text-[14px] sm:inline">Search</span>
-        <kbd className="hidden rounded border border-[var(--panel-border)] px-1 font-mono text-[11px] sm:inline">{mac ? '⌘K' : 'Ctrl K'}</kbd>
+        {!compact && (
+          <>
+            <span className="hidden text-[14px] sm:inline">Search</span>
+            <kbd className="hidden rounded border border-[var(--panel-border)] px-1 font-mono text-[11px] sm:inline">{mac ? '⌘K' : 'Ctrl K'}</kbd>
+          </>
+        )}
       </button>
       {open && <Popup here={here} select={select} close={() => setOpen(false)} />}
     </>

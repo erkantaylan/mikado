@@ -666,6 +666,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
           <span className="ml-2" />
           {slug && (
             <Search
+              compact
               here={slug}
               select={(key) => {
                 const id = `c${key.slice(1)}`

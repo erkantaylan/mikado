@@ -85,10 +85,12 @@ func serve(args []string) error {
 	}
 	// Commas or spaces separate hosts in the environment variable.
 	hosts = append(strings.FieldsFunc(os.Getenv("MIKADO_ALLOWED_HOSTS"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) }), hosts...)
-	for _, h := range hosts {
-		if strings.ContainsAny(h, "/:") || strings.Contains(strings.TrimPrefix(h, "*."), "*") {
-			return usageError{fmt.Sprintf("--allow-host %q: give a host name like mikado.home or *.ts.net (no scheme, port or path)", h)}
+	for i, h := range hosts {
+		clean, err := store.CleanHost(h)
+		if err != nil {
+			return usageError{"--allow-host " + err.Error()}
 		}
+		hosts[i] = clean
 	}
 	host, _, err := net.SplitHostPort(*addr)
 	if err != nil {
@@ -111,9 +113,29 @@ func serve(args []string) error {
 	}
 	defer st.Close()
 
+	apiHandler, err := api.Handler(st, hosts...)
+	if err != nil {
+		return err
+	}
+	hs, err := st.Hosts(context.Background())
+	if err != nil {
+		return err
+	}
+	var stored []string
+	for _, h := range hs {
+		stored = append(stored, h.Name)
+	}
+	// Bind before saying we serve, so a taken port is the only thing reported.
+	ln, err := net.Listen("tcp", *addr)
+	if err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			return fmt.Errorf("something is already listening on %s, probably the mikado service (`systemctl --user status mikado`); "+
+				"to accept another host name, run `mikado hosts add NAME` instead of starting a second server", *addr)
+		}
+		return err
+	}
 	srv := &http.Server{
-		Addr:              *addr,
-		Handler:           web.Handler(version, api.Handler(st, hosts...)),
+		Handler:           web.Handler(version, apiHandler),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -126,9 +148,12 @@ func serve(args []string) error {
 	}()
 	log.Printf("mikado %s serving on http://%s (data: %s)", version, *addr, dir)
 	if len(hosts) > 0 {
-		log.Printf("also answering requests addressed to %s", strings.Join(hosts, ", "))
+		log.Printf("also answering requests addressed to %s (--allow-host, $MIKADO_ALLOWED_HOSTS)", strings.Join(hosts, ", "))
 	}
-	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+	if len(stored) > 0 {
+		log.Printf("also answering requests addressed to %s (mikado hosts)", strings.Join(stored, ", "))
+	}
+	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
@@ -198,9 +223,12 @@ AI agents: run `+"`mikado skill`"+` before using mikado. It is the guide, glossa
 server:
   serve [--addr ADDR] [--data DIR] [--allow-host HOST]
                                       run the API and dashboard (default `+defaultAddr+`);
-                                      --allow-host (repeatable, or $MIKADO_ALLOWED_HOSTS)
-                                      accepts a domain besides localhost, e.g. behind a
-                                      reverse proxy: mikado.home, *.ts.net
+                                      it answers localhost, *.localhost and accepted hosts
+  hosts                               the host names it also answers, e.g. behind a
+                                      reverse proxy (mikado.home, *.ts.net)
+  hosts add HOST... / remove HOST...  accept a host name, or stop, right away; kept in the
+                                      database (--allow-host, repeatable, and
+                                      $MIKADO_ALLOWED_HOSTS still add hosts for one run)
   version                             print the version
 
 agents:

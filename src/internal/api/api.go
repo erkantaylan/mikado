@@ -4,6 +4,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"mikado/internal/store"
 )
@@ -21,9 +24,24 @@ import (
 // Handler returns the API handler. Paths include the /api prefix. Cards and
 // needs are global; the quest-scoped card and need routes are kept as aliases
 // (they only check that the quest exists, and let "final" mean that quest's).
-// Requests must be addressed to localhost or to one of hosts (see HostMatcher).
-func Handler(s *store.Store, hosts ...string) http.Handler {
+// Requests must be addressed to localhost or to an accepted host (see
+// HostMatcher): one of hosts, which are fixed for this run (--allow-host,
+// $MIKADO_ALLOWED_HOSTS), or one stored in the database, which can be added
+// and removed while the server runs.
+func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	h := &handler{s: s}
+	for _, name := range hosts {
+		name, err := store.CleanHost(name)
+		if err != nil {
+			return nil, err
+		}
+		if !slices.Contains(h.fixed, name) {
+			h.fixed = append(h.fixed, name)
+		}
+	}
+	if err := h.reloadHosts(context.Background()); err != nil {
+		return nil, err
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/quests", h.listQuests)
 	mux.HandleFunc("POST /api/quests", h.createQuest)
@@ -46,16 +64,21 @@ func Handler(s *store.Store, hosts ...string) http.Handler {
 	mux.HandleFunc("POST /api/quests/{slug}/needs", h.inQuest(h.addNeed))
 	mux.HandleFunc("DELETE /api/quests/{slug}/needs", h.inQuest(h.removeNeed))
 
+	mux.HandleFunc("GET /api/hosts", h.listHosts)
+	mux.HandleFunc("POST /api/hosts", h.localOnly(h.addHost))
+	mux.HandleFunc("DELETE /api/hosts/{name}", h.localOnly(h.removeHost))
+
 	mux.HandleFunc("GET /api/search", h.search)
 	mux.HandleFunc("GET /api/repos/{owner}/{repo}/assignees", h.repoAssignees)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
 	})
-	return guard(mux, HostMatcher(hosts))
+	return guard(mux, func(host string) bool { return (*h.ours.Load())(host) }), nil
 }
 
-// HostMatcher reports whether a request's Host names this server: localhost,
-// a loopback IP, or one of the accepted hosts. An accepted host is a name
+// HostMatcher reports whether a request's Host names this server: localhost
+// or a name under it (foo.localhost: browsers resolve these to loopback
+// themselves, RFC 6761), a loopback IP, or one of the accepted hosts. An accepted host is a name
 // ("mikado.home") or a wildcard for its subdomains ("*.ts.net"); names are
 // compared ignoring case, a port and a trailing dot.
 func HostMatcher(accepted []string) func(host string) bool {
@@ -70,7 +93,7 @@ func HostMatcher(accepted []string) func(host string) bool {
 	}
 	return func(host string) bool {
 		host = normHost(host)
-		if host == "localhost" || isLoopback(host) || slices.Contains(exact, host) {
+		if isLocal(host) || strings.HasSuffix(host, ".localhost") || slices.Contains(exact, host) {
 			return true
 		}
 		return slices.ContainsFunc(suffixes, func(s string) bool { return strings.HasSuffix(host, s) })
@@ -87,14 +110,15 @@ func normHost(host string) string {
 
 // guard protects a server with no authentication against other web pages
 // the browser has open: it refuses Host headers that are not ours (DNS
-// rebinding) and bodies that are not JSON (a cross-site form or no-cors fetch
+// rebinding: another site's page cannot make the browser send Host
+// localhost or *.localhost, only a name of its own) and bodies that are not JSON (a cross-site form or no-cors fetch
 // cannot send application/json without a CORS preflight, which we never
 // answer).
 func guard(next http.Handler, ours func(host string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !ours(r.Host) {
 			writeError(w, http.StatusForbidden, "mikado does not answer requests addressed to "+normHost(r.Host)+
-				": accept that host with `mikado serve --allow-host`")
+				": accept that host with `mikado hosts add "+normHost(r.Host)+"`")
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.ContentLength != 0 {
@@ -107,12 +131,134 @@ func guard(next http.Handler, ours func(host string) bool) http.Handler {
 	})
 }
 
-func isLoopback(host string) bool {
+// isLocal reports whether a normalised host is exactly localhost or a
+// loopback IP.
+func isLocal(host string) bool {
 	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	return host == "localhost" || ip != nil && ip.IsLoopback()
 }
 
-type handler struct{ s *store.Store }
+type handler struct {
+	s *store.Store
+	// fixed are the hosts from --allow-host / $MIKADO_ALLOWED_HOSTS; the
+	// stored ones are read into ours, with them, whenever the list changes.
+	fixed   []string
+	ours    atomic.Pointer[func(host string) bool]
+	hostsMu sync.Mutex // one change of the stored hosts (and reload) at a time
+}
+
+// reloadHosts rebuilds the host matcher from the fixed and stored hosts.
+func (h *handler) reloadHosts(ctx context.Context) error {
+	stored, err := h.s.Hosts(ctx)
+	if err != nil {
+		return err
+	}
+	names := slices.Clone(h.fixed)
+	for _, s := range stored {
+		names = append(names, s.Name)
+	}
+	ours := HostMatcher(names)
+	h.ours.Store(&ours)
+	return nil
+}
+
+// localOnly lets only requests addressed to localhost or a loopback IP
+// through: accepted hosts are changed from this machine, never through a
+// name that reaches it from elsewhere (a proxy, tailscale serve).
+func (h *handler) localOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if host := normHost(r.Host); !isLocal(host) {
+			writeError(w, http.StatusForbidden, "accepted hosts can only be changed through localhost or a loopback IP, not "+host+
+				": run `mikado hosts` on the machine mikado runs on")
+			return
+		}
+		next(w, r)
+	}
+}
+
+// hostEntry is an accepted host as GET /api/hosts lists it.
+type hostEntry struct {
+	Name    string `json:"name"`
+	Source  string `json:"source"` // "flag" (--allow-host, $MIKADO_ALLOWED_HOSTS) or "stored"
+	AddedAt string `json:"addedAt,omitempty"`
+}
+
+func (h *handler) listHosts(w http.ResponseWriter, r *http.Request) {
+	stored, err := h.s.Hosts(r.Context())
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	out := []hostEntry{}
+	for _, name := range h.fixed {
+		out = append(out, hostEntry{Name: name, Source: "flag"})
+	}
+	for _, s := range stored {
+		if !slices.Contains(h.fixed, s.Name) {
+			out = append(out, hostEntry{Name: s.Name, Source: "stored", AddedAt: s.AddedAt})
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *handler) addHost(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name string `json:"name"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	name, err := store.CleanHost(in.Name)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if slices.Contains(h.fixed, name) {
+		writeJSON(w, http.StatusOK, hostEntry{Name: name, Source: "flag"})
+		return
+	}
+	h.hostsMu.Lock()
+	defer h.hostsMu.Unlock()
+	host, created, err := h.s.AddHost(r.Context(), name)
+	if err == nil {
+		err = h.reloadHosts(r.Context())
+	}
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+		log.Printf("now also answering requests addressed to %s", host.Name)
+	}
+	writeJSON(w, status, hostEntry{Name: host.Name, Source: "stored", AddedAt: host.AddedAt})
+}
+
+func (h *handler) removeHost(w http.ResponseWriter, r *http.Request) {
+	name, err := store.CleanHost(r.PathValue("name"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	if slices.Contains(h.fixed, name) {
+		writeError(w, http.StatusConflict, name+" comes from --allow-host or $MIKADO_ALLOWED_HOSTS: "+
+			"take it out there and restart mikado serve")
+		return
+	}
+	h.hostsMu.Lock()
+	defer h.hostsMu.Unlock()
+	err = h.s.RemoveHost(r.Context(), name)
+	if err == nil {
+		err = h.reloadHosts(r.Context())
+	}
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	log.Printf("no longer answering requests addressed to %s", name)
+	w.WriteHeader(http.StatusNoContent)
+}
 
 // inQuest checks the {slug} of a quest-scoped alias exists before handing
 // over to the global handler.

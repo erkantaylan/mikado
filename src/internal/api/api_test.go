@@ -28,7 +28,10 @@ func TestAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	h := Handler(s)
+	h, err := Handler(s)
+	if err != nil {
+		t.Fatal(err)
+	}
 	call := func(method, path, body, host, ctype string) (int, map[string]any) {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Host = host
@@ -93,6 +96,10 @@ func TestHostMatcher(t *testing.T) {
 	ours := HostMatcher([]string{"Mikado.Home", "*.ts.net", " "})
 	for host, want := range map[string]bool{
 		"localhost:47291":       true,
+		"mikado.localhost:5173": true,
+		"a.b.LOCALHOST.":        true,
+		"localhost.evil.test":   false,
+		"evillocalhost":         false,
 		"127.0.0.1":             true,
 		"[::1]:47291":           true,
 		"mikado.home":           true,
@@ -109,6 +116,82 @@ func TestHostMatcher(t *testing.T) {
 		}
 	}
 	if HostMatcher(nil)("mikado.home") {
-		t.Error("no accepted hosts should mean localhost only")
+		t.Error("no accepted hosts should mean localhost (and *.localhost) only")
+	}
+}
+
+func TestHosts(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mikado.db")
+	s, err := store.Open(path, noGitHub{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { s.Close() }() // s is reopened below
+	h, err := Handler(s, "Mikado.Home")
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := func(method, path, body, host string) (int, string) {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Host = host
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code, strings.TrimSpace(rec.Body.String())
+	}
+	const local = "127.0.0.1:47291"
+	steps := []struct {
+		method, path, body, host string
+		want                     int
+	}{
+		{"GET", "/api/quests", "", "foo.test", 403},
+		{"POST", "/api/hosts", `{"name":"Foo.Test"}`, "foo.test", 403},
+		{"POST", "/api/hosts", `{"name":"foo.test:80"}`, local, 400},
+		{"POST", "/api/hosts", `{"name":"Foo.Test."}`, local, 201},
+		// Accepted from the very next request, no restart.
+		{"GET", "/api/quests", "", "foo.test:8080", 200},
+		{"POST", "/api/hosts", `{"name":"foo.test"}`, "localhost:47291", 200},
+		// Readable through any accepted host, changeable only through localhost.
+		{"GET", "/api/hosts", "", "foo.test", 200},
+		{"POST", "/api/hosts", `{"name":"bar.test"}`, "foo.test", 403},
+		{"POST", "/api/hosts", `{"name":"bar.test"}`, "mikado.localhost", 403},
+		{"DELETE", "/api/hosts/foo.test", "", "mikado.home", 403},
+		{"DELETE", "/api/hosts/mikado.home", "", local, 409},
+		{"POST", "/api/hosts", `{"name":"mikado.home"}`, local, 200},
+		{"POST", "/api/hosts", `{"name":"*.ts.net"}`, "[::1]:47291", 201},
+		{"DELETE", "/api/hosts/FOO.test", "", local, 204},
+		{"GET", "/api/quests", "", "foo.test", 403},
+		{"DELETE", "/api/hosts/foo.test", "", local, 404},
+		{"GET", "/api/quests", "", "box.ts.net", 200},
+		{"POST", "/api/hosts", `name=x`, local, 400},
+	}
+	for _, st := range steps {
+		if code, out := call(st.method, st.path, st.body, st.host); code != st.want {
+			t.Errorf("%s %s %s (Host %s): %d %s, want %d", st.method, st.path, st.body, st.host, code, out, st.want)
+		}
+	}
+	if code, out := call("GET", "/api/hosts", "", local); code != 200 ||
+		!strings.HasPrefix(out, `[{"name":"mikado.home","source":"flag"},{"name":"*.ts.net","source":"stored","addedAt":"`) {
+		t.Errorf("GET /api/hosts: %d %s", code, out)
+	}
+
+	// Stored hosts outlive the server; flag hosts do not.
+	s.Close()
+	if s, err = store.Open(path, noGitHub{}); err != nil {
+		t.Fatal(err)
+	}
+	if h, err = Handler(s); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := call("GET", "/api/quests", "", "box.ts.net"); code != 200 {
+		t.Errorf("stored host after a restart: %d", code)
+	}
+	if code, _ := call("GET", "/api/quests", "", "mikado.home"); code != 403 {
+		t.Errorf("flag host after a restart without the flag: %d", code)
+	}
+	if _, err := Handler(s, "http://x"); err == nil {
+		t.Error("a bad flag host should be refused")
 	}
 }

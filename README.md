@@ -130,20 +130,29 @@ Earlier command and flag names (`done`, `cancel`, `remove`, `start`, `need`, `aw
 
 ### Reaching it under another name
 
-`serve` still listens on loopback only, and it answers only requests addressed to `localhost` or to a
-loopback IP. That check is what stops DNS rebinding, where another site's page points its own
-domain at 127.0.0.1. CORS would not help here: under your own domain, the dashboard and the API are
-the same origin. To open mikado through a reverse proxy or `tailscale serve` under a name of your
-own, accept that name:
+`serve` still listens on loopback only, and it answers only requests addressed to `localhost`, to a
+name under it (`mikado.localhost`: browsers resolve every `*.localhost` to loopback themselves), or
+to a loopback IP. That check is what stops DNS rebinding, where another site's page points its own
+domain at 127.0.0.1; no site can make the browser send `localhost` or `*.localhost` as the host.
+CORS would not help here: under your own domain, the dashboard and the API are the same origin. To
+open mikado through a reverse proxy or `tailscale serve` under a name of your own, accept that name:
 
 ```bash
-mikado serve --allow-host mikado.home --allow-host '*.ts.net'   # *.x: any subdomain of x
-MIKADO_ALLOWED_HOSTS=mikado.home,*.ts.net mikado serve           # same, e.g. in the service unit
+mikado hosts add mikado.home '*.ts.net'   # *.x: any subdomain of x; accepted at once
+mikado hosts                              # what is accepted, and where from
+mikado hosts remove mikado.home           # refused again at once
 ```
 
+The list lives in the database, so it survives restarts, and it changes while the server runs.
+Hosts can be added and removed only through `localhost` or a loopback IP (the CLI's default
+server), never through a name that reaches mikado from elsewhere. `serve --allow-host NAME`
+(repeatable) and `MIKADO_ALLOWED_HOSTS=mikado.home,*.ts.net` still work; they add hosts for that
+run only, which `hosts remove` cannot take away.
+
 The proxy must pass the original `Host` header through, which Caddy and `tailscale serve` do by
-default. `make dev-web` reads the same variable for Vite's `allowedHosts`. Anyone who can reach an
-accepted name can read and change everything, because there is no authentication yet.
+default. `make dev-web` reads `MIKADO_ALLOWED_HOSTS` for Vite's `allowedHosts` (it does not see
+the stored list). Anyone who can reach an accepted name can read and change everything, because
+there is no authentication yet.
 
 ## Install
 
@@ -173,9 +182,8 @@ is left alone unless you pass `--force`. `mikado help` points agents at `mikado 
 ## API
 
 JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502. Bodies must be sent as
-`Content-Type: application/json`, and requests must be addressed to localhost or to a host accepted
-with `serve --allow-host`. The routes and
-fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "from requires to",
+`Content-Type: application/json`, and requests must be addressed to localhost, `*.localhost` or an
+accepted host (`mikado hosts`); a refused host gets 403. The routes and fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "from requires to",
 *final* is the crowning deed, *owner* the hero. A `{id}` in a path takes any deed id form (`142`,
 `M142`, …).
 
@@ -193,6 +201,9 @@ fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "fro
 | `POST`/`DELETE /api/needs` `{from, to}` | add / drop a requirement (`from` requires `to`) |
 | `POST /api/cards/{id}/assignees` `{add, remove}` | assign on GitHub (issues) |
 | `GET /api/repos/{owner}/{repo}/assignees` | assignable logins |
+| `GET /api/hosts` | `[{name, source, addedAt?}]`: the hosts accepted besides localhost; `source` is `flag` (`--allow-host`, `$MIKADO_ALLOWED_HOSTS`) or `stored` |
+| `POST /api/hosts` `{name}` | accept a host from the next request on (201; 200 if already accepted). Only through localhost or a loopback IP (else 403) |
+| `DELETE /api/hosts/{name}` | stop accepting a stored host (204); 409 for a `flag` one. Only through localhost or a loopback IP (else 403) |
 
 The quest-scoped routes `POST /api/quests/{slug}/cards`, `PATCH`/`DELETE
 /api/quests/{slug}/cards/{id}`, `POST /api/quests/{slug}/cards/{id}/assignees` and

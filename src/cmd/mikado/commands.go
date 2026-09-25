@@ -46,6 +46,7 @@ var commands = map[string]func([]string) error{
 	"assign":    assignCmd,
 	"assignees": assigneesCmd,
 	"open":      openCmd,
+	"hosts":     hostsCmd,
 }
 
 // aliases are the commands' earlier names (and a spelling or two). They still
@@ -814,5 +815,95 @@ func assigneesCmd(args []string) error {
 	for _, u := range users {
 		fmt.Println(u)
 	}
+	return nil
+}
+
+// acceptedHost is an entry of GET /api/hosts.
+type acceptedHost struct {
+	Name    string `json:"name"`
+	Source  string `json:"source"`
+	AddedAt string `json:"addedAt,omitempty"`
+}
+
+// hostsCmd lists, adds or removes the host names the server answers besides
+// localhost. Changes apply at once and are kept in the database.
+func hostsCmd(args []string) error {
+	sub := "list"
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		sub, args = args[0], args[1:]
+	}
+	switch sub {
+	case "list", "ls":
+		cmd := newCommand("hosts")
+		if _, err := cmd.parse(args, 0, 0, "[--json]"); err != nil {
+			return err
+		}
+		return listHosts(cmd)
+	case "add", "remove", "rm":
+		cmd := newCommand("hosts " + sub)
+		pos, err := cmd.parse(args, 1, -1, "NAME...")
+		if err != nil {
+			return err
+		}
+		cl := cmd.client()
+		for _, name := range pos {
+			if sub == "add" {
+				var h acceptedHost
+				rep, err := cl.do("POST", "/api/hosts", map[string]string{"name": name}, &h)
+				if err != nil {
+					return err
+				}
+				if *cmd.json {
+					continue
+				}
+				switch {
+				case h.Source == "flag":
+					fmt.Printf("%s is already accepted (--allow-host or $MIKADO_ALLOWED_HOSTS)\n", h.Name)
+				case rep.status == http.StatusCreated:
+					fmt.Printf("%s accepted\n", h.Name)
+				default:
+					fmt.Printf("%s is already accepted\n", h.Name)
+				}
+				continue
+			}
+			if _, err := cl.do("DELETE", "/api/hosts/"+url.PathEscape(name), nil, nil); err != nil {
+				return err
+			}
+			if !*cmd.json {
+				fmt.Printf("%s no longer accepted\n", name)
+			}
+		}
+		if *cmd.json {
+			return listHosts(cmd)
+		}
+		return nil
+	default:
+		return usageError{fmt.Sprintf("unknown hosts command %q (add, remove; none lists them)", sub)}
+	}
+}
+
+func listHosts(cmd *command) error {
+	var hs []acceptedHost
+	if _, err := cmd.client().do("GET", "/api/hosts", nil, &hs); err != nil {
+		return err
+	}
+	if *cmd.json {
+		return printJSON(hs)
+	}
+	if len(hs) == 0 {
+		fmt.Println("only localhost, *.localhost and loopback IPs — accept another name with: mikado hosts add NAME")
+		return nil
+	}
+	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "HOST\tSOURCE\tADDED")
+	for _, h := range hs {
+		source, added := "stored", h.AddedAt
+		if h.Source == "flag" {
+			source, added = "--allow-host / $MIKADO_ALLOWED_HOSTS", "(this run)"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\n", h.Name, source, added)
+	}
+	tw.Flush()
+	fmt.Fprintln(os.Stderr, "localhost, *.localhost and loopback IPs are always accepted")
 	return nil
 }

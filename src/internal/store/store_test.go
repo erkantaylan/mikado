@@ -1005,3 +1005,49 @@ func TestSearch(t *testing.T) {
 		t.Errorf("search called GitHub %d times; it reads the cache only", f.gh.calls-calls)
 	}
 }
+
+func TestHosts(t *testing.T) {
+	f := setup(t)
+	for _, bad := range []string{"", " ", "http://mikado.home", "mikado.home:8080", "mikado.home/x", "*", "*.", "a.*.b", "**.ts.net", "mi kado", ".home", "a..b"} {
+		if _, _, err := f.s.AddHost(f.ctx, bad); KindOf(err) != ErrInvalid {
+			t.Errorf("AddHost(%q): %v, want invalid", bad, err)
+		}
+	}
+	h, created, err := f.s.AddHost(f.ctx, " Mikado.Home. ")
+	if err != nil || !created || h.Name != "mikado.home" || h.AddedAt != "2026-09-24T10:00:00Z" {
+		t.Fatalf("AddHost: %+v %v %v", h, created, err)
+	}
+	f.now = f.now.Add(time.Hour)
+	if h, created, err := f.s.AddHost(f.ctx, "mikado.home"); err != nil || created || h.AddedAt != "2026-09-24T10:00:00Z" {
+		t.Errorf("adding it again: %+v %v %v, want the first one unchanged", h, created, err)
+	}
+	if _, _, err := f.s.AddHost(f.ctx, "*.TS.net"); err != nil {
+		t.Fatal(err)
+	}
+	names := func() string {
+		hs, err := f.s.Hosts(f.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, h := range hs {
+			out = append(out, h.Name)
+		}
+		return strings.Join(out, " ")
+	}
+	if got := names(); got != "*.ts.net mikado.home" {
+		t.Errorf("Hosts: %q", got)
+	}
+	if err := f.s.RemoveHost(f.ctx, "MIKADO.home"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.s.RemoveHost(f.ctx, "mikado.home"); KindOf(err) != ErrNotFound {
+		t.Errorf("removing it again: %v, want not found", err)
+	}
+	if err := f.s.RemoveHost(f.ctx, "x:1"); KindOf(err) != ErrInvalid {
+		t.Errorf("removing a bad name: %v, want invalid", err)
+	}
+	if got := names(); got != "*.ts.net" {
+		t.Errorf("Hosts after remove: %q", got)
+	}
+}
