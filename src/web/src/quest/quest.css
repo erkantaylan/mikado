@@ -1088,15 +1088,18 @@
   fill: #d9bc7c;
 }
 
+/* The ring that swells out of an open deed's badge: a disc of the badge's own colour behind it,
+   so only the part outside the badge shows. It moves by transform and opacity alone, so the
+   compositor runs it; a box-shadow ring would repaint the whole page on every frame. */
 @keyframes quest-pulse {
   0% {
-    box-shadow: 0 0 0 0px color-mix(in srgb, var(--avail) 60%, transparent);
+    opacity: 0.6;
+    transform: scale(1);
   }
-  70% {
-    box-shadow: 0 0 0 12px color-mix(in srgb, var(--avail) 0%, transparent);
-  }
+  70%,
   100% {
-    box-shadow: 0 0 0 0px color-mix(in srgb, var(--avail) 0%, transparent);
+    opacity: 0;
+    transform: scale(1.667); /* 12px past a 36px badge */
   }
 }
 
@@ -1197,7 +1200,14 @@
   }
 }
 
-.quest-available {
+.quest-available::after {
+  content: '';
+  position: absolute;
+  inset: -2px; /* over the border too */
+  z-index: -1;
+  border-radius: 50%;
+  background: var(--avail);
+  pointer-events: none;
   animation: quest-pulse 2.2s ease-out infinite;
 }
 
@@ -1223,7 +1233,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .quest-available,
+  .quest-available::after,
   .quest-working-dot,
   .quest-flow,
   .quest-appear {
