@@ -227,7 +227,8 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 // waits on others; spent joins two fulfilled deeds, so it steps back.
 // A bridge stands in for a chain that runs through hidden deeds.
 type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
-export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean }, 'quest'>
+// torn: the line comes from an abandoned deed, whose paper the war table draws with a strip torn off its right side.
+export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean }, 'quest'>
 
 // Each colour and width reads a --edge-<flow> / --edge-<flow>-w token first and falls back to the
 // theme's own palette, so a theme can repaint the lines without touching the others (the war table
@@ -246,8 +247,24 @@ export const stroke: Record<Flow, CSSProperties> = {
   bridge: { stroke: 'var(--edge-bridge, var(--ink-faint))', strokeWidth: 'var(--edge-bridge-w, 2px)', strokeDasharray: '10 4 2 4', opacity: 0.8 },
 }
 
+// On the war table a line starts and ends a little under the cards, so it comes out from under the paper
+// rather than stopping short of the card's edge; the cards are opaque there, so the extra length is hidden.
+// Lines always leave a card's right side and enter the next card's left side. From an abandoned card the
+// line tucks deeper, past the torn strip, so it does not stop in the tear.
+const TUCK = 12
+const TORN_TUCK = 32
+
 function QuestEdgeView({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>) {
-  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
+  const wt = useWarTable()
+  const tuck = wt ? TUCK : 0
+  const [path] = getBezierPath({
+    sourceX: sourceX - (wt && data!.torn ? TORN_TUCK : tuck),
+    sourceY,
+    targetX: targetX + tuck,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  })
   const style = stroke[data!.flow]
   const opacity = data!.dim ? 0.15 : ((style.opacity as number | undefined) ?? 1)
   return (
@@ -385,6 +402,10 @@ export function buildGraph(
   ]
 
   const dim = (a: string, b: string) => !!onPath && !(onPath.has(a) && onPath.has(b))
+  const torn = (id: string) => {
+    const i = byId.get(id)
+    return !!i && m.statusOf(i) === 'cancelled'
+  }
   // An edge carries power once the deed it comes from is fulfilled; it flows while it feeds an unfulfilled deed.
   const edge = (source: string, target: string, side = false): QuestEdge => {
     const powered = !!byId.get(source)?.done
@@ -408,6 +429,7 @@ export function buildGraph(
                   : 'held',
         live: !side && powered && !!to && m.statusOf(to) === 'available',
         dim: dim(source, target),
+        torn: torn(source),
       },
     }
   }
@@ -419,7 +441,7 @@ export function buildGraph(
     source,
     target,
     type: 'quest',
-    data: { flow: 'bridge', live: false, dim: dim(source, target) },
+    data: { flow: 'bridge', live: false, dim: dim(source, target), torn: torn(source) },
   })
   return {
     nodes,
