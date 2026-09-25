@@ -18,8 +18,8 @@ across repos and people, so the end goal stays in view while side issues pile up
 | The Quest Board | Glossary tab |
 |---|---|
 | ![Quest Board](docs/screenshots/board.png) | ![Glossary](docs/screenshots/glossary.png) |
-| **Midnight theme** | **Medieval theme** |
-| ![Midnight theme](docs/screenshots/midnight.png) | ![Medieval theme](docs/screenshots/medieval.png) |
+| **Midnight theme** | **War table theme** <!-- screenshot to retake: war table --> |
+| ![Midnight theme](docs/screenshots/midnight.png) | ![War table theme](docs/screenshots/medieval.png) |
 
 **The words** — quest, chart, deed (or task), crowning deed, requires/opens, petition, sealed,
 abandoned, struck, underway, hero, chronicle and the rest — are defined once, in the glossary in

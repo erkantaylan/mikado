@@ -4,8 +4,7 @@ import { Check, Palette } from 'lucide-react'
 export const THEMES = [
   { id: 'parchment', name: 'Parchment' },
   { id: 'midnight', name: 'Midnight' },
-  { id: 'medieval', name: 'Medieval' },
-  { id: 'wartable', name: 'War table (preview)' },
+  { id: 'wartable', name: 'War table' },
 ] as const
 
 export type ThemeId = (typeof THEMES)[number]['id']
@@ -15,6 +14,11 @@ const KEY = 'mikado.mock.theme'
 function initial(): ThemeId {
   try {
     const saved = localStorage.getItem(KEY)
+    // The war table replaced the old medieval theme; carry that choice over.
+    if (saved === 'medieval') {
+      localStorage.setItem(KEY, 'wartable')
+      return 'wartable'
+    }
     if (THEMES.some((t) => t.id === saved)) return saved as ThemeId
   } catch {
     // storage may be unavailable; the default is fine

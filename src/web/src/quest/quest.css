@@ -1,6 +1,7 @@
 /* Quest themes. Every colour the quest pages use is a variable here, so a theme
    is one block. Lengths carry units, even in keyframes. */
 
+/* Cinzel and EB Garamond: the war table's display and body faces. */
 @import '@fontsource/cinzel/600.css';
 @import '@fontsource/cinzel/700.css';
 @import '@fontsource/eb-garamond/400.css';
@@ -72,56 +73,11 @@
   --chip: rgba(255, 255, 255, 0.07);
 }
 
-/* Vellum, ink, gold leaf and a crimson seal. */
-.quest-theme[data-theme='medieval'] {
-  /* Brighter than the crimson of --await, so an NPC never reads as a petition. */
-  --npc: #d0161b;
-  --npc-ink: #fff6dc;
-  --npc-plate: #f6cdbf;
-  --font-body: 'EB Garamond', Georgia, serif;
-  --font-display: 'Cinzel', 'EB Garamond', serif;
-  --bg: #e6d6ad;
-  --glow: rgba(255, 246, 214, 0.55);
-  --panel: #eee0bb;
-  --panel-border: #9c7c45;
-  --plate: #f7edd3;
-  --plate-border: #7d5f30;
-  --ink: #26170a;
-  --ink-soft: #553b1c;
-  --ink-faint: #7d6242;
-  --dots: #cdb886;
-  --edge-off: #95794d;
-  --gold: #a8751a;
-  --gold-ink: #fff6dc;
-  --done-plate: #f1dfaa;
-  --avail: #24497f;
-  --avail-plate: #e5e9f0;
-  --await: #8e1f1f;
-  --await-plate: #f2dccf;
-  --side: #50662a;
-  --locked-medal: #e3d2a6;
-  --chip: rgba(70, 45, 10, 0.08);
-  background:
-    radial-gradient(ellipse at center, transparent 45%, rgba(90, 55, 15, 0.28) 100%),
-    radial-gradient(ellipse at 70% 35%, var(--glow), transparent 60%),
-    var(--bg);
-}
-
-.quest-theme[data-theme='medieval'] .quest-plate {
-  border-style: double;
-  border-width: 4px;
-}
-
-.quest-theme[data-theme='medieval'] .quest-plate.quest-discovered {
-  border-style: dashed;
-  border-width: 2px;
-}
-
 .quest-display {
   font-family: var(--font-display);
 }
 
-/* ---- War table (preview) --------------------------------------------------
+/* ---- War table ------------------------------------------------------------
    A war-council table: a campaign map on dark oak, a carved-wood header with
    brass, a leather-bound ledger for the side panel. Decoration stays on the
    frame; the deeds keep plain, light plates. Every rule here is scoped to
