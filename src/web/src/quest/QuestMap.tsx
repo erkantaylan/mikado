@@ -167,8 +167,26 @@ function WarLegend() {
           {row(<Gate status="locked" count={2} />, 'Sealed: the whole seal counts the deeds it still requires')}
           {row(<Gate status="available" />, 'Open: the seal is broken; everything it requires is fulfilled')}
           {row(<Gate status="awaiting" />, 'Awaiting reply: a petition waiting on someone')}
-          {row(<Gate status="done" />, 'Fulfilled: a flag planted, the paper steps back')}
+          {row(<Gate status="done" />, 'Fulfilled: a flag planted')}
           {row(<span className="wt-scrap" data-torn />, "Abandoned: torn paper, no mark — won't be done, blocks nothing, counts for nothing")}
+        </ul>
+      </Panel>
+      <Panel title="Top line: what is it?">
+        <ul className="space-y-2.5">
+          {row(
+            <span className="quest-ref rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]">repo#12</span>,
+            'Issue: a GitHub issue, by its repo and number',
+          )}
+          {row(<span className="quest-kind text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>, 'Errand: a real step, not worth an issue')}
+          {row(<span className="quest-kind text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>, 'Petition: waiting on a reply from someone')}
+        </ul>
+      </Panel>
+      <Panel title="The paper">
+        <ul className="space-y-2.5">
+          {row(<span className="wt-paper" />, 'Lit: still to do')}
+          {row(<span className="wt-paper" data-paper="done" />, 'Dark, its light out: fulfilled')}
+          {row(<span className="wt-paper" data-paper="awaiting" />, 'Stained red from the edges: awaiting a reply')}
+          {row(<span className="wt-scrap" data-torn />, 'Torn: abandoned')}
         </ul>
       </Panel>
       <Panel title="Top-right: what sort of card?">

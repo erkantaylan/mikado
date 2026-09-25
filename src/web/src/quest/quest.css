@@ -1042,6 +1042,25 @@
   background: #fbf7ec;
   clip-path: var(--wt-tear-rim);
 }
+/* The Legend's paper samples, drawn like the cards they stand for. */
+.quest-theme[data-theme='wartable'] .wt-paper {
+  display: block;
+  width: 42px;
+  height: 28px;
+  border: 1.5px solid rgba(62, 40, 18, 0.72);
+  border-radius: 3px 5px 4px 6px / 5px 3px 6px 4px;
+  background: #f3e9cf url('../assets/wartable/paper-card.webp') center / 256px;
+  box-shadow: 0 1px 1px rgba(40, 24, 8, 0.35), 0 3px 6px -2px rgba(40, 24, 8, 0.4);
+}
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='done'] {
+  border-color: rgba(40, 26, 12, 0.55);
+  filter: brightness(0.58) saturate(0.7);
+}
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting'] {
+  border-color: #6e1410;
+  background: #efdcc4 url('../assets/wartable/paper-awaiting.webp') center / 100% 100% no-repeat;
+  box-shadow: 0 1px 1px rgba(60, 8, 4, 0.4), 0 0 8px 1px rgba(150, 30, 18, 0.35);
+}
 .quest-theme[data-theme='wartable'] .wt-crown {
   width: 32px;
   height: 32px;
