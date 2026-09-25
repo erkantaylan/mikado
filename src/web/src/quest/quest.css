@@ -689,6 +689,9 @@
   border-radius: 4px 7px 5px 8px / 7px 4px 8px 5px;
   box-shadow: var(--wt-shadow) !important;
   opacity: 1 !important; /* paper stays opaque, so the map never shows through the text */
+  /* No pulse: the !important shadow above would hide it anyway, and a box-shadow
+     animation makes Firefox repaint the whole board on every frame. */
+  animation: none;
 }
 .quest-theme[data-theme='wartable'] .quest-deed .quest-title {
   font-size: 16.5px;
@@ -837,24 +840,6 @@
   --wt-tint: rgba(255, 236, 190, 0.28);
   --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.35), 0 5px 12px -2px rgba(40, 24, 8, 0.4), 0 0 14px 2px rgba(255, 184, 82, 0.45);
 }
-.quest-theme[data-theme='wartable'] .quest-deed[data-status='available']:not([data-side]) .quest-plate {
-  animation: wt-candle 3.6s ease-in-out infinite;
-}
-@keyframes wt-candle {
-  0%,
-  100% {
-    box-shadow:
-      0 1px 1px rgba(40, 24, 8, 0.35),
-      0 5px 12px -2px rgba(40, 24, 8, 0.4),
-      0 0 14px 2px rgba(255, 184, 82, 0.45);
-  }
-  50% {
-    box-shadow:
-      0 1px 1px rgba(40, 24, 8, 0.35),
-      0 5px 12px -2px rgba(40, 24, 8, 0.4),
-      0 0 18px 4px rgba(255, 184, 82, 0.6);
-  }
-}
 /* Sealed: a touch cooler and greyer. */
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='locked']:not([data-side]) {
   --wt-tint: rgba(150, 150, 146, 0.2);
@@ -939,9 +924,6 @@
 .quest-theme[data-theme='wartable'] .quest-deed[data-dim] {
   opacity: 1 !important;
   filter: grayscale(0.85) contrast(0.42) brightness(1.28);
-}
-.quest-theme[data-theme='wartable'] .quest-deed[data-dim] .quest-plate {
-  animation: none;
 }
 
 /* Underway: a small blue pennant instead of the pill, just left of the kind marks. */
@@ -1104,12 +1086,6 @@
 }
 .quest-theme[data-theme='wartable'] .react-flow__minimap-node.mm-done {
   fill: #d9bc7c;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .quest-theme[data-theme='wartable'] .quest-deed .quest-plate {
-    animation: none;
-  }
 }
 
 @keyframes quest-pulse {
