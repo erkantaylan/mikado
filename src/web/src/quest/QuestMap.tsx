@@ -4,7 +4,7 @@ import '@xyflow/react/dist/style.css'
 import { Ban, Check, Crown, ExternalLink, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { Item, QuestModel, QuestState, Status } from './model'
-import { Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { ArchivedChip, Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
   AlsoIn,
@@ -268,6 +268,7 @@ function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPi
 export type QuestMapProps = {
   model: QuestModel
   state?: QuestState // from the API; the mock has none
+  archived?: boolean
   boardHref: string
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
 }
@@ -346,7 +347,7 @@ function cardFromUrl(m: QuestModel): string | null {
   return [...m.items, ...m.sideQuests].find((i) => i.key?.toLowerCase() === `m${n}`)?.id ?? null
 }
 
-function QuestMapInner({ model: m, state, boardHref, banner }: QuestMapProps) {
+function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMapProps) {
   const { goal, items, sideQuests, log } = m
   const [theme, setTheme] = useTheme()
   // `?deed=M142` (as `mikado open M142` links) opens the chart with that deed selected.
@@ -482,6 +483,7 @@ function QuestMapInner({ model: m, state, boardHref, banner }: QuestMapProps) {
                 {goal.title}
               </span>
               <QuestStateChip state={state} />
+              {archived && <ArchivedChip />}
             </h1>
             <div className="truncate text-[14px] text-[var(--ink-soft)]">
               {goal.doneWhen ? (

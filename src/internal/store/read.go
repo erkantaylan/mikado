@@ -80,11 +80,12 @@ func liveCard(ctx context.Context, q querier, id int64) (*cardRow, error) {
 
 // questRow is a quest as stored. Final is nil unless it names a live card.
 type questRow struct {
-	ID        int64
-	Slug      string
-	Title     string
-	Final     *int64
-	CreatedAt string
+	ID         int64
+	Slug       string
+	Title      string
+	Final      *int64
+	CreatedAt  string
+	ArchivedAt string // empty: not archived
 }
 
 func (q *questRow) ref() QuestRef { return QuestRef{Slug: q.Slug, Title: q.Title} }
@@ -93,9 +94,9 @@ func (q *questRow) ref() QuestRef { return QuestRef{Slug: q.Slug, Title: q.Title
 func getQuest(ctx context.Context, q querier, slug string) (*questRow, error) {
 	var r questRow
 	var final sql.NullInt64
-	err := q.QueryRowContext(ctx, `SELECT q.id, q.slug, q.title, c.id, q.created_at
+	err := q.QueryRowContext(ctx, `SELECT q.id, q.slug, q.title, c.id, q.created_at, COALESCE(q.archived_at, '')
 		FROM quests q LEFT JOIN cards c ON c.id = q.final_card AND c.removed_at IS NULL
-		WHERE q.slug = ?`, strings.ToLower(strings.TrimSpace(slug))).Scan(&r.ID, &r.Slug, &r.Title, &final, &r.CreatedAt)
+		WHERE q.slug = ?`, strings.ToLower(strings.TrimSpace(slug))).Scan(&r.ID, &r.Slug, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt)
 	if err == sql.ErrNoRows {
 		return nil, errf(ErrNotFound, "no quest %q", slug)
 	}
@@ -159,7 +160,7 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT id, slug, title, final_card, created_at FROM quests ORDER BY id`)
+	rows, err = q.QueryContext(ctx, `SELECT id, slug, title, final_card, created_at, COALESCE(archived_at, '') FROM quests ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +168,7 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 	for rows.Next() {
 		var r questRow
 		var final sql.NullInt64
-		if err := rows.Scan(&r.ID, &r.Slug, &r.Title, &final, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Slug, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt); err != nil {
 			return nil, err
 		}
 		if final.Valid && g.cards[final.Int64] != nil {
@@ -536,7 +537,7 @@ func (s *Store) Quest(ctx context.Context, slug string) (*QuestView, error) {
 	}
 	in := g.membership()
 	v := &QuestView{
-		Quest:  QuestInfo{Slug: q.Slug, Title: q.Title, FinalCardID: q.Final, State: QuestActive},
+		Quest:  QuestInfo{Slug: q.Slug, Title: q.Title, FinalCardID: q.Final, State: QuestActive, ArchivedAt: q.ArchivedAt},
 		Cards:  make([]Card, 0, len(ids)),
 		Needs:  g.needsAmong(ids),
 		GitHub: warning,
@@ -683,7 +684,7 @@ func (s *Store) Quests(ctx context.Context) ([]QuestSummary, string, error) {
 				at = t
 			}
 		}
-		out = append(out, summarize(QuestSummary{Slug: q.Slug, Title: q.Title, LastActivity: at}, cards))
+		out = append(out, summarize(QuestSummary{Slug: q.Slug, Title: q.Title, LastActivity: at, ArchivedAt: q.ArchivedAt}, cards))
 	}
 	return out, warning, nil
 }

@@ -912,3 +912,36 @@ func TestGitHubDownServesCache(t *testing.T) {
 		t.Errorf("fresh cache refetched")
 	}
 }
+
+func TestArchive(t *testing.T) {
+	f := setup(t)
+	final := f.errand("ship")
+	f.quest("q", final)
+	archive := func(on bool) {
+		t.Helper()
+		if _, err := f.s.UpdateQuest(f.ctx, "Q", QuestPatch{Archived: ptr(on)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	archive(true)
+	archive(true) // already archived: no second event
+	if f.summary("q").ArchivedAt == "" || f.view("q").Quest.ArchivedAt == "" {
+		t.Errorf("not archived")
+	}
+	if got := len(f.members("q")); got != 1 {
+		t.Errorf("archiving changed the quest's deeds: %d members", got)
+	}
+	archive(false)
+	if f.summary("q").ArchivedAt != "" || f.view("q").Quest.ArchivedAt != "" {
+		t.Errorf("still archived")
+	}
+	var texts []string
+	for _, e := range f.view("q").Log {
+		if e.Kind == "archive" {
+			texts = append(texts, e.Text)
+		}
+	}
+	if strings.Join(texts, "; ") != "quest archived; quest brought back from the archive" {
+		t.Errorf("chronicle: %q", texts)
+	}
+}

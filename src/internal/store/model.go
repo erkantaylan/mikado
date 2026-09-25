@@ -107,7 +107,8 @@ type QuestInfo struct {
 	Slug        string `json:"slug"`
 	Title       string `json:"title"`
 	FinalCardID *int64 `json:"finalCardId"`
-	State       string `json:"state"` // active, complete or cancelled
+	State       string `json:"state"`                // active, complete or cancelled
+	ArchivedAt  string `json:"archivedAt,omitempty"` // set while the quest is archived
 }
 
 // Quest states, from the final card.
@@ -147,6 +148,9 @@ type QuestSummary struct {
 	Heroes       []string `json:"heroes"`
 	Repos        []string `json:"repos"`
 	LastActivity string   `json:"lastActivity"`
+	// ArchivedAt is set while the quest is archived: put away, off the
+	// board's shelves, otherwise unchanged.
+	ArchivedAt string `json:"archivedAt,omitempty"`
 }
 
 // NewCard is a request to add a card. Cards are global; a card is in a quest
@@ -220,6 +224,8 @@ type QuestPatch struct {
 	Slug  *string `json:"slug"`
 	Title *string `json:"title"`
 	Final *int64  `json:"final"`
+	// Archived puts the quest away (true) or brings it back (false).
+	Archived *bool `json:"archived"`
 }
 
 // Key is how a card id is shown: M142.

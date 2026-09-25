@@ -141,6 +141,7 @@ use the ones above.
 | `status: "awaiting"` | Awaiting reply |
 | `status: "cancelled"`, `cancelled`, `cancelReason` | Abandoned, and why |
 | quest `state: "complete"` / `"cancelled"` | quest fulfilled / abandoned |
+| quest `archivedAt` | archived (absent when not) |
 | `kind: "awaiting"`, `waitingOn`, `since` | a Petition, whom it awaits, since when |
 | `final`, `finalCardId`, `finalOf` | the crowning deed |
 | `needs` (`from` requires `to`), `neededBy` | Requires, Opens |
@@ -180,6 +181,7 @@ The words mikado uses, everywhere a person or an agent reads them.
 | G21 | Hero / no hero | Whoever is responsible for a deed: its GitHub assignee, else the hero set in mikado. A deed with neither shows "no hero". | `--hero WHO`, `set D --hero WHO` |
 | G22 | Chronicle | The history: every change as one sentence. A quest's chronicle is its own events plus those of the deeds on its chart. | `quest show SLUG` |
 | G23 | NPC | A decorative joke badge any deed can wear. Nothing reads it. | `--npc` |
+| G24 | Archived | A quest put away: off the Quest Board's shelves and out of `quest list` (unless `--all`), its chart, deeds and chronicle untouched. Archive a quest only when the user asks. | `quest archive SLUG`, `quest unarchive SLUG` |
 
 ## Rules
 

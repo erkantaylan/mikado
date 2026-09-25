@@ -210,11 +210,14 @@ agents:
 
 quests (a quest is its crowning deed, every deed that one requires, and their side quests):
   quest new "title" [--slug S] [--crown D]   start a quest
-  quest list                          every quest at a glance (the Quest Board)
+  quest list [--all]                  every quest at a glance (the Quest Board);
+                                      --all includes archived quests
   quest show SLUG                     its chart: deeds, their status and requirements, chronicle
   quest crown SLUG D                  make D the quest's crowning deed
   quest rename SLUG NEW-SLUG          change the slug
   quest set SLUG [--slug S] [--title T] [--crown D]
+  quest archive SLUG / unarchive SLUG put a quest away (off the board, its chart and
+                                      deeds untouched) / bring it back
 
 deeds are global, one per GitHub issue. D is a deed id (M142, M-142, m142, 142), an
 issue owner/repo#n or an issue URL. A deed is in a quest once it is linked in.

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -137,9 +138,17 @@ func questStateWord(state string) string {
 	return state
 }
 
+// questWord is the quest's state, marked when it is archived.
+func questWord(state, archivedAt string) string {
+	if archivedAt != "" {
+		return questStateWord(state) + ", archived"
+	}
+	return questStateWord(state)
+}
+
 func questCmd(args []string) error {
 	if len(args) == 0 {
-		return usageError{"usage: mikado quest new|list|show|crown|rename|set"}
+		return usageError{"usage: mikado quest new|list|show|crown|rename|set|archive|unarchive"}
 	}
 	sub, args := args[0], args[1:]
 	if sub == "final" { // the earlier name
@@ -178,25 +187,35 @@ func questCmd(args []string) error {
 		return nil
 	case "list", "ls":
 		cmd := newCommand("quest list")
-		if _, err := cmd.parse(args, 0, 0, "[--json]"); err != nil {
+		all := cmd.fs.Bool("all", false, "include archived quests")
+		if _, err := cmd.parse(args, 0, 0, "[--all] [--json]"); err != nil {
 			return err
 		}
-		var qs []store.QuestSummary
-		rep, err := cmd.client().do("GET", "/api/quests", nil, &qs)
+		var every []store.QuestSummary
+		rep, err := cmd.client().do("GET", "/api/quests", nil, &every)
 		if err != nil {
 			return err
+		}
+		qs := every
+		if !*all {
+			qs = slices.DeleteFunc(slices.Clone(every), func(q store.QuestSummary) bool { return q.ArchivedAt != "" })
 		}
 		if *cmd.json {
 			return printJSON(qs)
 		}
+		if hidden := len(every) - len(qs); hidden > 0 {
+			defer fmt.Fprintf(os.Stderr, "%d archived quest(s) not shown (--all to include them)\n", hidden)
+		}
 		if len(qs) == 0 {
-			fmt.Println(`no quests yet — start one with: mikado quest new "title"`)
+			if len(every) == 0 {
+				fmt.Println(`no quests yet — start one with: mikado quest new "title"`)
+			}
 			return nil
 		}
 		tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(tw, "SLUG\tSTATE\tMAIN QUEST\tACHIEVEMENTS\tOPEN\tAWAITING REPLY\tUNDERWAY\tABANDONED\tHEROES\tTITLE")
 		for _, q := range qs {
-			fmt.Fprintf(tw, "%s\t%s\t%d/%d\t%d/%d\t%d\t%d\t%d\t%d\t%s\t%s\n", q.Slug, questStateWord(q.State), q.Main.Done, q.Main.Total,
+			fmt.Fprintf(tw, "%s\t%s\t%d/%d\t%d/%d\t%d\t%d\t%d\t%d\t%s\t%s\n", q.Slug, questWord(q.State, q.ArchivedAt), q.Main.Done, q.Main.Total,
 				q.Achievements.Done, q.Achievements.Total, q.Available, q.Awaiting, q.InProgress, q.Cancelled,
 				strings.Join(q.Heroes, ","), q.Title)
 		}
@@ -232,6 +251,13 @@ func questCmd(args []string) error {
 			return err
 		}
 		return patchQuest(cmd, pos[0], map[string]any{"final": id})
+	case "archive", "unarchive":
+		cmd := newCommand("quest " + sub)
+		pos, err := cmd.parse(args, 1, 1, "SLUG")
+		if err != nil {
+			return err
+		}
+		return patchQuest(cmd, pos[0], map[string]any{"archived": sub == "archive"})
 	case "rename":
 		cmd := newCommand("quest rename")
 		pos, err := cmd.parse(args, 2, 2, "SLUG NEW-SLUG")
@@ -268,7 +294,7 @@ func questCmd(args []string) error {
 		}
 		return patchQuest(cmd, pos[0], body)
 	default:
-		return usageError{fmt.Sprintf("unknown quest command %q (new, list, show, crown, rename, set)", sub)}
+		return usageError{fmt.Sprintf("unknown quest command %q (new, list, show, crown, rename, set, archive, unarchive)", sub)}
 	}
 }
 
@@ -280,7 +306,7 @@ func patchQuest(cmd *command, slug string, body map[string]any) error {
 	if *cmd.json {
 		return printJSON(q)
 	}
-	fmt.Printf("quest %s: %s [%s]\n", q.Slug, q.Title, questStateWord(q.State))
+	fmt.Printf("quest %s: %s [%s]\n", q.Slug, q.Title, questWord(q.State, q.ArchivedAt))
 	return nil
 }
 
@@ -305,7 +331,7 @@ func showQuest(v *store.QuestView) {
 			}
 		}
 	}
-	fmt.Printf("%s — %s [%s]\n", v.Quest.Slug, v.Quest.Title, questStateWord(v.Quest.State))
+	fmt.Printf("%s — %s [%s]\n", v.Quest.Slug, v.Quest.Title, questWord(v.Quest.State, v.Quest.ArchivedAt))
 	byID := map[int64]*store.Card{}
 	for i := range v.Cards {
 		byID[v.Cards[i].ID] = &v.Cards[i]

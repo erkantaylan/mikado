@@ -22,6 +22,7 @@ export type QuestSummary = {
   heroes: string[]
   repos: string[] // owner/repo
   lastActivity: string // RFC 3339
+  archivedAt?: string // RFC 3339, set while archived
 }
 
 /** Another quest the same card belongs to. */
@@ -74,6 +75,7 @@ export type QuestInfo = {
   title: string
   finalCardId: number | null
   state: QuestState
+  archivedAt?: string // RFC 3339, set while archived
 }
 
 /** Everything the quest map needs (store.QuestView). */

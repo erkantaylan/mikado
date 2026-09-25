@@ -152,7 +152,8 @@ func (s *Store) summary(ctx context.Context, slug string) (*QuestSummary, error)
 	return nil, errf(ErrNotFound, "no quest %q", slug)
 }
 
-// UpdateQuest renames a quest (slug and/or title) or sets its final card.
+// UpdateQuest renames a quest (slug and/or title), archives or unarchives it,
+// or sets its final card.
 func (s *Store) UpdateQuest(ctx context.Context, slug string, p QuestPatch) (*QuestSummary, error) {
 	q, err := getQuest(ctx, s.db, slug)
 	if err != nil {
@@ -194,6 +195,19 @@ func (s *Store) UpdateQuest(ctx context.Context, slug string, p QuestPatch) (*Qu
 				if err := s.event(ctx, tx, &q.ID, nil, "edit", "quest retitled from "+quoted(q.Title)); err != nil {
 					return err
 				}
+			}
+		}
+		if p.Archived != nil && *p.Archived != (q.ArchivedAt != "") {
+			var at any // NULL: brought back
+			text := "quest brought back from the archive"
+			if *p.Archived {
+				at, text = s.stamp(), "quest archived"
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE quests SET archived_at = ? WHERE id = ?`, at, q.ID); err != nil {
+				return err
+			}
+			if err := s.event(ctx, tx, &q.ID, nil, "archive", text); err != nil {
+				return err
 			}
 		}
 		if p.Final != nil {

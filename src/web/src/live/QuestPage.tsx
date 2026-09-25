@@ -26,6 +26,7 @@ export default function QuestPage({ slug }: { slug: string }) {
     <QuestMap
       model={model}
       state={data.quest.state}
+      archived={!!data.quest.archivedAt}
       boardHref="/"
       banner={
         <>

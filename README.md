@@ -70,6 +70,9 @@ One global graph of deeds and requirements; each quest is a view onto it, drawn 
   quests. A deed with no links is in no quest. A quest without a crowning deed has no deeds yet.
 - **Slugs** are short handles (the first few significant words of the title, suffixed `-2` on a
   clash). They are matched ignoring case and can be renamed.
+- **Archiving** a quest puts it away. It leaves the Quest Board's shelves for a closed "Archived"
+  shelf at the bottom, and it leaves `quest list` unless you pass `--all`. Nothing else changes: its
+  deeds, chart and chronicle stay, and so does its URL. `quest unarchive` brings it back.
 - **Two ways to take a deed out**, like GitHub:
   - **Strike** means gone for good. The deed leaves the graph (it stays in the chronicle), and so
     do its side quests. A quest whose crowning deed is struck has none.
@@ -103,6 +106,7 @@ else `$MIKADO_DATA`, else `$XDG_DATA_HOME/mikado`, else `~/.local/share/mikado`.
 mikado serve &                                   # http://127.0.0.1:47291
 mikado quest new "The winter update ships to every player"   # -> winter-update-ships-every
 mikado quest rename winter-update-ships-every winter-update
+mikado quest archive old-spike                   # off the board and `quest list` (--all shows it)
 mikado add studio/game#140 --crowns winter-update             # M1, the crowning deed
 mikado add studio/saves#88 --opens M1                         # M2: M1 requires it
 mikado add studio/saves#91 --opens M2 --unearthed-on M2 --reason "old saves crash the loader"
@@ -178,7 +182,7 @@ fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "fro
 | `GET /api/quests` | Quest Board summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header) |
 | `POST /api/quests` `{title, slug?, final?}` | create a quest; `final` (its crowning deed) is a deed id or reference string |
 | `GET /api/quests/{slug}` | `{quest, cards, needs, log, github?}`: its deeds, requirements and chronicle; each deed has `key` and `alsoIn` |
-| `PATCH /api/quests/{slug}` `{slug?, title?, final?}` | rename, retitle, crown |
+| `PATCH /api/quests/{slug}` `{slug?, title?, final?, archived?}` | rename, retitle, crown, archive (`true`) or bring back (`false`); an archived quest has `archivedAt` |
 | `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a deed (201). An issue that is already a deed gives 200 with that deed, and the links are applied to it |
 | `GET /api/cards/{ref}` | `{card, quests, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` |
 | `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a deed: fulfil, hero, NPC, title, abandon, take up / set down |

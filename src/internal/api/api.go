@@ -194,9 +194,10 @@ func (h *handler) getQuest(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) patchQuest(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Slug  *string  `json:"slug"`
-		Title *string  `json:"title"`
-		Final *cardRef `json:"final"`
+		Slug     *string  `json:"slug"`
+		Title    *string  `json:"title"`
+		Final    *cardRef `json:"final"`
+		Archived *bool    `json:"archived"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -206,7 +207,7 @@ func (h *handler) patchQuest(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	q, err := h.s.UpdateQuest(r.Context(), r.PathValue("slug"), store.QuestPatch{Slug: in.Slug, Title: in.Title, Final: final})
+	q, err := h.s.UpdateQuest(r.Context(), r.PathValue("slug"), store.QuestPatch{Slug: in.Slug, Title: in.Title, Final: final, Archived: in.Archived})
 	if err != nil {
 		fail(w, err)
 		return

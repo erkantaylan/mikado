@@ -174,3 +174,15 @@ export function QuestStateChip({ state }: { state?: string }) {
     </span>
   )
 }
+
+/** An archived quest: put away off the Quest Board's shelves, otherwise as it was. */
+export function ArchivedChip() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-full border-2 border-[var(--edge-off)] px-2 py-0.5 text-[11px] font-bold tracking-[0.15em] text-[var(--ink-soft)] uppercase"
+      title="Archived: off the Quest Board's shelves (mikado quest unarchive brings it back)"
+    >
+      Archived
+    </span>
+  )
+}

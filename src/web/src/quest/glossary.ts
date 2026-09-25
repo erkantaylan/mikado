@@ -2,7 +2,7 @@
 // SKILL.md carries the same table for agents (src/internal/skill/SKILL.md), so change both together.
 
 export type Term = {
-  id: string // G1…G23, as SKILL.md numbers them
+  id: string // G1…G24, as SKILL.md numbers them
   term: string
   also?: string // a synonym that means exactly the same
   text: string // what it means, in a sentence or two
@@ -143,5 +143,11 @@ export const glossary: Term[] = [
     term: 'NPC',
     text: 'A decorative joke badge any deed can wear. Nothing reads it.',
     cli: '--npc',
+  },
+  {
+    id: 'G24',
+    term: 'Archived',
+    text: 'A quest put away: off the Quest Board’s shelves and out of quest list, its chart, deeds and chronicle untouched. Bring it back any time.',
+    cli: 'mikado quest archive SLUG · mikado quest unarchive SLUG',
   },
 ]
