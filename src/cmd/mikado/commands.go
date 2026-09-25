@@ -75,17 +75,20 @@ func cardPath(id int64, rest ...string) string {
 }
 
 // resolve turns a deed reference into an id: M142, M-142, m142, c142 and 142
-// locally; an issue ref or github.com URL by asking the server.
+// locally; an issue ref, a github.com URL or a quest slug (that quest's
+// crowning deed) by asking the server, which tries the deed forms first.
 func resolve(c *client, ref string) (int64, error) {
 	if id, ok := store.ParseCardID(ref); ok {
 		return id, nil
 	}
-	r, err := github.ParseRef(ref)
-	if err != nil {
-		return 0, usageError{fmt.Sprintf("%q is not a deed (want M142 or owner/repo#n)", ref)}
+	path := "/api/cards/" + url.PathEscape(strings.TrimSpace(ref))
+	if r, err := github.ParseRef(ref); err == nil {
+		path = "/api/cards/" + url.PathEscape(r.Owner) + "/" + url.PathEscape(r.Repo) + "%23" + strconv.Itoa(r.Number)
+	} else if strings.TrimSpace(ref) == "" || strings.ContainsAny(ref, "/#?") {
+		return 0, usageError{fmt.Sprintf("%q is not a deed (want M142, owner/repo#n or a quest slug)", ref)}
 	}
 	var v store.CardView
-	if _, err := c.do("GET", "/api/cards/"+url.PathEscape(r.Owner)+"/"+url.PathEscape(r.Repo)+"%23"+strconv.Itoa(r.Number), nil, &v); err != nil {
+	if _, err := c.do("GET", path, nil, &v); err != nil {
 		return 0, err
 	}
 	return v.Card.ID, nil
@@ -365,7 +368,22 @@ func showQuest(v *store.QuestView) {
 			}
 			extra = append(extra, "also in "+strings.Join(slugs, ", "))
 		}
-		fmt.Fprintf(tw, "%s %s\t%s\t%s\t%s\n", mark, c.Key, statusWord(c), nameWithWork(c), strings.Join(extra, " · "))
+		name := nameWithWork(c)
+		if q := c.Crowns; q != nil {
+			// Another quest, folded into this one: one line, with its progress.
+			name = fmt.Sprintf("quest %s  %d/%d  %s", q.Slug, q.Done, q.Total, q.Title)
+			extra = extra[:0]
+			if q.Working > 0 {
+				extra = append(extra, fmt.Sprintf("%d underway", q.Working))
+			}
+			if q.ArchivedAt != "" {
+				extra = append(extra, "archived")
+			}
+			if rs := requires[c.ID]; len(rs) > 0 {
+				extra = append(extra, "requires "+strings.Join(rs, " "))
+			}
+		}
+		fmt.Fprintf(tw, "%s %s\t%s\t%s\t%s\n", mark, c.Key, statusWord(c), name, strings.Join(extra, " · "))
 	}
 	if len(v.Cards) > 0 {
 		fmt.Println()
@@ -499,6 +517,9 @@ func showCmd(args []string) error {
 	}
 	if c.Reason != "" && !c.Cancelled {
 		fmt.Println("  why: " + c.Reason)
+	}
+	if q := c.Crowns; q != nil {
+		fmt.Printf("  crowns quest %s (%s): %d/%d fulfilled, %s\n", q.Slug, q.Title, q.Done, q.Total, questWord(q.State, q.ArchivedAt))
 	}
 	var quests []string
 	for _, q := range v.Quests {

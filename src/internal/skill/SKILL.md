@@ -41,6 +41,10 @@ local server.
   side quests. A deed joins a quest by being linked in; it leaves when the link is cut.
 - **Side quest**: optional polish hung on a deed (`--side-of`). Never blocks anything; earns an
   achievement, not progress.
+- **A quest waiting on a quest**: a deed can require another quest's crowning deed. It then waits
+  on that whole quest, which its chart draws as one card with the other quest's progress; it
+  counts as one deed there. The other quest's deeds stay on their own chart (not in this quest's
+  totals, chronicle or `quest show`), unless this quest also requires them directly.
 - **Status** (computed): *fulfilled*, *open* (everything it requires is fulfilled), *sealed*
   (something it requires is not), *awaiting reply* (an open petition), *abandoned* (won't do:
   stays on the chart, blocks nothing, counts in no total).
@@ -52,6 +56,9 @@ local server.
 
 - A **deed** has one global id, `M` plus a number: `M142`. The same deed has the same id in
   every quest. Commands also accept `M-142`, `m142`, `142`, `owner/repo#n` or an issue URL.
+- Wherever a deed is expected, a **quest slug** names that quest's crowning deed:
+  `mikado require M5 controller-support`. The deed forms win (`m5` is the deed M5, even if a
+  quest has that slug). A quest with no crowning deed yet names none, and the command says so.
 - A **quest** is named by its slug: `winter-update`.
 - When you report back to the user, name deeds by their `M` id (and the issue ref if it helps):
   "Added M12 (studio/saves#45); it opens M9."
@@ -74,6 +81,18 @@ where it was found and why; that is how the quest's chronicle stays readable.
     mikado add studio/saves#91 --opens M3 --unearthed-on M3 --reason "old saves crash the loader"
     mikado petition "Final key art from the freelance artist" --on "freelance artist" \
         --opens M5 --unearthed-on M5 --reason "placeholder art only; the stores reject it"
+
+**Part of the goal is a whole quest of its own.** When a deed cannot be done until another goal
+is reached, and that goal has (or deserves) its own quest — it has its own chart of deeds, other
+quests wait on it too, or someone else drives it — link the deed to that quest by its slug instead
+of copying its deeds in. The chart then shows the other quest as one card with its progress, and
+the Quest Board says which quest blocks which.
+
+    mikado require M5 controller-support       # M5 waits on the whole quest
+    mikado errand "Record the controller trailer" --requires controller-support --opens M1
+
+Do not do this for optional work (that is a side quest), and do not link a quest to itself or to
+a quest that waits on it: requirements stay acyclic and a cycle is refused.
 
 **Optional polish** goes in a side quest, not in the requirements:
 
@@ -116,7 +135,7 @@ a reply.
 | `quest new "title" [--crown D]` | start a quest |
 | `quest crown SLUG D` | make D the quest's crowning deed |
 | `add owner/repo#n` / `errand "title"` / `petition "title" --on WHO` | add a deed |
-| `require D PREREQ` / `unrequire D PREREQ` | D requires PREREQ / no longer |
+| `require D PREREQ` / `unrequire D PREREQ` | D requires PREREQ / no longer (either may be a quest slug) |
 | `fulfil D` / `unfulfil D` | errands and petitions only |
 | `take-up D [--by WHO]` / `set-down D` | underway / no longer |
 | `abandon D --reason` / `unabandon D` | won't do / undo that |
@@ -151,6 +170,8 @@ use the ones above.
 | `owner`, `assignees` | the hero (GitHub assignees first) |
 | `log` | the chronicle |
 | `id` / `key` | the deed (`key` is `M142`) |
+| `crowns` (`slug`, `title`, `state`, `done`, `total`, `working`, `open`) | on a chart, a deed that crowns another quest and stands for all of it: that quest's main-quest progress, how many of its deeds are underway, and its deeds still to do |
+| quest `blockedBy` / `blocks` | the quests drawn on this one's chart as one card each / the quests with this one on theirs |
 
 ## Glossary
 
@@ -160,7 +181,7 @@ The words mikado uses, everywhere a person or an agent reads them.
 |---|---|---|---|
 | G1 | Quest | A goal: small enough to finish, big enough to need several deeds. It is drawn as a chart that ends in one crowning deed. | `quest new "title"` |
 | G2 | Quest Board | The page with every quest at a glance: progress on its main quest, its achievements, and who is on it. | `quest list`, `open` |
-| G3 | Chart | One quest drawn out: every deed on the way to the crowning deed, and what requires what. | `quest show SLUG`, `open SLUG` |
+| G3 | Chart | One quest drawn out: every deed on the way to the crowning deed, and what requires what. Another quest this one waits on is drawn as one card, with its progress and a link to its own chart. | `quest show SLUG`, `open SLUG` |
 | G4 | Deed (or Task) | Any unit on the chart, named by its id, like M142. "Task" means exactly the same; either word works. | `show D` |
 | G5 | Issue | A deed that is a GitHub issue (owner/repo#n). Its title, state and assignees come from GitHub; it is fulfilled when the issue is closed. | `add owner/repo#n` |
 | G6 | Errand | A deed that is a real step but not worth a GitHub issue, like booking a release window. | `errand "title"` |

@@ -103,7 +103,7 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 	}
 
 	var exact int64
-	if id, err := s.Resolve(ctx, strings.TrimSpace(q)); err == nil {
+	if id, err := s.resolveDeed(ctx, strings.TrimSpace(q)); err == nil {
 		if c, ok := cards[id]; ok {
 			exact = id
 			ec := withQuests(c)

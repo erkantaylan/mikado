@@ -55,6 +55,16 @@ export function toItem(c: Card): Item {
     alsoIn: c.alsoIn,
     status: c.status,
     openBefore: c.openBefore,
+    crowns: c.crowns && {
+      slug: c.crowns.slug,
+      title: c.crowns.title,
+      state: c.crowns.state,
+      archived: !!c.crowns.archivedAt,
+      done: c.crowns.done,
+      total: c.crowns.total,
+      underway: c.crowns.working,
+      open: c.crowns.open.map((d) => ({ key: d.key, title: d.title, status: d.status, working: d.working })),
+    },
   }
 }
 

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Layers } from 'lucide-react'
 import type { Item, Status } from './model'
 
 // Every colour is a theme variable (quest.css).
@@ -82,8 +83,17 @@ export function Key({ id }: { id?: string }) {
 
 /** The kind tag in front of a title: the deed's key, then the issue's repo#n or what sort of deed it is. */
 export function Label({ item, tag }: { item: Item; tag: string }) {
-  const kind =
-    item.kind === 'wait' ? (
+  const kind = item.crowns ? (
+    // A quest card: named by the quest it stands for.
+    <span className="flex min-w-0 items-center gap-1">
+      <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.done }}>
+        <Layers size={12} /> Quest
+      </span>
+      <span className="min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.slug}>
+        {item.crowns.slug}
+      </span>
+    </span>
+  ) : item.kind === 'wait' ? (
       <span className="shrink-0 text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>
     ) : item.kind === 'task' ? (
       <span className="shrink-0 text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>

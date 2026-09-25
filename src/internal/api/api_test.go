@@ -195,3 +195,77 @@ func TestHosts(t *testing.T) {
 		t.Error("a bad flag host should be refused")
 	}
 }
+
+func TestQuestSlugRefsAndCrowns(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"), noGitHub{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	h, err := Handler(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := func(method, path, body string) (int, map[string]any) {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Host = "localhost"
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		var out map[string]any
+		_ = json.Unmarshal(rec.Body.Bytes(), &out)
+		return rec.Code, out
+	}
+	for _, st := range []struct {
+		method, path, body string
+		want               int
+	}{
+		{"POST", "/api/quests", `{"title":"Controller support","slug":"pads"}`, 201},
+		{"POST", "/api/quests/pads/cards", `{"kind":"errand","title":"ship pads","final":true}`, 201}, // M1
+		{"POST", "/api/cards", `{"kind":"errand","title":"glyphs","neededBy":[1]}`, 201},              // M2
+		{"POST", "/api/quests", `{"title":"Season two","slug":"season","final":"pads"}`, 201},         // crowned by M1 too
+		{"POST", "/api/quests", `{"title":"Launch","slug":"launch"}`, 201},
+		{"POST", "/api/cards", `{"kind":"errand","title":"launch it","finalOf":"launch"}`, 201}, // M3
+		{"PATCH", "/api/quests/launch", `{"final":"launch"}`, 200},
+		{"GET", "/api/cards/nope", "", 404},
+		{"POST", "/api/quests", `{"title":"Empty","slug":"empty"}`, 201},
+		{"GET", "/api/cards/empty", "", 400},
+		{"PATCH", "/api/cards/launch", `{"working":true}`, 200},
+	} {
+		if code, out := call(st.method, st.path, st.body); code != st.want {
+			t.Errorf("%s %s %s: %d %v, want %d", st.method, st.path, st.body, code, out, st.want)
+		}
+	}
+	// launch requires the whole of pads: M3 requires M1.
+	if code, out := call("POST", "/api/needs", `{"from":3,"to":1}`); code != 201 {
+		t.Fatalf("need: %d %v", code, out)
+	}
+	code, out := call("GET", "/api/cards/pads", "")
+	if code != 200 || out["card"].(map[string]any)["key"] != "M1" {
+		t.Fatalf("card by slug: %d %v", code, out)
+	}
+	if cr, _ := out["card"].(map[string]any)["crowns"].(map[string]any); cr == nil || cr["slug"] != "pads" {
+		t.Errorf("card view crowns: %v", out["card"])
+	}
+	_, out = call("GET", "/api/quests/launch", "")
+	cards := out["cards"].([]any)
+	if len(cards) != 2 {
+		t.Fatalf("launch cards: %v", cards)
+	}
+	for _, c := range cards {
+		c := c.(map[string]any)
+		cr, has := c["crowns"].(map[string]any)
+		switch c["key"] {
+		case "M1":
+			if !has || cr["slug"] != "pads" || cr["done"] != 0.0 || cr["total"] != 2.0 || cr["state"] != "active" || len(cr["open"].([]any)) != 2 {
+				t.Errorf("quest card: %v", c)
+			}
+		case "M3":
+			if has {
+				t.Errorf("own crowning deed has crowns: %v", c)
+			}
+		}
+	}
+}

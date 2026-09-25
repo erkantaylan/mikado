@@ -36,9 +36,25 @@ export type Item = {
   alsoIn?: QuestRef[] // other quests the same card belongs to
   status?: Status // computed by the server; computed here when absent (mock data)
   openBefore?: number // likewise: how many cards it needs are still open
+  crowns?: QuestCard // it crowns another quest: drawn as that quest's card, standing for all of it
 }
 
 export type QuestRef = { slug: string; title: string }
+
+/** Another quest, as its card on this chart shows it: its state, its progress and what is left in it. */
+export type QuestCard = {
+  slug: string
+  title: string
+  state: QuestState
+  archived: boolean
+  done: number
+  total: number
+  underway: number // deeds underway in it
+  open: { key: string; title: string; status: Status; working: boolean }[] // its main-quest deeds still to do
+}
+
+/** How a deed is titled: a quest card by its quest's title, any other deed by its own. */
+export const titleOf = (i: Item) => i.crowns?.title ?? i.title
 
 // `from` needs `to` before it can be done.
 export type Need = { from: string; to: string }

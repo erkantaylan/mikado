@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Ban, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { QuestState } from './model'
 import { QuestStateChip } from './look'
@@ -22,7 +22,12 @@ export type BoardQuest = {
   cancelled?: number
   inProgress?: number
   archivedAt?: string // set while archived: kept off the shelves above
+  blockedBy?: QuestLink[] // quests drawn on this one's chart as quest cards
+  blocks?: QuestLink[] // quests with this one on their chart
 }
+
+/** Another quest, named on a board row. */
+export type QuestLink = { slug: string; title: string; state: QuestState }
 
 const cancelled = (q: BoardQuest) => q.state === 'cancelled'
 // A quest that says what state it is in is believed; otherwise its main-quest count decides.
@@ -48,6 +53,39 @@ function Heroes({ names }: { names: string[] }) {
 // The row's columns, shared by every row so the shelves line up. Narrow screens wrap instead.
 const columns = 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px_96px]'
 
+/** One linked quest in a row's "Blocked by" / "Blocks" line: a finished one steps back. */
+function LinkedQuest({ q }: { q: QuestLink }) {
+  const over = q.state !== 'active'
+  return (
+    <a
+      href={`/quest/${encodeURIComponent(q.slug)}`}
+      title={`${q.title} (${q.slug})${q.state === 'complete' ? ' — fulfilled' : q.state === 'cancelled' ? ' — abandoned' : ''}`}
+      className={`relative z-10 hover:text-[var(--ink)] hover:underline ${
+        over ? 'text-[var(--ink-faint)]' : 'font-semibold text-[var(--ink)]'
+      } ${q.state === 'cancelled' ? 'line-through' : ''}`}
+    >
+      {q.state === 'complete' && <Check size={12} strokeWidth={3} className="mr-0.5 inline align-[-1px]" />}
+      {q.title}
+    </a>
+  )
+}
+
+/** Which quests this one waits on, and which wait on it: those drawn as quest cards on a chart. */
+function Linked({ label, quests }: { label: string; quests?: QuestLink[] }) {
+  if (!quests?.length) return null
+  return (
+    <span>
+      {label}:{' '}
+      {quests.map((l, k) => (
+        <span key={l.slug}>
+          {k > 0 && ', '}
+          <LinkedQuest q={l} />
+        </span>
+      ))}
+    </span>
+  )
+}
+
 function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: string }) {
   const pct = q.main.total ? Math.round((q.main.done / q.main.total) * 100) : 0
   const done = mainDone(q)
@@ -63,7 +101,7 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
   const body = (
     <div
       style={{ borderLeftColor: accent, opacity: cancelled(q) || q.archivedAt ? 0.8 : undefined }}
-      className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
+      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
         href ? 'transition-colors hover:bg-[var(--panel)]' : ''
       }`}
     >
@@ -73,17 +111,36 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
       {/* On a narrow screen the title takes the medal's line; the rest wraps below it. */}
       <div className="min-w-0 basis-[calc(100%-3.25rem)] md:basis-auto">
         <div className="flex items-center gap-2">
-          <span
-            className={`quest-display truncate text-[16px] leading-snug font-semibold ${cancelled(q) ? 'line-through decoration-1' : ''}`}
-            title={q.title}
-          >
-            {q.title}
-          </span>
+          {/* The title is the row's link, stretched over the whole row; the quest links below sit above it. */}
+          {href ? (
+            <a
+              href={href}
+              className={`quest-display truncate text-[16px] leading-snug font-semibold after:absolute after:inset-0 after:content-[''] ${
+                cancelled(q) ? 'line-through decoration-1' : ''
+              }`}
+              title={q.title}
+            >
+              {q.title}
+            </a>
+          ) : (
+            <span
+              className={`quest-display truncate text-[16px] leading-snug font-semibold ${cancelled(q) ? 'line-through decoration-1' : ''}`}
+              title={q.title}
+            >
+              {q.title}
+            </span>
+          )}
           <QuestStateChip state={q.state} />
         </div>
         <div className="truncate text-[13px] text-[var(--ink-soft)]">
           {[...q.repos, `last move ${q.lastActivity}`].join(' · ')}
         </div>
+        {(!!q.blockedBy?.length || !!q.blocks?.length) && (
+          <div className="flex gap-3 truncate text-[13px] text-[var(--ink-soft)]">
+            <Linked label="Blocked by" quests={q.blockedBy} />
+            <Linked label="Blocks" quests={q.blocks} />
+          </div>
+        )}
       </div>
 
       <div className="flex min-w-[150px] flex-1 items-center gap-2 md:w-[170px] md:flex-none" title="Main quest: deeds fulfilled">
@@ -132,13 +189,7 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
       </span>
     </div>
   )
-  return href ? (
-    <a href={href} className="block">
-      {body}
-    </a>
-  ) : (
-    body
-  )
+  return body
 }
 
 /** A shelf's rows, one list with hairlines between them. */

@@ -11,9 +11,9 @@ import {
   useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
-import type { Item, QuestModel, QuestState, Status } from './model'
+import { titleOf, type Item, type QuestCard, type QuestModel, type QuestState, type Status } from './model'
 import { ArchivedChip, Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
@@ -33,6 +33,7 @@ import {
 import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
+import { QuestProgress, questCardWord, questHref } from './QuestCard'
 
 // ---- side panel ------------------------------------------------------------
 
@@ -91,7 +92,7 @@ function Row({ m, item, onPick, right }: { m: QuestModel; item: Item; onPick: (i
         className="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-left text-[14px] hover:border-[var(--ink-faint)]"
       >
         <span className="min-w-0 truncate">
-          <Label item={item} tag={m.short(item.id)} /> {item.title.replace(/^Polish: /, '')}
+          <Label item={item} tag={m.short(item.id)} /> {titleOf(item).replace(/^Polish: /, '')}
         </span>
         {right}
       </button>
@@ -160,14 +161,11 @@ function Glossary() {
   )
 }
 
-function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPick: (id: string) => void; onClose: () => void }) {
-  const status = m.statusOf(item)
-  const before = m.needs.filter((n) => n.from === item.id).flatMap((n) => m.byId.get(n.to) ?? [])
-  const opens = m.needs.filter((n) => n.to === item.id).flatMap((n) => m.byId.get(n.from) ?? [])
-  const ref = m.refOf(item)
-  const url = ref ? m.urlOf(item) : undefined
-  // Every deed named here is a way to it: picking one does what picking a side-panel row does.
-  const Mini = ({ i }: { i: Item }) => (
+type DetailsProps = { m: QuestModel; item: Item; onPick: (id: string) => void; onClose: () => void }
+
+// Every deed named in the details is a way to it: picking one does what picking a side-panel row does.
+function DeedRow({ m, i, onPick }: { m: QuestModel; i: Item; onPick: (id: string) => void }) {
+  return (
     <li>
       <button
         onClick={() => onPick(i.id)}
@@ -177,7 +175,7 @@ function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPi
           <span className="whitespace-nowrap">
             <Label item={i} tag={m.short(i.id)} />
           </span>{' '}
-          {i.title}
+          {titleOf(i)}
         </span>{' '}
         <span className="shrink-0 pt-px text-[12px] font-bold uppercase" style={{ color: stateColour[m.statusOf(i)] }}>
           {words[m.statusOf(i)]}
@@ -185,6 +183,108 @@ function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPi
       </button>
     </li>
   )
+}
+
+function Details(props: DetailsProps) {
+  return props.item.crowns ? <QuestDetails {...props} q={props.item.crowns} /> : <DeedDetails {...props} />
+}
+
+/** The details of a quest card: the quest it stands for, its progress and what is left in it. */
+function QuestDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: QuestCard }) {
+  const status = m.statusOf(item)
+  const before = m.needs.filter((n) => n.from === item.id).flatMap((n) => m.byId.get(n.to) ?? [])
+  const opens = m.needs.filter((n) => n.to === item.id).flatMap((n) => m.byId.get(n.from) ?? [])
+  const over = status === 'done' || status === 'cancelled'
+  const others = (item.alsoIn ?? []).filter((r) => r.slug !== q.slug)
+  const heading = 'mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase'
+  const crownedBy = m.refOf(item) ? m.short(item.id) : (item.key ?? item.title)
+  return (
+    <section className="space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1 font-mono text-[12px] text-[var(--ink-faint)]">
+            <Key id={item.key} /> · <Layers size={12} /> quest · {q.slug}
+            {q.archived && ' · archived'}
+          </div>
+          <div className="quest-display text-[16px] font-semibold">{q.title}</div>
+          <a
+            href={questHref(q.slug)}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-md border-2 border-[var(--ink)] bg-[var(--ink)] px-2.5 py-1 text-[13px] font-semibold text-[var(--bg)] hover:opacity-85"
+          >
+            Open quest <ExternalLink size={14} />
+          </a>
+        </div>
+        <button onClick={onClose} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close details">
+          ✕
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-[13px] font-bold tracking-wider uppercase" style={{ color: stateColour[status] }}>
+          {questCardWord(q, status)}
+        </span>
+        {q.underway > 0 && !over && <Working compact />}
+        <Hero name={item.assignee} />
+      </div>
+      <div>
+        <QuestProgress q={q} done={over} />
+        <div className="mt-1 text-[13px] text-[var(--ink-soft)]">
+          {q.done} of {q.total} deeds fulfilled{q.underway > 0 && !over && ` · ${q.underway} underway`}
+        </div>
+      </div>
+      <p className="rounded bg-[var(--chip)] p-2 text-[14px]">
+        A quest of its own, crowned by <b className="font-mono text-[13px]">{crownedBy}</b>. Here it counts as one deed;{' '}
+        {status === 'done'
+          ? 'it was fulfilled when that quest was.'
+          : status === 'cancelled'
+            ? 'it was abandoned with that quest.'
+            : 'it is fulfilled when that quest is.'}
+      </p>
+      {q.open.length > 0 && (
+        <div>
+          <div className={heading}>Still to do in it · {q.open.length}</div>
+          <ul className="space-y-0.5 text-[14px]">
+            {q.open.map((d) => (
+              <li key={d.key} className="flex items-start gap-2 px-1.5 py-1">
+                <span className="min-w-0 flex-1">
+                  <Key id={d.key} /> {d.title}
+                </span>
+                {d.working && <Working compact />}
+                <span className="shrink-0 pt-px text-[12px] font-bold uppercase" style={{ color: stateColour[d.status] }}>
+                  {words[d.status]}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {others.length > 0 && (
+        <div>
+          <div className={heading}>Also in</div>
+          <AlsoIn quests={others} label={false} />
+        </div>
+      )}
+      {before.length > 0 && (
+        <div>
+          <div className={heading}>Requires</div>
+          <ul className="space-y-0.5 text-[14px]">{before.map((i) => <DeedRow key={i.id} m={m} i={i} onPick={onPick} />)}</ul>
+        </div>
+      )}
+      <div>
+        <div className={heading}>Opens</div>
+        <ul className="space-y-0.5 text-[14px]">
+          {opens.length ? opens.map((i) => <DeedRow key={i.id} m={m} i={i} onPick={onPick} />) : <li className="font-semibold">The quest itself: this is its crowning deed.</li>}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+function DeedDetails({ m, item, onPick, onClose }: DetailsProps) {
+  const status = m.statusOf(item)
+  const before = m.needs.filter((n) => n.from === item.id).flatMap((n) => m.byId.get(n.to) ?? [])
+  const opens = m.needs.filter((n) => n.to === item.id).flatMap((n) => m.byId.get(n.from) ?? [])
+  const ref = m.refOf(item)
+  const url = ref ? m.urlOf(item) : undefined
   return (
     <section className="space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
       <div className="flex items-start justify-between gap-2">
@@ -261,7 +361,7 @@ function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPi
       {before.length > 0 && (
         <div>
           <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Requires</div>
-          <ul className="space-y-0.5 text-[14px]">{before.map((i) => <Mini key={i.id} i={i} />)}</ul>
+          <ul className="space-y-0.5 text-[14px]">{before.map((i) => <DeedRow key={i.id} m={m} i={i} onPick={onPick} />)}</ul>
         </div>
       )}
       <div>
@@ -270,7 +370,7 @@ function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPi
           {item.sideOf ? (
             <li>Nothing — optional polish on {m.short(item.sideOf)}.</li>
           ) : opens.length ? (
-            opens.map((i) => <Mini key={i.id} i={i} />)
+            opens.map((i) => <DeedRow key={i.id} m={m} i={i} onPick={onPick} />)
           ) : (
             <li className="font-semibold">The quest itself: this is its crowning deed.</li>
           )}
@@ -419,8 +519,8 @@ function DeedMenu({
       style={{ left: x, top: y }}
       className="fixed z-40 w-52 rounded-lg border border-[var(--panel-border)] bg-[var(--panel)] p-1 shadow-lg"
     >
-      <div className="truncate px-3 pt-1 pb-1.5 text-[12px] text-[var(--ink-faint)]" title={item.title}>
-        {item.key && <span className="font-mono font-semibold">{item.key}</span>} {item.title}
+      <div className="truncate px-3 pt-1 pb-1.5 text-[12px] text-[var(--ink-faint)]" title={titleOf(item)}>
+        {item.key && <span className="font-mono font-semibold">{item.key}</span>} {titleOf(item)}
       </div>
       <button
         autoFocus

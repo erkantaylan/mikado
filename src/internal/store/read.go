@@ -114,6 +114,8 @@ type graph struct {
 	sides  map[int64][]int64 // card → its side quests
 	needs  []Need
 	quests []*questRow
+	// crowned maps each card that crowns a quest to those quests (by id).
+	crowned map[int64][]*questRow
 }
 
 func loadGraph(ctx context.Context, q querier) (*graph, error) {
@@ -176,12 +178,25 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 		}
 		g.quests = append(g.quests, &r)
 	}
+	g.crowned = map[int64][]*questRow{}
+	for _, q := range g.quests {
+		if q.Final != nil {
+			g.crowned[*q.Final] = append(g.crowned[*q.Final], q)
+		}
+	}
 	return g, rows.Err()
 }
 
 // closure returns the start cards, everything they transitively need, and
-// the side quests (recursively) of all of those, ascending by id.
+// the side quests (recursively) of all of those, ascending by id. It is what
+// a card's status depends on, so it never stops at another quest.
 func (g *graph) closure(start ...int64) []int64 {
+	return g.reach(start, func(int64) bool { return true })
+}
+
+// reach is closure, except that only the cards expand says yes to are
+// followed further (the others are included, not expanded).
+func (g *graph) reach(start []int64, expand func(id int64) bool) []int64 {
 	seen := map[int64]bool{}
 	var stack []int64
 	for _, id := range start {
@@ -193,6 +208,9 @@ func (g *graph) closure(start ...int64) []int64 {
 	for len(stack) > 0 {
 		id := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
+		if !expand(id) {
+			continue
+		}
 		for _, n := range g.next[id] {
 			if !seen[n] {
 				seen[n] = true
@@ -217,11 +235,22 @@ func (g *graph) closure(start ...int64) []int64 {
 
 // members are a quest's cards: its final card, everything that transitively
 // needs, and their side quests. A quest without a final has none.
+//
+// A card that crowns another quest stands for that whole quest: it is a
+// member, but what it needs and its side quests are that quest's, so they
+// are not reached through it (anything reachable by another route still is).
+// The quest's own final is always followed, even when it also crowns another.
 func (g *graph) members(q *questRow) []int64 {
 	if q.Final == nil {
 		return nil
 	}
-	return g.closure(*q.Final)
+	return g.reach([]int64{*q.Final}, func(id int64) bool { return id == *q.Final || !g.folds(id, q) })
+}
+
+// folds reports whether card id, seen on quest q, stands for another quest:
+// it crowns a quest and is not q's own final.
+func (g *graph) folds(id int64, q *questRow) bool {
+	return len(g.crowned[id]) > 0 && (q.Final == nil || *q.Final != id)
 }
 
 // membership maps each card to the quests it is a member of.
@@ -256,14 +285,7 @@ func (g *graph) rows(ids []int64) []*cardRow {
 }
 
 // isFinal reports whether a card is the final of any quest.
-func (g *graph) isFinal(id int64) bool {
-	for _, q := range g.quests {
-		if q.Final != nil && *q.Final == id {
-			return true
-		}
-	}
-	return false
-}
+func (g *graph) isFinal(id int64) bool { return len(g.crowned[id]) > 0 }
 
 var cardIDRe = regexp.MustCompile(`^(?i)(?:m-?|c)?([1-9][0-9]*)$`)
 
@@ -278,9 +300,31 @@ func ParseCardID(s string) (int64, bool) {
 	return id, err == nil
 }
 
-// Resolve turns a card reference (an id in any form, an issue ref or an issue
-// URL) into the id of a live card.
+// Resolve turns a card reference (an id in any form, an issue ref, an issue
+// URL, or a quest slug for that quest's crowning deed) into the id of a live
+// card. The deed forms win: a slug is tried only when ref is none of them.
 func (s *Store) Resolve(ctx context.Context, ref string) (int64, error) {
+	id, err := s.resolveDeed(ctx, ref)
+	if err == nil || KindOf(err) != ErrInvalid {
+		return id, err
+	}
+	slug := strings.ToLower(strings.TrimSpace(ref))
+	if !slugRe.MatchString(slug) {
+		return 0, err
+	}
+	q, qerr := getQuest(ctx, s.db, slug)
+	if qerr != nil {
+		return 0, errf(ErrNotFound, "%q is neither a deed nor a quest (want M142, owner/repo#n or a quest slug)", ref)
+	}
+	if q.Final == nil {
+		return 0, errf(ErrInvalid, "quest %s has no crowning deed yet, so it names no deed — crown one with `mikado quest crown %s D`", q.Slug, q.Slug)
+	}
+	return *q.Final, nil
+}
+
+// resolveDeed is Resolve for the deed forms only: an id, an issue ref or an
+// issue URL. Anything else is ErrInvalid.
+func (s *Store) resolveDeed(ctx context.Context, ref string) (int64, error) {
 	if id, ok := ParseCardID(ref); ok {
 		if _, err := liveCard(ctx, s.db, id); err != nil {
 			return 0, err
@@ -289,7 +333,7 @@ func (s *Store) Resolve(ctx context.Context, ref string) (int64, error) {
 	}
 	r, err := github.ParseRef(ref)
 	if err != nil {
-		return 0, errf(ErrInvalid, "%q is not a deed (want M142 or owner/repo#n)", ref)
+		return 0, errf(ErrInvalid, "%q is not a deed (want M142, owner/repo#n or a quest slug)", ref)
 	}
 	var id int64
 	err = s.db.QueryRowContext(ctx, `SELECT id FROM cards WHERE ref_key = ? AND removed_at IS NULL`, r.Key()).Scan(&id)
@@ -531,7 +575,8 @@ func (s *Store) Quest(ctx context.Context, slug string) (*QuestView, error) {
 		return nil, err
 	}
 	ids := g.members(q)
-	built, warning, err := s.view(ctx, g, ids)
+	// A folded quest card's status (and its quest's progress) needs what lies behind it too.
+	built, warning, err := s.view(ctx, g, g.closure(ids...))
 	if err != nil {
 		return nil, err
 	}
@@ -548,6 +593,9 @@ func (s *Store) Quest(ctx context.Context, slug string) (*QuestView, error) {
 		c.AlsoIn = alsoIn(in[id], q)
 		if c.Final {
 			v.Quest.State = questState(&c)
+		}
+		if g.folds(id, q) {
+			c.Crowns = g.crowns(id, q, built)
 		}
 		v.Cards = append(v.Cards, c)
 	}
@@ -611,6 +659,7 @@ func (s *Store) CardView(ctx context.Context, id int64) (*CardView, error) {
 		return c
 	}
 	v := &CardView{Card: card(id), Quests: alsoIn(in[id], nil), Needs: []Card{}, NeededBy: []Card{}, SideQuests: []Card{}, GitHub: warning}
+	v.Card.Crowns = g.crowns(id, nil, built)
 	for _, n := range g.next[id] {
 		v.Needs = append(v.Needs, card(n))
 	}
@@ -638,6 +687,9 @@ func (s *Store) card(ctx context.Context, id int64, viewing string) (*Card, erro
 			return nil, err
 		}
 		c.Final = q.Final != nil && *q.Final == id
+		if c.Final {
+			c.Crowns = nil // the viewed quest's own crowning deed stands for no other quest
+		}
 		c.AlsoIn = []QuestRef{}
 		for _, r := range v.Quests {
 			if r.Slug != q.Slug {
@@ -684,9 +736,69 @@ func (s *Store) Quests(ctx context.Context) ([]QuestSummary, string, error) {
 				at = t
 			}
 		}
-		out = append(out, summarize(QuestSummary{Slug: q.Slug, Title: q.Title, LastActivity: at, ArchivedAt: q.ArchivedAt}, cards))
+		out = append(out, summarize(QuestSummary{Slug: q.Slug, Title: q.Title, LastActivity: at, ArchivedAt: q.ArchivedAt,
+			BlockedBy: []QuestLink{}, Blocks: []QuestLink{}}, cards))
+	}
+	// A quest whose crowning deed is folded into another's chart blocks it.
+	index := map[int64]int{}
+	for i, q := range g.quests {
+		index[q.ID] = i
+	}
+	for i, q := range g.quests {
+		for _, id := range members[q.ID] {
+			if !g.folds(id, q) {
+				continue
+			}
+			for _, other := range g.crowned[id] {
+				out[i].BlockedBy = append(out[i].BlockedBy, g.link(other, built))
+				j := index[other.ID]
+				out[j].Blocks = append(out[j].Blocks, g.link(q, built))
+			}
+		}
 	}
 	return out, warning, nil
+}
+
+// link names a quest with its state, from its final card among built.
+func (g *graph) link(q *questRow, built map[int64]Card) QuestLink {
+	l := QuestLink{Slug: q.Slug, Title: q.Title, State: QuestActive, ArchivedAt: q.ArchivedAt}
+	if q.Final != nil {
+		if c, ok := built[*q.Final]; ok {
+			l.State = questState(&c)
+		}
+	}
+	return l
+}
+
+// crowns describes the quest card id stands for, seen from quest viewing
+// (nil: seen globally): the first quest it crowns other than viewing, with
+// that quest's progress counted as the board counts it. built must hold the
+// closure of id. Nil when id crowns no such quest.
+func (g *graph) crowns(id int64, viewing *questRow, built map[int64]Card) *Crowns {
+	var q *questRow
+	for _, c := range g.crowned[id] {
+		if viewing == nil || c.ID != viewing.ID {
+			q = c
+			break
+		}
+	}
+	if q == nil {
+		return nil
+	}
+	ids := g.members(q)
+	cards := make([]Card, 0, len(ids))
+	open := []OpenDeed{}
+	for _, mid := range ids {
+		c := built[mid]
+		c.Final = mid == *q.Final
+		cards = append(cards, c)
+		if c.SideOf == nil && !c.Done && !c.Cancelled {
+			open = append(open, OpenDeed{Key: c.Key, Title: c.Title, Status: c.Status, Working: c.Working})
+		}
+	}
+	sum := summarize(QuestSummary{}, cards)
+	return &Crowns{Slug: q.Slug, Title: q.Title, State: sum.State, ArchivedAt: q.ArchivedAt,
+		Done: sum.Main.Done, Total: sum.Main.Total, Working: sum.InProgress, Open: open}
 }
 
 type lastEvents struct{ quest, card map[int64]string }

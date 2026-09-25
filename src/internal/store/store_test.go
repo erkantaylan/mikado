@@ -1051,3 +1051,220 @@ func TestHosts(t *testing.T) {
 		t.Errorf("Hosts after remove: %q", got)
 	}
 }
+
+// crownsOf returns the Crowns of card id on quest slug's chart (nil if the
+// card is not there or stands for no other quest).
+func (f *fixture) crownsOf(slug string, id int64) *Crowns {
+	f.t.Helper()
+	for _, c := range f.view(slug).Cards {
+		if c.ID == id {
+			return c.Crowns
+		}
+	}
+	f.t.Fatalf("%s is not on %s's chart", Key(id), slug)
+	return nil
+}
+
+func linkSlugs(ls []QuestLink) string {
+	var out []string
+	for _, l := range ls {
+		out = append(out, l.Slug)
+	}
+	return strings.Join(out, ",")
+}
+
+func TestQuestFoldsIntoOneCard(t *testing.T) {
+	f := setup(t)
+	// Quest qb: bFinal requires b1 and shared; a side quest hangs on bFinal.
+	b1 := f.errand("b1")
+	shared := f.errand("shared")
+	bFinal := f.errand("final B", b1.ID, shared.ID)
+	bSide := f.add(NewCard{Kind: KindErrand, Title: "polish B", SideOf: &bFinal.ID})
+	f.quest("qb", bFinal)
+	// Quest qa: aFinal requires x and shared directly; x requires the whole of qb.
+	x := f.errand("x", bFinal.ID)
+	aFinal := f.errand("final A", x.ID, shared.ID)
+	f.quest("qa", aFinal)
+
+	// qb's own deeds stay out of qa, except shared, which qa reaches directly.
+	if got, want := f.members("qa"), []int64{shared.ID, bFinal.ID, x.ID, aFinal.ID}; !slices.Equal(got, want) {
+		t.Errorf("qa members %v, want %v", got, want)
+	}
+	if got, want := f.members("qb"), []int64{b1.ID, shared.ID, bFinal.ID, bSide.ID}; !slices.Equal(got, want) {
+		t.Errorf("qb members %v, want %v", got, want)
+	}
+	for _, c := range []struct {
+		id   int64
+		want string
+	}{{b1.ID, "qb"}, {bSide.ID, "qb"}, {shared.ID, "qb,qa"}, {bFinal.ID, "qb,qa"}, {x.ID, "qa"}} {
+		cv, err := f.s.CardView(f.ctx, c.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slugsOf(cv.Quests); got != c.want {
+			t.Errorf("%s quests %q, want %q", Key(c.id), got, c.want)
+		}
+	}
+	// The quest card counts as one deed, and is sealed while qb has work left.
+	if s := f.summary("qa"); s.Main != (Progress{0, 4}) || s.Achievements != (Progress{0, 0}) {
+		t.Errorf("qa summary %+v %+v", s.Main, s.Achievements)
+	}
+	v := f.view("qa")
+	for _, c := range v.Cards {
+		switch c.ID {
+		case bFinal.ID:
+			if c.Status != StatusLocked || c.OpenBefore != 2 || c.Crowns == nil {
+				t.Errorf("quest card: %s %d %+v", c.Status, c.OpenBefore, c.Crowns)
+			}
+		case aFinal.ID:
+			if c.Crowns != nil {
+				t.Errorf("own crowning deed has crowns %+v", c.Crowns)
+			}
+		}
+	}
+	// Only needs between members: bFinal→shared stays (both are on qa's chart), bFinal→b1 does not.
+	if !slices.Contains(v.Needs, Need{bFinal.ID, shared.ID}) || slices.Contains(v.Needs, Need{bFinal.ID, b1.ID}) {
+		t.Errorf("qa needs %v", v.Needs)
+	}
+	cr := f.crownsOf("qa", bFinal.ID)
+	if cr.Slug != "qb" || cr.Title != "Quest qb" || cr.State != QuestActive || cr.Done != 0 || cr.Total != 3 || len(cr.Open) != 3 {
+		t.Errorf("crowns %+v", cr)
+	}
+
+	f.patch(b1.ID, CardPatch{Done: ptr(true)})
+	f.patch(shared.ID, CardPatch{Working: ptr(true)})
+	cr = f.crownsOf("qa", bFinal.ID)
+	if cr.Done != 1 || cr.Total != 3 || cr.Working != 1 || len(cr.Open) != 2 || cr.Open[0].Key != Key(shared.ID) || !cr.Open[0].Working || cr.Open[0].Status != StatusAvailable {
+		t.Errorf("crowns after progress %+v", cr)
+	}
+	f.patch(shared.ID, CardPatch{Done: ptr(true)})
+	f.patch(bFinal.ID, CardPatch{Done: ptr(true)})
+	if cr = f.crownsOf("qa", bFinal.ID); cr.State != QuestComplete || cr.Done != 3 || len(cr.Open) != 0 {
+		t.Errorf("fulfilled quest card %+v", cr)
+	}
+	if s := f.summary("qa"); s.Main != (Progress{2, 4}) {
+		t.Errorf("qa summary after qb fulfilled %+v", s.Main)
+	}
+	// qb's chronicle stays qb's: b1's events are not in qa's.
+	for _, e := range f.view("qa").Log {
+		if e.CardID != nil && *e.CardID == b1.ID {
+			t.Errorf("qa log has b1's event %q", e.Text)
+		}
+	}
+	// Globally, the card names the quest it crowns.
+	if cv, _ := f.s.CardView(f.ctx, bFinal.ID); cv.Card.Crowns == nil || cv.Card.Crowns.Slug != "qb" {
+		t.Errorf("card view crowns %+v", cv.Card.Crowns)
+	}
+	// Seen from qb itself (quest-scoped route), its own crowning deed stands for nothing.
+	if c, err := f.s.card(f.ctx, bFinal.ID, "qb"); err != nil || c.Crowns != nil {
+		t.Errorf("qb's crowning deed seen from qb: %+v %v", c.Crowns, err)
+	}
+	// The board: qa is blocked by qb, and qb blocks qa.
+	if a, b := f.summary("qa"), f.summary("qb"); linkSlugs(a.BlockedBy) != "qb" || len(a.Blocks) != 0 ||
+		linkSlugs(b.Blocks) != "qa" || len(b.BlockedBy) != 0 || a.BlockedBy[0].State != QuestComplete {
+		t.Errorf("board links: qa %+v %+v, qb %+v %+v", a.BlockedBy, a.Blocks, b.BlockedBy, b.Blocks)
+	}
+}
+
+func TestNestedQuestsFoldOneLevel(t *testing.T) {
+	f := setup(t)
+	c1 := f.errand("c1")
+	cFinal := f.errand("final C", c1.ID)
+	f.quest("qc", cFinal)
+	b1 := f.errand("b1")
+	bFinal := f.errand("final B", b1.ID, cFinal.ID)
+	f.quest("qb", bFinal)
+	aFinal := f.errand("final A", bFinal.ID)
+	f.quest("qa", aFinal)
+
+	if got, want := f.members("qa"), []int64{bFinal.ID, aFinal.ID}; !slices.Equal(got, want) {
+		t.Errorf("qa members %v, want %v", got, want)
+	}
+	if got, want := f.members("qb"), []int64{cFinal.ID, b1.ID, bFinal.ID}; !slices.Equal(got, want) {
+		t.Errorf("qb members %v, want %v", got, want)
+	}
+	// qc counts as one deed inside qb, so qb's card on qa says 0/3.
+	if cr := f.crownsOf("qa", bFinal.ID); cr.Total != 3 || cr.Done != 0 {
+		t.Errorf("qb on qa: %+v", cr)
+	}
+	if cr := f.crownsOf("qb", cFinal.ID); cr.Slug != "qc" || cr.Total != 2 {
+		t.Errorf("qc on qb: %+v", cr)
+	}
+	if cv, _ := f.s.CardView(f.ctx, c1.ID); slugsOf(cv.Quests) != "qc" {
+		t.Errorf("c1 quests %q", slugsOf(cv.Quests))
+	}
+	a, b, c := f.summary("qa"), f.summary("qb"), f.summary("qc")
+	if linkSlugs(a.BlockedBy) != "qb" || linkSlugs(b.BlockedBy) != "qc" || linkSlugs(b.Blocks) != "qa" ||
+		linkSlugs(c.Blocks) != "qb" || len(c.BlockedBy) != 0 || len(a.Blocks) != 0 {
+		t.Errorf("board links: qa %v/%v qb %v/%v qc %v/%v", a.BlockedBy, a.Blocks, b.BlockedBy, b.Blocks, c.BlockedBy, c.Blocks)
+	}
+	if a.Main != (Progress{0, 2}) || b.Main != (Progress{0, 3}) {
+		t.Errorf("totals qa %+v qb %+v", a.Main, b.Main)
+	}
+}
+
+func TestSharedCrowningDeedIsNotFolded(t *testing.T) {
+	f := setup(t)
+	x := f.errand("x")
+	final := f.errand("final", x.ID)
+	f.quest("qa", final)
+	f.quest("qd", final)
+	for _, slug := range []string{"qa", "qd"} {
+		if got := f.members(slug); !slices.Equal(got, []int64{x.ID, final.ID}) {
+			t.Errorf("%s members %v", slug, got)
+		}
+		if cr := f.crownsOf(slug, final.ID); cr != nil {
+			t.Errorf("%s: own crowning deed shown as quest %+v", slug, cr)
+		}
+		if s := f.summary(slug); len(s.BlockedBy)+len(s.Blocks) != 0 {
+			t.Errorf("%s board links %+v %+v", slug, s.BlockedBy, s.Blocks)
+		}
+	}
+	// A third quest requiring that deed folds it, naming the first quest it crowns.
+	top := f.errand("top", final.ID)
+	f.quest("qe", top)
+	if got := f.members("qe"); !slices.Equal(got, []int64{final.ID, top.ID}) {
+		t.Errorf("qe members %v", got)
+	}
+	if cr := f.crownsOf("qe", final.ID); cr == nil || cr.Slug != "qa" || cr.Total != 2 {
+		t.Errorf("qe's quest card %+v", cr)
+	}
+	if s := f.summary("qe"); linkSlugs(s.BlockedBy) != "qa,qd" {
+		t.Errorf("qe blocked by %v", s.BlockedBy)
+	}
+}
+
+func TestResolveQuestSlug(t *testing.T) {
+	f := setup(t)
+	a := f.errand("a")         // M1
+	final := f.errand("final") // M2
+	f.quest("controller-support", final)
+	f.quest("no-crown", nil)
+	f.quest("m1", f.errand("m1's own final"))
+	for _, ref := range []string{"controller-support", "Controller-Support", " controller-support "} {
+		if id, err := f.s.Resolve(f.ctx, ref); err != nil || id != final.ID {
+			t.Errorf("Resolve(%q) = %d, %v", ref, id, err)
+		}
+	}
+	// The deed forms win over a slug that looks like one.
+	if id, err := f.s.Resolve(f.ctx, "m1"); err != nil || id != a.ID {
+		t.Errorf("Resolve(m1) = %d, %v; want the deed M1", id, err)
+	}
+	if _, err := f.s.Resolve(f.ctx, "no-crown"); KindOf(err) != ErrInvalid || !strings.Contains(err.Error(), "no crowning deed") {
+		t.Errorf("quest without a crowning deed: %v", err)
+	}
+	if _, err := f.s.Resolve(f.ctx, "nothing-here"); KindOf(err) != ErrNotFound {
+		t.Errorf("unknown slug: %v", err)
+	}
+	if _, err := f.s.Resolve(f.ctx, "not a slug!"); KindOf(err) != ErrInvalid {
+		t.Errorf("garbage: %v", err)
+	}
+	// Search names deeds exactly by id or issue only; the quest itself is found as a quest.
+	res, err := f.s.Search(f.ctx, "controller-support")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Exact != nil || len(res.Quests) != 1 {
+		t.Errorf("search by slug: exact %+v, quests %+v", res.Exact, res.Quests)
+	}
+}

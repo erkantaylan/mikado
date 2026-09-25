@@ -280,7 +280,9 @@ quests (a quest is its crowning deed, every deed that one requires, and their si
                                       deeds untouched) / bring it back
 
 deeds are global, one per GitHub issue. D is a deed id (M142, M-142, m142, 142), an
-issue owner/repo#n or an issue URL. A deed is in a quest once it is linked in.
+issue owner/repo#n, an issue URL, or a quest slug for that quest's crowning deed (so
+`+"`require M5 other-quest`"+` makes M5 wait on the whole other quest, drawn there as one
+card). A deed is in a quest once it is linked in.
   add owner/repo#N [link flags]       add a GitHub issue; if it is already on the chart,
                                       that deed is returned and the link flags applied to it
   errand "title" [link flags]         add a step not worth an issue

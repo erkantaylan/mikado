@@ -68,6 +68,41 @@ type Card struct {
 	// AlsoIn lists the quests the card is a member of, other than the one
 	// being viewed (all of them when no quest is being viewed).
 	AlsoIn []QuestRef `json:"alsoIn"`
+	// Crowns is set on a card that crowns another quest. On a quest's chart
+	// (GET /api/quests/{slug}) such a card stands for that whole quest, drawn
+	// as one quest card; seen globally (GET /api/cards) it names the quest it
+	// crowns. Never set on the viewed quest's own crowning deed.
+	Crowns *Crowns `json:"crowns,omitempty"`
+}
+
+// Crowns is the quest a card crowns, as its quest card shows it: the
+// quest's state and its main-quest progress, counted as the board counts it
+// (a quest folded into it counts as one deed), and what is still to do in it.
+type Crowns struct {
+	Slug       string     `json:"slug"`
+	Title      string     `json:"title"`
+	State      string     `json:"state"`
+	ArchivedAt string     `json:"archivedAt,omitempty"`
+	Done       int        `json:"done"`
+	Total      int        `json:"total"`
+	Working    int        `json:"working"` // deeds underway in it
+	Open       []OpenDeed `json:"open"`    // its main-quest deeds neither fulfilled nor abandoned
+}
+
+// OpenDeed is a deed still to do in a quest, as a quest card lists it.
+type OpenDeed struct {
+	Key     string `json:"key"`
+	Title   string `json:"title"`
+	Status  string `json:"status"`
+	Working bool   `json:"working"`
+}
+
+// QuestLink names a quest with its state, as the board links it.
+type QuestLink struct {
+	Slug       string `json:"slug"`
+	Title      string `json:"title"`
+	State      string `json:"state"`
+	ArchivedAt string `json:"archivedAt,omitempty"`
 }
 
 // QuestRef names a quest.
@@ -151,6 +186,10 @@ type QuestSummary struct {
 	// ArchivedAt is set while the quest is archived: put away, off the
 	// board's shelves, otherwise unchanged.
 	ArchivedAt string `json:"archivedAt,omitempty"`
+	// BlockedBy are the quests whose crowning deeds are on this quest's
+	// chart as quest cards; Blocks are the quests with this one's on theirs.
+	BlockedBy []QuestLink `json:"blockedBy"`
+	Blocks    []QuestLink `json:"blocks"`
 }
 
 // NewCard is a request to add a card. Cards are global; a card is in a quest

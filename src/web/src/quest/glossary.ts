@@ -25,7 +25,7 @@ export const glossary: Term[] = [
   {
     id: 'G3',
     term: 'Chart',
-    text: 'One quest drawn out: every deed on the way to the crowning deed, and what requires what.',
+    text: 'One quest drawn out: every deed on the way to the crowning deed, and what requires what. Another quest this one waits on is drawn as one card, with its progress and a link to its own chart.',
     cli: 'mikado quest show SLUG · mikado open SLUG',
   },
   {

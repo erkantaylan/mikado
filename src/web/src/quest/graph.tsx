@@ -15,6 +15,7 @@ import {
 import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import type { Item, QuestModel, QuestRef, QuestState, Status } from './model'
 import { Achievements, Hero, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words } from './look'
+import { QuestCardView } from './QuestCard'
 
 // ---- nodes -----------------------------------------------------------------
 
@@ -117,6 +118,8 @@ function npcPlate(status: Status): CSSProperties {
 
 function CardView({ data }: NodeProps<CardNode>) {
   const { item, tag, status, openBefore, days, dim, selected } = data
+  // A deed that crowns another quest stands for that whole quest here.
+  if (item.crowns) return <QuestCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   return (

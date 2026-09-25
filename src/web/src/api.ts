@@ -23,6 +23,29 @@ export type QuestSummary = {
   repos: string[] // owner/repo
   lastActivity: string // RFC 3339
   archivedAt?: string // RFC 3339, set while archived
+  blockedBy?: QuestLink[] // quests whose crowning deeds are on this quest's chart as quest cards; older servers send none
+  blocks?: QuestLink[] // quests with this one's crowning deed on their chart
+}
+
+/** A quest named with its state, as the board links it (store.QuestLink). */
+export type QuestLink = { slug: string; title: string; state: QuestState; archivedAt?: string }
+
+/** A deed still to do in a quest, as its quest card lists it (store.OpenDeed). */
+export type OpenDeed = { key: string; title: string; status: CardStatus; working: boolean }
+
+/**
+ * The quest a card crowns (store.Crowns). On a chart it is set on a card that stands for another
+ * quest: that quest's state, its main-quest progress as the board counts it, and what is left in it.
+ */
+export type Crowns = {
+  slug: string
+  title: string
+  state: QuestState
+  archivedAt?: string
+  done: number
+  total: number
+  working: number // deeds underway in it
+  open: OpenDeed[]
 }
 
 /** Another quest the same card belongs to. */
@@ -56,6 +79,7 @@ export type Card = {
   status: CardStatus
   openBefore: number
   alsoIn?: QuestRef[]
+  crowns?: Crowns // it crowns another quest and stands for that whole quest on this chart
 }
 
 /** `from` needs `to` done first. */

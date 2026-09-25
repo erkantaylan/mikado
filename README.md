@@ -57,7 +57,8 @@ One global graph of deeds and requirements; each quest is a view onto it, drawn 
     from, since when, and a hero.
 
   Wherever a deed is expected, it can be given as `M142`, `M-142`, `m142`, `c142`, `142`,
-  `owner/repo#n` or an issue URL.
+  `owner/repo#n` or an issue URL, or as a quest's slug, which names that quest's crowning deed.
+  The deed forms come first: a slug that reads as one of them (`m5`) names the deed.
 - **Requires** ("M5 requires M3": M3 must be fulfilled first; M3 opens M5) is the only blocking
   relation. Requirements are global and acyclic across the whole graph.
   A deed hung on another with `--side-of` is a **side quest**: optional, never blocks and never
@@ -70,6 +71,15 @@ One global graph of deeds and requirements; each quest is a view onto it, drawn 
   of any of them (recursively). A deed joins a quest by being linked in (`--opens`, `require`,
   `--side-of`, `--crowns`) and leaves when the link is cut (`unrequire`). One deed can be in several
   quests. A deed with no links is in no quest. A quest without a crowning deed has no deeds yet.
+- **A quest can wait on another quest.** A deed that requires another quest's crowning deed
+  (`mikado require M5 controller-support`) waits on that whole quest. On the chart, that crowning
+  deed is drawn as one card for the other quest: its title, its progress, what is still to do in
+  it, and a link to its own chart. It counts as one deed, in the progress and on the Quest Board.
+  The other quest's deeds stay on their own chart: they are not this quest's deeds, so they are
+  left out of its counts, its chronicle and `quest show`, unless this quest reaches them some other
+  way. A quest's own crowning deed is always its own, even when another quest shares it. The Quest
+  Board says which quests are blocked by which. This is not a side quest: a side quest is optional,
+  while the other quest here blocks the deed that requires it.
 - **Slugs** are short handles (the first few significant words of the title, suffixed `-2` on a
   clash). They are matched ignoring case and can be renamed.
 - **Archiving** a quest puts it away. It leaves the Quest Board's shelves for a closed "Archived"
@@ -115,6 +125,8 @@ mikado add studio/saves#91 --opens M2 --unearthed-on M2 --reason "old saves cras
 mikado errand "Book the store-page feature slot" --hero ada --opens M1
 mikado petition "Final key art" --on "freelance artist" --opens studio/game#140
 mikado add studio/saves#88 --opens M9           # same deed M2, now also in M9's quest
+mikado require M1 controller-support             # M1 waits on that whole quest: one card on the chart
+mikado errand "Controller glyphs in the trailer" --opens controller-support   # a slug names its crowning deed
 mikado take-up M2 --by cyd
 mikado abandon M5 --reason "split-screen co-op is cut from this update"
 mikado show M2                                   # requires, opens, side quests, quests
@@ -187,17 +199,17 @@ JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502. Bodies mu
 `Content-Type: application/json`, and requests must be addressed to localhost, `*.localhost` or an
 accepted host (`mikado hosts`); a refused host gets 403. The routes and fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "from requires to",
 *final* is the crowning deed, *owner* the hero. A `{id}` in a path takes any deed id form (`142`,
-`M142`, …).
+`M142`, …) or a quest slug (that quest's crowning deed); so do `final` and `{ref}`.
 
 | | |
 |---|---|
-| `GET /api/quests` | Quest Board summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header) |
+| `GET /api/quests` | Quest Board summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header). `blockedBy` lists the quests `[{slug, title, state, archivedAt?}]` whose crowning deeds are on this quest's chart as quest cards; `blocks` the quests with this one's on theirs |
 | `POST /api/quests` `{title, slug?, final?}` | create a quest; `final` (its crowning deed) is a deed id or reference string |
-| `GET /api/quests/{slug}` | `{quest, cards, needs, log, github?}`: its deeds, requirements and chronicle; each deed has `key` and `alsoIn` |
+| `GET /api/quests/{slug}` | `{quest, cards, needs, log, github?}`: its deeds, requirements and chronicle; each deed has `key` and `alsoIn`. A deed that crowns another quest has `crowns: {slug, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that quest, its main-quest progress counted as the board counts it, how many of its deeds are underway, and its deeds still to do. Its own deeds are not in `cards` |
 | `PATCH /api/quests/{slug}` `{slug?, title?, final?, archived?}` | rename, retitle, crown, archive (`true`) or bring back (`false`); an archived quest has `archivedAt` |
 | `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a deed (201). An issue that is already a deed gives 200 with that deed, and the links are applied to it |
 | `GET /api/search?q=` | `{quests, deeds, exact?}`: quests by slug and title, deeds by id, issue and title (every word, any case; issue titles from the cache). `exact` is the deed the query names by id or issue. Deeds still to do come first |
-| `GET /api/cards/{ref}` | `{card, quests, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` |
+| `GET /api/cards/{ref}` | `{card, quests, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` or a quest slug. A crowning deed's `card.crowns` names the quest it crowns, as above |
 | `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a deed: fulfil, hero, NPC, title, abandon, take up / set down |
 | `DELETE /api/cards/{id}` `{reason}` | strike a deed and its side quests |
 | `POST`/`DELETE /api/needs` `{from, to}` | add / drop a requirement (`from` requires `to`) |
