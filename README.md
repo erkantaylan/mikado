@@ -122,6 +122,23 @@ Client commands reach the server at `--server URL` / `$MIKADO_SERVER` (default
 Earlier command and flag names (`done`, `cancel`, `remove`, `start`, `need`, `await`,
 `quest final`, `--needed-by`, `--found-while`, `--owner`, …) still work but are no longer listed.
 
+### Reaching it under another name
+
+`serve` still listens on loopback only, and it answers only requests addressed to `localhost` or to a
+loopback IP. That check is what stops DNS rebinding, where another site's page points its own
+domain at 127.0.0.1. CORS would not help here: under your own domain, the dashboard and the API are
+the same origin. To open mikado through a reverse proxy or `tailscale serve` under a name of your
+own, accept that name:
+
+```bash
+mikado serve --allow-host mikado.home --allow-host '*.ts.net'   # *.x: any subdomain of x
+MIKADO_ALLOWED_HOSTS=mikado.home,*.ts.net mikado serve           # same, e.g. in the service unit
+```
+
+The proxy must pass the original `Host` header through, which Caddy and `tailscale serve` do by
+default. `make dev-web` reads the same variable for Vite's `allowedHosts`. Anyone who can reach an
+accepted name can read and change everything, because there is no authentication yet.
+
 ## Install
 
 ```bash
@@ -150,7 +167,8 @@ is left alone unless you pass `--force`. `mikado help` points agents at `mikado 
 ## API
 
 JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502. Bodies must be sent as
-`Content-Type: application/json`, and requests must be addressed to localhost. The routes and
+`Content-Type: application/json`, and requests must be addressed to localhost or to a host accepted
+with `serve --allow-host`. The routes and
 fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "from requires to",
 *final* is the crowning deed, *owner* the hero. A `{id}` in a path takes any deed id form (`142`,
 `M142`, …).

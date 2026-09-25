@@ -6,6 +6,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 # Data lives in ~/.local/share/mikado; gh supplies the GitHub login.
+# Hosts besides localhost to answer, e.g. behind a reverse proxy (see README):
+#Environment=MIKADO_ALLOWED_HOSTS=mikado.home,*.ts.net
 ExecStart=%h/.local/bin/mikado serve
 Restart=on-failure
 RestartSec=5

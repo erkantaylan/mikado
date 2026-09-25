@@ -15,8 +15,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
+	"unicode"
 
 	"mikado/internal/api"
 	"mikado/internal/github"
@@ -76,8 +78,17 @@ func serve(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	addr := fs.String("addr", defaultAddr, "address to listen on (loopback only)")
 	data := fs.String("data", "", "data directory (default $MIKADO_DATA, else $XDG_DATA_HOME/mikado, else ~/.local/share/mikado)")
+	var hosts listFlag
+	fs.Var(&hosts, "allow-host", "also answer requests addressed to this host, e.g. mikado.home or *.ts.net (repeatable; added to $MIKADO_ALLOWED_HOSTS)")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
+	}
+	// Commas or spaces separate hosts in the environment variable.
+	hosts = append(strings.FieldsFunc(os.Getenv("MIKADO_ALLOWED_HOSTS"), func(r rune) bool { return r == ',' || unicode.IsSpace(r) }), hosts...)
+	for _, h := range hosts {
+		if strings.ContainsAny(h, "/:") || strings.Contains(strings.TrimPrefix(h, "*."), "*") {
+			return usageError{fmt.Sprintf("--allow-host %q: give a host name like mikado.home or *.ts.net (no scheme, port or path)", h)}
+		}
 	}
 	host, _, err := net.SplitHostPort(*addr)
 	if err != nil {
@@ -102,7 +113,7 @@ func serve(args []string) error {
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           web.Handler(version, api.Handler(st)),
+		Handler:           web.Handler(version, api.Handler(st, hosts...)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -114,6 +125,9 @@ func serve(args []string) error {
 		_ = srv.Shutdown(shutdown)
 	}()
 	log.Printf("mikado %s serving on http://%s (data: %s)", version, *addr, dir)
+	if len(hosts) > 0 {
+		log.Printf("also answering requests addressed to %s", strings.Join(hosts, ", "))
+	}
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -182,7 +196,11 @@ func usage() {
 AI agents: run `+"`mikado skill`"+` before using mikado. It is the guide, glossary included.
 
 server:
-  serve [--addr ADDR] [--data DIR]    run the API and dashboard (default `+defaultAddr+`)
+  serve [--addr ADDR] [--data DIR] [--allow-host HOST]
+                                      run the API and dashboard (default `+defaultAddr+`);
+                                      --allow-host (repeatable, or $MIKADO_ALLOWED_HOSTS)
+                                      accepts a domain besides localhost, e.g. behind a
+                                      reverse proxy: mikado.home, *.ts.net
   version                             print the version
 
 agents:

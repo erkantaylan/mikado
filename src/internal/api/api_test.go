@@ -88,3 +88,27 @@ func TestAPI(t *testing.T) {
 		t.Errorf("quest whose final was removed: %d %v", code, out)
 	}
 }
+
+func TestHostMatcher(t *testing.T) {
+	ours := HostMatcher([]string{"Mikado.Home", "*.ts.net", " "})
+	for host, want := range map[string]bool{
+		"localhost:47291":       true,
+		"127.0.0.1":             true,
+		"[::1]:47291":           true,
+		"mikado.home":           true,
+		"MIKADO.HOME.:8080":     true,
+		"box.tail1.ts.net":      true,
+		"ts.net":                false,
+		"evilts.net":            false,
+		"mikado.home.evil.test": false,
+		"evil.example":          false,
+		"":                      false,
+	} {
+		if got := ours(host); got != want {
+			t.Errorf("%q: %v, want %v", host, got, want)
+		}
+	}
+	if HostMatcher(nil)("mikado.home") {
+		t.Error("no accepted hosts should mean localhost only")
+	}
+}

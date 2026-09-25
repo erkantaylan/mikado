@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,7 +21,8 @@ import (
 // Handler returns the API handler. Paths include the /api prefix. Cards and
 // needs are global; the quest-scoped card and need routes are kept as aliases
 // (they only check that the quest exists, and let "final" mean that quest's).
-func Handler(s *store.Store) http.Handler {
+// Requests must be addressed to localhost or to one of hosts (see HostMatcher).
+func Handler(s *store.Store, hosts ...string) http.Handler {
 	h := &handler{s: s}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/quests", h.listQuests)
@@ -48,23 +50,50 @@ func Handler(s *store.Store) http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
 	})
-	return localOnly(mux)
+	return guard(mux, HostMatcher(hosts))
 }
 
-// localOnly guards a server with no authentication against other web pages
-// the browser has open: it refuses Host headers that are not loopback (DNS
+// HostMatcher reports whether a request's Host names this server: localhost,
+// a loopback IP, or one of the accepted hosts. An accepted host is a name
+// ("mikado.home") or a wildcard for its subdomains ("*.ts.net"); names are
+// compared ignoring case, a port and a trailing dot.
+func HostMatcher(accepted []string) func(host string) bool {
+	var exact, suffixes []string
+	for _, a := range accepted {
+		a = normHost(a)
+		if rest, ok := strings.CutPrefix(a, "*."); ok {
+			suffixes = append(suffixes, "."+rest)
+		} else if a != "" {
+			exact = append(exact, a)
+		}
+	}
+	return func(host string) bool {
+		host = normHost(host)
+		if host == "localhost" || isLoopback(host) || slices.Contains(exact, host) {
+			return true
+		}
+		return slices.ContainsFunc(suffixes, func(s string) bool { return strings.HasSuffix(host, s) })
+	}
+}
+
+func normHost(host string) string {
+	host = strings.TrimSpace(host)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return strings.TrimSuffix(strings.ToLower(strings.Trim(host, "[]")), ".")
+}
+
+// guard protects a server with no authentication against other web pages
+// the browser has open: it refuses Host headers that are not ours (DNS
 // rebinding) and bodies that are not JSON (a cross-site form or no-cors fetch
 // cannot send application/json without a CORS preflight, which we never
 // answer).
-func localOnly(next http.Handler) http.Handler {
+func guard(next http.Handler, ours func(host string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			host = h
-		}
-		host = strings.Trim(host, "[]")
-		if host != "localhost" && !isLoopback(host) {
-			writeError(w, http.StatusForbidden, "mikado only answers requests addressed to localhost")
+		if !ours(r.Host) {
+			writeError(w, http.StatusForbidden, "mikado does not answer requests addressed to "+normHost(r.Host)+
+				": accept that host with `mikado serve --allow-host`")
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.ContentLength != 0 {
