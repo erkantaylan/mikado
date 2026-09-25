@@ -1,4 +1,4 @@
-# mikado
+# <img src="docs/icon.png" width="40" align="top" alt=""> mikado
 
 A local tool for grouping GitHub issues (across repos) under small goals — **quests** — and tracking
 the side issues unearthed along the way. One static Go binary: `mikado serve` runs a JSON API and a
