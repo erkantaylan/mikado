@@ -190,7 +190,8 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 
 // From a fulfilled deed: done opens a deed you can do now (bright, and it flows); held feeds one that still
 // waits on others; spent joins two fulfilled deeds, so it steps back.
-type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled'
+// A bridge stands in for a chain that runs through hidden deeds.
+type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
 export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean }, 'quest'>
 
 export const stroke: Record<Flow, CSSProperties> = {
@@ -200,6 +201,7 @@ export const stroke: Record<Flow, CSSProperties> = {
   locked: { stroke: 'var(--edge-off)', strokeWidth: 2.5 },
   side: { stroke: 'var(--side)', strokeWidth: 1.5, strokeDasharray: '5 6' },
   cancelled: { stroke: 'var(--edge-off)', strokeWidth: 1.5, strokeDasharray: '2 5', opacity: 0.6 },
+  bridge: { stroke: 'var(--ink-faint)', strokeWidth: 2, strokeDasharray: '10 4 2 4', opacity: 0.8 },
 }
 
 function QuestEdgeView({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>) {
@@ -218,7 +220,86 @@ export const edgeTypes = { quest: QuestEdgeView }
 
 // ---- graph -----------------------------------------------------------------
 
-export function buildGraph(m: QuestModel, selected: string | null, state?: QuestState): { nodes: QuestNode[]; edges: QuestEdge[] } {
+/** Which deeds can be left off the chart: fulfilled ones, abandoned ones, or both. */
+export type Hide = { done: boolean; cancelled: boolean }
+
+/**
+ * The deeds `hide` leaves off the chart. The crowning deed always stays; a side quest goes with
+ * the deed it hangs on, as it would float on its own.
+ */
+export function hiddenDeeds(m: QuestModel, hide: Hide): Set<string> {
+  const off = (i: Item) => {
+    if (i.final || i.id === m.goal.doneWhen) return false
+    const s = m.statusOf(i)
+    return (hide.done && s === 'done') || (hide.cancelled && s === 'cancelled')
+  }
+  const out = new Set(m.items.filter(off).map((i) => i.id))
+  for (const q of m.sideQuests) if (off(q) || (q.sideOf && out.has(q.sideOf))) out.add(q.id)
+  return out
+}
+
+/**
+ * Where a shown deed requires a shown one only through hidden deeds, a bridge joins the two, so
+ * the chain still reads left to right. None where shown edges or other bridges already join them.
+ * Each is [required, requiring], like a need's [to, from].
+ */
+function bridges(m: QuestModel, hidden: Set<string>): [string, string][] {
+  const requires = new Map<string, string[]>()
+  for (const n of m.needs) requires.set(n.from, [...(requires.get(n.from) ?? []), n.to])
+  const shown = (id: string) => m.byId.has(id) && !hidden.has(id)
+
+  const found: [string, string][] = []
+  for (const a of m.items) {
+    if (!shown(a.id)) continue
+    const beyond = new Set<string>()
+    const seen = new Set<string>()
+    const stack = (requires.get(a.id) ?? []).filter((id) => hidden.has(id))
+    while (stack.length) {
+      const cur = stack.pop()!
+      if (seen.has(cur)) continue
+      seen.add(cur)
+      for (const t of requires.get(cur) ?? []) {
+        if (hidden.has(t)) stack.push(t)
+        else if (shown(t)) beyond.add(t)
+      }
+    }
+    for (const c of beyond) found.push([c, a.id])
+  }
+
+  // Drop each bridge that the shown edges and the bridges still kept already imply.
+  const opens = new Map<string, string[]>()
+  const link = (to: string, from: string) => opens.set(to, [...(opens.get(to) ?? []), from])
+  for (const n of m.needs) if (shown(n.to) && shown(n.from)) link(n.to, n.from)
+  let kept = found
+  for (const b of found) {
+    const others = kept.filter((k) => k !== b)
+    const next = new Map(opens)
+    for (const [to, from] of others) next.set(to, [...(next.get(to) ?? []), from])
+    const seen = new Set<string>()
+    const stack = [b[0]]
+    let joined = false
+    while (stack.length && !joined) {
+      const cur = stack.pop()!
+      for (const t of next.get(cur) ?? []) {
+        if (t === b[1]) joined = true
+        else if (!seen.has(t)) {
+          seen.add(t)
+          stack.push(t)
+        }
+      }
+    }
+    if (joined) kept = others
+  }
+  return kept
+}
+
+/** The chart's nodes and edges; deeds in `hidden` are left off, bridged where they joined others. */
+export function buildGraph(
+  m: QuestModel,
+  selected: string | null,
+  state?: QuestState,
+  hidden: Set<string> = new Set(),
+): { nodes: QuestNode[]; edges: QuestEdge[] } {
   const { goal, items, sideQuests, needs, byId } = m
   const onPath = selected ? m.pathToGoal(selected) : null
   const done = items.filter((i) => i.done && m.counted(i)).length
@@ -239,7 +320,9 @@ export function buildGraph(m: QuestModel, selected: string | null, state?: Quest
         bonusTotal: sideQuests.filter(m.counted).length,
       },
     },
-    ...[...items, ...sideQuests].map(
+    ...[...items, ...sideQuests]
+      .filter((item) => !hidden.has(item.id))
+      .map(
       (item): CardNode => ({
         id: item.id,
         type: 'card',
@@ -286,13 +369,21 @@ export function buildGraph(m: QuestModel, selected: string | null, state?: Quest
   }
 
   // Only edges between deeds that are on the chart: a link to anything else would be drawn to nowhere.
-  const known = (id: string) => id === 'goal' || byId.has(id)
+  const known = (id: string) => id === 'goal' || (byId.has(id) && !hidden.has(id))
+  const bridge = ([source, target]: [string, string]): QuestEdge => ({
+    id: `bridge:${source}->${target}`,
+    source,
+    target,
+    type: 'quest',
+    data: { flow: 'bridge', live: false, dim: dim(source, target) },
+  })
   return {
     nodes,
     edges: [
       ...(goal.doneWhen ? [edge(goal.doneWhen, 'goal')] : []),
       ...needs.map((n) => edge(n.to, n.from)),
       ...sideQuests.filter((q) => q.sideOf).map((q) => edge(q.id, q.sideOf!, true)),
+      ...(hidden.size ? bridges(m, hidden).map(bridge) : []),
     ].filter((e) => known(e.source) && known(e.target)),
   }
 }

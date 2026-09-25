@@ -239,10 +239,22 @@
   animation: quest-flow 1.1s linear infinite;
 }
 
+/* A deed shown by a re-layout (say, "show all") fades in while the others glide aside. */
+@keyframes quest-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+.quest-appear {
+  animation: quest-appear 0.3s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .quest-available,
   .quest-working-dot,
-  .quest-flow {
+  .quest-flow,
+  .quest-appear {
     animation: none;
   }
 }

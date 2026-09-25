@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Background, ControlButton, Controls, MiniMap, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react'
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  Background,
+  ControlButton,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  ReactFlowProvider,
+  getViewportForBounds,
+  useNodesState,
+  useReactFlow,
+} from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Ban, Check, Crown, ExternalLink, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { Item, QuestModel, QuestState, Status } from './model'
 import { ArchivedChip, Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
@@ -12,9 +22,11 @@ import {
   LayoutWhenMeasured,
   buildGraph,
   edgeTypes,
+  hiddenDeeds,
   miniClass,
   nodeTypes,
   stroke,
+  type Hide,
   type Placed,
   type QuestNode,
 } from './graph'
@@ -119,6 +131,7 @@ function Legend() {
       <li className="flex items-center gap-2">{line(stroke.spent)} Spent: between two fulfilled deeds</li>
       <li className="flex items-center gap-2">{line(stroke.locked)} Not powered yet: its deed is not fulfilled</li>
       <li className="flex items-center gap-2">{line(stroke.side)} Side quest, hung on its deed</li>
+      <li className="flex items-center gap-2">{line(stroke.bridge)} Bridge: the deeds between are hidden</li>
       <li className="flex items-center gap-2">
         <span className="h-5 w-9 shrink-0 rounded border-2 border-dashed border-[var(--ink-faint)]" /> Dashed plate: unearthed on the way
       </li>
@@ -488,6 +501,98 @@ function PanelTabs({ tab, onChange, logCount }: { tab: PanelTab; onChange: (t: P
   )
 }
 
+const showAll: Hide = { done: false, cancelled: false }
+const GLIDE_MS = 300
+
+/**
+ * Which finished deeds the chart leaves off, remembered per quest (the mock has no slug).
+ * `adjust` may change what was remembered for this visit only, without saving it.
+ */
+function useHide(slug: string | undefined, adjust: (h: Hide) => Hide): [Hide, (h: Hide) => void] {
+  const key = `mikado.hide.${slug ?? 'mock'}`
+  const [hide, setHide] = useState<Hide>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) ?? 'null') as Partial<Hide> | null
+      return adjust({ done: !!saved?.done, cancelled: !!saved?.cancelled })
+    } catch {
+      // storage may be unavailable or hold something else; show everything
+      return adjust(showAll)
+    }
+  })
+  const choose = useCallback(
+    (h: Hide) => {
+      setHide(h)
+      try {
+        localStorage.setItem(key, JSON.stringify(h))
+      } catch {
+        // not remembering is fine
+      }
+    },
+    [key],
+  )
+  return [hide, choose]
+}
+
+/** `hide` with whatever keeps deed `id` off the chart cleared: its own status, or that of the deed it hangs on. */
+function revealing(m: QuestModel, id: string, hide: Hide): Hide {
+  const i = m.byId.get(id)
+  const parent = i?.sideOf ? m.byId.get(i.sideOf) : undefined
+  const next = { ...hide }
+  for (const x of [i, parent]) {
+    if (!x) continue
+    const s = m.statusOf(x)
+    if (s === 'done') next.done = false
+    if (s === 'cancelled') next.cancelled = false
+  }
+  return next
+}
+
+/** The chart's "Show" menu, beside its controls: leave fulfilled or abandoned deeds off the chart. */
+function ShowMenu({
+  hide,
+  counts,
+  onChange,
+  onClose,
+}: {
+  hide: Hide
+  counts: Record<keyof Hide, number>
+  onChange: (h: Hide) => void
+  onClose: () => void
+}) {
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [onClose])
+  const row = (k: keyof Hide, label: string) => (
+    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[14px] text-[var(--ink)] hover:bg-[var(--chip)]">
+      <input type="checkbox" checked={hide[k]} onChange={() => onChange({ ...hide, [k]: !hide[k] })} className="accent-[var(--avail)]" />
+      <span className="flex-1">{label}</span>
+      <span className="text-[12px] text-[var(--ink-faint)]">{counts[k]}</span>
+    </label>
+  )
+  return (
+    <div
+      ref={box}
+      role="dialog"
+      aria-label="Show"
+      className="absolute bottom-[15px] left-[58px] z-20 w-56 rounded-lg border border-[var(--panel-border)] bg-[var(--panel)] p-1 shadow-lg"
+    >
+      <div className="px-2 pt-1 pb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Show</div>
+      {row('done', 'Hide fulfilled')}
+      {row('cancelled', 'Hide abandoned')}
+      <div className="px-2 pt-1 pb-1.5 text-[12px] leading-snug text-[var(--ink-faint)]">The crowning deed always stays.</div>
+    </div>
+  )
+}
+
 /** The deed named by `?deed=` (or `?task=`, or the older `?card=`) — M142, m-142, c142 or 142 — if it is on this chart. */
 function cardFromUrl(m: QuestModel): string | null {
   const q = new URLSearchParams(location.search)
@@ -506,6 +611,10 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
   const [selected, setSelected] = useState<string | null>(wanted)
   const [tab, setTab] = usePanelTab()
   const [panelOpen, setPanelOpen] = useState(true)
+  // A deed the URL asks for is shown even if it is one the chart hides; what was saved stays.
+  const [hide, setHide] = useHide(slug, (h) => (wanted ? revealing(m, wanted, h) : h))
+  const [showOpen, setShowOpen] = useState(false)
+  const closeShow = useCallback(() => setShowOpen(false), [])
   const [miniOpen, setMiniOpen] = useState(() => {
     try {
       return localStorage.getItem('mikado.mock.minimap') !== 'hidden'
@@ -533,27 +642,68 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
   // A deed that was selected and then left the quest is no longer selected.
   const sel = selected ? m.byId.get(selected) : undefined
   const selectedId = sel ? sel.id : null
-  const graph = useMemo(() => buildGraph(m, selectedId, state), [m, selectedId, state])
+  const hidden = useMemo(() => hiddenDeeds(m, hide), [m, hide])
+  const graph = useMemo(() => buildGraph(m, selectedId, state, hidden), [m, selectedId, state, hidden])
+  const hideable = useMemo(
+    () => ({ done: hiddenDeeds(m, { done: true, cancelled: false }).size, cancelled: hiddenDeeds(m, { done: false, cancelled: true }).size }),
+    [m],
+  )
 
   // Nodes live in React Flow state so their measured sizes come back to us. New data only
   // restyles: each node keeps its measured size and position. A new card is kept out of
   // sight until the next layout has placed it.
+  //
+  // A card already on show that a new layout moves glides there rather than jumping. The glide
+  // moves the nodes themselves, frame by frame, so the edges follow them exactly.
   const [nodes, setNodes, onNodesChange] = useNodesState<QuestNode>([])
   const [nodesEpoch, setNodesEpoch] = useState<string | null>(null)
   const lastEpoch = useRef<string | null>(null)
+  const drawnAt = useRef<Placed>(new Map()) // where each card on show is drawn right now
   useEffect(() => {
     const fresh = lastEpoch.current !== epoch
     lastEpoch.current = epoch
+    if (fresh) drawnAt.current = new Map()
     setNodesEpoch(epoch)
+    // Nothing glides (or fades) on a mount's first layout, nor for someone who asked for less motion.
+    const moving = drawnAt.current.size > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches
+    const glides = new Map<string, { from: { x: number; y: number }; to: { x: number; y: number } }>()
+    const appearing = new Set<string>()
+    const drawn: Placed = new Map()
+    for (const n of graph.nodes) {
+      const from = drawnAt.current.get(n.id)
+      const to = positions?.get(n.id)
+      if (!to) continue
+      if (moving && !from) appearing.add(n.id)
+      if (moving && from && (from.x !== to.x || from.y !== to.y)) glides.set(n.id, { from, to })
+      drawn.set(n.id, (moving && from) || to)
+    }
+    drawnAt.current = drawn
     setNodes((ns) => {
       const old = new Map((fresh ? [] : ns).map((n) => [n.id, n]))
       return graph.nodes.map((n) => {
         const o = old.get(n.id)
-        const p = positions?.get(n.id)
+        const p = drawn.get(n.id)
         const style: CSSProperties | undefined = positions && !p ? { visibility: 'hidden' } : undefined
-        return (o ? { ...o, data: n.data, position: p ?? o.position, style } : { ...n, position: p ?? n.position, style }) as QuestNode
+        const className = appearing.has(n.id) ? 'quest-appear' : o?.className
+        return (o ? { ...o, data: n.data, position: p ?? o.position, style, className } : { ...n, position: p ?? n.position, style, className }) as QuestNode
       })
     })
+    if (!glides.size) return
+    const start = performance.now()
+    let frame = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - start) / GLIDE_MS)
+      const k = 1 - (1 - t) ** 3 // ease out
+      const at: Placed = new Map()
+      for (const [id, { from, to }] of glides) {
+        const p = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k }
+        at.set(id, p)
+        drawnAt.current.set(id, p)
+      }
+      setNodes((ns) => ns.map((n) => (at.has(n.id) ? { ...n, position: at.get(n.id)! } : n)))
+      if (t < 1) frame = requestAnimationFrame(step)
+    })
+    // A newer layout (or new data) mid-glide starts its own from wherever the cards are now.
+    return () => cancelAnimationFrame(frame)
   }, [epoch, graph, positions, setNodes])
   // Nodes kept from a previous mount carry that mount's sizes; the new one must measure its own.
   const flowNodes = nodesEpoch === epoch ? nodes : []
@@ -582,24 +732,62 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
   const awaiting = items.filter((i) => statusOf(i) === 'awaiting')
   const heroless = items.filter((i) => !i.done && !i.assignee).length
   const working = items.filter((i) => i.working && !i.done).length
-  const frontier = useMemo(
-    () => (wanted ? [wanted] : m.items.filter((i) => m.statusOf(i) === 'available' || (i.working && !i.done)).map((i) => i.id)),
-    [m, wanted],
-  )
+  const openNow = useMemo(() => m.items.filter((i) => m.statusOf(i) === 'available' || (i.working && !i.done)).map((i) => i.id), [m])
+  const frontier = useMemo(() => (wanted ? [wanted] : openNow), [openNow, wanted])
 
-  // Picking a deed in the side panel selects it and flies the chart to it.
-  const { getInternalNode, setCenter, getViewport } = useReactFlow()
+  // Picking a deed in the side panel selects it and flies the chart to it: to where the layout
+  // puts it, even while it is still gliding there.
+  const { getInternalNode, setCenter, setViewport, getViewport } = useReactFlow()
   const centre = (id: string, zoom?: number) => {
     const n = getInternalNode(id)
     if (!n) return
-    const { x, y } = n.internals.positionAbsolute
+    const { x, y } = positions?.get(id) ?? n.internals.positionAbsolute
     setCenter(x + (n.measured.width ?? 0) / 2, y + (n.measured.height ?? 0) / 2, { zoom: zoom ?? getViewport().zoom, duration: 500 })
   }
-  // Selecting a deed from anywhere shows its details and flies the chart to it.
+
+  // The layout fits the chart once it has placed exactly the deeds on it; until then a deed just
+  // shown is not placed and a hidden one still holds its old place.
+  const laidOut = !!positions && positions.size === graph.nodes.length && graph.nodes.every((n) => positions.has(n.id))
+  // What to look at once the chart is laid out again: after a toggle, the frontier; after a hidden
+  // deed was asked for, that deed.
+  const afterLayout = useRef<{ fit: true } | { deed: string } | null>(null)
+  const chooseHide = (h: Hide) => {
+    afterLayout.current = { fit: true }
+    setHide(h)
+  }
+  const onLaidOut = useEffectEvent(() => {
+    const next = afterLayout.current
+    afterLayout.current = null
+    if (!next || !positions) return
+    if ('deed' in next) return centre(next.deed, 1)
+    // Like the first view (FocusWhenPlaced), but onto where the cards are going, not where they are.
+    const ids = openNow.filter((id) => positions.has(id))
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (const id of ids.length ? ids : ['goal']) {
+      const p = positions.get(id)
+      const size = getInternalNode(id)?.measured
+      if (!p || !size) continue
+      x0 = Math.min(x0, p.x)
+      y0 = Math.min(y0, p.y)
+      x1 = Math.max(x1, p.x + (size.width ?? 0))
+      y1 = Math.max(y1, p.y + (size.height ?? 0))
+    }
+    const box = mapRef.current?.getBoundingClientRect()
+    if (!box || x0 === Infinity) return
+    setViewport(getViewportForBounds({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, box.width, box.height, 0.8, 1, 0.35), { duration: 500 })
+  })
+  useEffect(() => {
+    if (laidOut) onLaidOut()
+  }, [laidOut, positions, graph])
+
+  // Selecting a deed from anywhere shows its details and flies the chart to it. A deed the chart
+  // hides is shown first, then flown to once the layout has placed it.
   const focus = (id: string) => {
     setSelected(id)
     setTab('quest')
-    centre(id, 1)
+    if (!hidden.has(id)) return centre(id, 1)
+    afterLayout.current = { deed: id }
+    setHide(revealing(m, id, hide))
   }
   // A deed clicked on the chart is selected; if it is partly out of view (say, at the
   // edge next to the panel), the chart slides it in, keeping the zoom.
@@ -739,6 +927,16 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
                 >
                   <MapIcon size={14} style={{ opacity: miniOpen ? 1 : 0.45 }} />
                 </ControlButton>
+                <ControlButton
+                  onClick={() => setShowOpen((o) => !o)}
+                  // Else the menu's click-outside would close it, and this click open it again.
+                  onMouseDown={(e) => e.stopPropagation()}
+                  title="Show or hide finished deeds"
+                  aria-label="Show or hide finished deeds"
+                  aria-expanded={showOpen}
+                >
+                  {hidden.size ? <EyeOff size={14} /> : <Eye size={14} />}
+                </ControlButton>
               </Controls>
               <LayoutWhenMeasured onPlaced={onPlaced} />
               <FocusWhenPlaced placed={placed} frontier={frontier} />
@@ -754,6 +952,20 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
               )}
             </ReactFlow>
           </div>
+          {showOpen && <ShowMenu hide={hide} counts={hideable} onChange={chooseHide} onClose={closeShow} />}
+          {shown && hidden.size > 0 && (
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--panel)] py-1 pr-1 pl-2.5 text-[13px] text-[var(--ink-soft)] shadow-sm">
+              <EyeOff size={14} />
+              <span>{hidden.size} hidden</span>
+              <span className="text-[var(--ink-faint)]">·</span>
+              <button
+                onClick={() => chooseHide(showAll)}
+                className="rounded-full px-1.5 font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
+              >
+                show all
+              </button>
+            </div>
+          )}
           {menuItem && onSetNpc && <DeedMenu key={menuItem.id} item={menuItem} x={menu!.x} y={menu!.y} onSetNpc={onSetNpc} onClose={closeMenu} />}
         </main>
 
