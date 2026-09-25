@@ -1,0 +1,146 @@
+/* Gate Tokens — trial line design (mock). Simple line bodies (width + colour); the meaning sits in a
+   brass-rimmed pictogram token at the door of the card each line enters. All static: no animation. */
+.quest-theme[data-theme='wartable'] .ln-tokens {
+  --ln-tokens-rim: #6b4a1a;
+  --ln-tokens-halo: rgba(251, 244, 224, 0.78);
+  --ln-tokens-face: #c98e14;
+  --ln-tokens-ink: #2a1c10;
+  --ln-tokens-line: #34251a;
+  --ln-tokens-w: 3.5px;
+  color: var(--ln-tokens-line);
+}
+
+/* ---- per kind: line colour and width, token face and glyph ---- */
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='done'] {
+  --ln-tokens-line: #c98e14;
+  --ln-tokens-w: 5px;
+  --ln-tokens-face: #e0a52a;
+  --ln-tokens-ink: #2a1c10;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='held'] {
+  --ln-tokens-line: #9c6e1e;
+  --ln-tokens-w: 4px;
+  --ln-tokens-face: #8a5f17;
+  --ln-tokens-ink: #fbeecb;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='spent'] {
+  --ln-tokens-line: #8a7556;
+  --ln-tokens-w: 2px;
+  --ln-tokens-ink: #6e5a3c;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='locked'] {
+  --ln-tokens-line: #34251a;
+  --ln-tokens-w: 3.5px;
+  --ln-tokens-face: #f3e7c8;
+  --ln-tokens-ink: #2a1c10;
+  --ln-tokens-rim: #34251a;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='side'] {
+  --ln-tokens-line: #3b5a1a;
+  --ln-tokens-w: 2.5px;
+  --ln-tokens-face: #4d7322;
+  --ln-tokens-ink: #eef5d8;
+  --ln-tokens-rim: #2c4212;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='cancelled'] {
+  --ln-tokens-line: #4a3a26;
+  --ln-tokens-w: 1.8px;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='bridge'] {
+  --ln-tokens-line: #2c1f12;
+  --ln-tokens-w: 2.5px;
+  --ln-tokens-face: #2c1f12;
+  --ln-tokens-ink: #f1dca6;
+  --ln-tokens-rim: #a07a35;
+}
+
+/* ---- the line ---- */
+.quest-theme[data-theme='wartable'] .ln-tokens-halo {
+  stroke: var(--ln-tokens-halo);
+  stroke-width: calc(var(--ln-tokens-w) + 4px);
+  stroke-linecap: round;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-body {
+  stroke: var(--ln-tokens-line);
+  stroke-width: var(--ln-tokens-w);
+  stroke-linecap: round;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='spent'] .ln-tokens-halo {
+  stroke-opacity: 0.5;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='side'] .ln-tokens-body {
+  stroke-dasharray: 6 5;
+  stroke-linecap: butt;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='cancelled'] .ln-tokens-body {
+  stroke-dasharray: 0.1 5;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='cancelled'] .ln-tokens-halo {
+  stroke-opacity: 0.45;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-flow='bridge'] .ln-tokens-body {
+  stroke-dasharray: 11 4 2 4;
+  stroke-linecap: butt;
+}
+
+/* ---- the port dot at the source ---- */
+.quest-theme[data-theme='wartable'] .ln-tokens-port {
+  fill: var(--ln-tokens-line);
+  stroke: var(--ln-tokens-halo);
+  stroke-width: 1.5px;
+}
+
+/* ---- the token ---- */
+.quest-theme[data-theme='wartable'] .ln-tokens-shadow {
+  fill: rgba(30, 18, 6, 0.32);
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-rim {
+  fill: var(--ln-tokens-rim);
+  stroke: #f7ecd0;
+  stroke-width: 1px;
+  stroke-opacity: 0.85;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-face {
+  fill: var(--ln-tokens-face);
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-shine {
+  fill: none;
+  stroke: #fff6dc;
+  stroke-width: 0.8px;
+  stroke-opacity: 0.35;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-glyph {
+  color: var(--ln-tokens-ink);
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-plate {
+  fill: rgba(251, 244, 224, 0.85);
+  stroke: #8a7556;
+  stroke-width: 0.8px;
+  stroke-opacity: 0.6;
+}
+
+/* ---- off the selected deed's path: the line steps far back, its tokens go ---- */
+.quest-theme[data-theme='wartable'] .ln-tokens.ln-tokens {
+  opacity: 1; /* doubled class: outranks broader [data-flow] rules from other stylesheets */
+}
+.quest-theme[data-theme='wartable'] .ln-tokens.ln-tokens[data-dim] {
+  opacity: 0.16;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens[data-dim] .ln-tokens-token,
+.quest-theme[data-theme='wartable'] .ln-tokens[data-dim] .ln-tokens-seal {
+  display: none;
+}
+
+/* ---- the broken seal (abandoned) ---- */
+.quest-theme[data-theme='wartable'] .ln-tokens-wax {
+  fill: #8e2a22;
+  stroke: #561410;
+  stroke-width: 0.9px;
+  stroke-linejoin: round;
+}
+.quest-theme[data-theme='wartable'] .ln-tokens-wax-ring {
+  fill: none;
+  stroke: #c4574a;
+  stroke-width: 0.8px;
+  stroke-opacity: 0.55;
+}

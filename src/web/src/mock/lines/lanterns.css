@@ -1,0 +1,231 @@
+/* Lantern Road: a dark road with lanterns spaced along it. See lanterns.tsx.
+   Each part is a path with a round-capped dash rhythm; a part a kind does not use is hidden.
+   The rhythm starts 20px along the line (dashoffset), clear of the card the line tucks under. */
+.quest-theme[data-theme='wartable'] .ln-lanterns {
+  --ln-lanterns-gap: 26px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns .ln-lanterns-pool,
+.quest-theme[data-theme='wartable'] .ln-lanterns .ln-lanterns-glow,
+.quest-theme[data-theme='wartable'] .ln-lanterns .ln-lanterns-rim,
+.quest-theme[data-theme='wartable'] .ln-lanterns .ln-lanterns-core,
+.quest-theme[data-theme='wartable'] .ln-lanterns .ln-lanterns-shutter {
+  display: none;
+  stroke-dasharray: 0 var(--ln-lanterns-gap);
+  stroke-dashoffset: 6px;
+}
+
+/* The pale halo parts every road from the map it crosses. */
+.quest-theme[data-theme='wartable'] .ln-lanterns-halo {
+  stroke: rgba(251, 244, 224, 0.72);
+  stroke-width: 9px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns-way-halo {
+  stroke: rgba(251, 244, 224, 0.85);
+  stroke-width: 6px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns-way {
+  stroke: #2a1a0c;
+  stroke-width: 2.5px;
+}
+
+/* done: a lit road. A brass road lined close with bright lanterns, each with a white-hot flame, sitting in
+   a warm pool of light (two wide, faint dashes of the same rhythm). The brightest thing on the table. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] {
+  --ln-lanterns-gap: 24px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-halo {
+  stroke: rgba(255, 240, 200, 0.85);
+  stroke-width: 10px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-pool {
+  display: inline;
+  stroke: #ffa826;
+  stroke-opacity: 0.3;
+  stroke-width: 30px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-glow {
+  display: inline;
+  stroke: #ffc440;
+  stroke-opacity: 0.5;
+  stroke-width: 19px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-road {
+  stroke: #b27a0c;
+  stroke-width: 4.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-rim {
+  display: inline;
+  stroke: #4a2a04;
+  stroke-width: 12.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-core {
+  display: inline;
+  stroke: #ffcf4a;
+  stroke-width: 9px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-shutter {
+  /* here the flame, not a shutter */
+  display: inline;
+  stroke: #fff8dc;
+  stroke-width: 4px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-way {
+  stroke: #ffd66b;
+  stroke-width: 3px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='done'] .ln-lanterns-way-halo {
+  stroke: #3a2206;
+  stroke-width: 6.5px;
+}
+
+/* held: lit but shuttered. Hollow amber rings, spaced wider, on a quieter brass road, no pool. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='held'] {
+  --ln-lanterns-gap: 34px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='held'] .ln-lanterns-road {
+  stroke: #9c6e1e;
+  stroke-width: 3.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='held'] .ln-lanterns-rim {
+  display: inline;
+  stroke: #3a2206;
+  stroke-width: 11px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='held'] .ln-lanterns-core {
+  display: inline;
+  stroke: #e8b24a;
+  stroke-width: 8px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='held'] .ln-lanterns-shutter {
+  /* the dark shutter inside each ring */
+  display: inline;
+  stroke: #3a2206;
+  stroke-width: 3.5px;
+}
+
+/* spent: burned down to embers. A faded ink road with small, close, dull embers: a dark shell, a dim glow. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='spent'] {
+  --ln-lanterns-gap: 20px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='spent'] .ln-lanterns-halo {
+  stroke-width: 6px;
+  stroke-opacity: 0.6;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='spent'] .ln-lanterns-road {
+  stroke: rgba(52, 36, 20, 0.5);
+  stroke-width: 2.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='spent'] .ln-lanterns-rim {
+  display: inline;
+  stroke: rgba(74, 46, 20, 0.85);
+  stroke-width: 7px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='spent'] .ln-lanterns-core {
+  display: inline;
+  stroke: #b0703a;
+  stroke-width: 3.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='spent'] .ln-lanterns-way {
+  stroke: rgba(52, 36, 20, 0.7);
+  stroke-width: 2px;
+}
+
+/* locked: not powered yet. A solid dark ink road with iron lanterns, each with a cold glint. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='locked'] .ln-lanterns-road {
+  stroke: #34251a;
+  stroke-width: 3.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='locked'] .ln-lanterns-rim {
+  display: inline;
+  stroke: #1c130b;
+  stroke-width: 8px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='locked'] .ln-lanterns-core {
+  display: inline;
+  stroke: #8a8174;
+  stroke-width: 2.5px;
+}
+
+/* side: fireflies. A thin green road with irregular pale-green lights. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-halo {
+  stroke-width: 7px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-road {
+  stroke: #3b5a1a;
+  stroke-width: 2px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-rim,
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-core {
+  display: inline;
+  stroke-dasharray: 0 11 0 23 0 15;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-rim {
+  stroke: #2c4410;
+  stroke-width: 8px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-core {
+  stroke: #c4e080;
+  stroke-width: 4.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='side'] .ln-lanterns-way {
+  stroke: #3b5a1a;
+}
+
+/* cancelled: snuffed. No road, only the posts are left, as short ticks across the way. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='cancelled'] .ln-lanterns-halo {
+  stroke-width: 5px;
+  stroke-opacity: 0.45;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='cancelled'] .ln-lanterns-road {
+  stroke: #4a3a26;
+  stroke-width: 8px;
+  stroke-linecap: butt;
+  stroke-dasharray: 2 11;
+  stroke-opacity: 0.75;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='cancelled'] .ln-lanterns-way {
+  stroke: #4a3a26;
+  stroke-width: 2px;
+  opacity: 0.75;
+}
+
+/* bridge: will-o'-the-wisps through the hidden deeds. No road, widely spaced pale lights on ink rims
+   over a faint dotted trace. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='bridge'] .ln-lanterns-halo {
+  stroke-width: 5px;
+  stroke-opacity: 0.5;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='bridge'] .ln-lanterns-road {
+  stroke: #2c1f12;
+  stroke-width: 2px;
+  stroke-dasharray: 0 6;
+  stroke-opacity: 0.8;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='bridge'] .ln-lanterns-rim,
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='bridge'] .ln-lanterns-core {
+  display: inline;
+  stroke-dasharray: 0 40;
+  stroke-dashoffset: 18px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='bridge'] .ln-lanterns-rim {
+  stroke: #2c1f12;
+  stroke-width: 12px;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-flow='bridge'] .ln-lanterns-core {
+  stroke: #f3e3b0;
+  stroke-width: 8px;
+}
+
+/* dimmed: off the selected deed's path. The pools go out and the whole road steps far back. */
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-dim] {
+  opacity: 0.15;
+}
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-dim] .ln-lanterns-pool,
+.quest-theme[data-theme='wartable'] .ln-lanterns[data-dim] .ln-lanterns-glow {
+  display: none;
+}

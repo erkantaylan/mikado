@@ -531,6 +531,7 @@ export type QuestMapProps = {
   boardHref: string
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
   version?: string // the running server's version, shown small under the side panel; the mock has none
+  lineTypes?: typeof edgeTypes // other line designs to draw instead; only the mock tries them
 }
 
 /**
@@ -776,7 +777,7 @@ function cardFromUrl(m: QuestModel): string | null {
   return [...m.items, ...m.sideQuests].find((i) => i.key?.toLowerCase() === `m${n}`)?.id ?? null
 }
 
-function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, boardHref, banner, version }: QuestMapProps) {
+function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, boardHref, banner, version, lineTypes }: QuestMapProps) {
   const { goal, items, sideQuests, log } = m
   const [theme, setTheme] = useTheme()
   // `?deed=M142` (as `mikado open M142` links) opens the chart with that deed selected.
@@ -1067,7 +1068,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
                 edges={edges}
                 onNodesChange={onNodesChange}
                 nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
+                edgeTypes={lineTypes ?? edgeTypes}
                 onNodeClick={(_, n) => {
                   if (n.id === 'goal' || n.id === selectedId) return setSelected(null)
                   setSelected(n.id)

@@ -1,0 +1,23 @@
+/* Hemp & Brass Chain: rope for what is planned, brass chain once powered. Static. */
+.quest-theme[data-theme='wartable'] .ln-chain-shadow {
+  fill: none;
+  stroke: rgba(35, 20, 6, 0.3);
+  stroke-linecap: round;
+  transform: translate(1px, 2.2px);
+}
+.quest-theme[data-theme='wartable'] .ln-chain-halo {
+  fill: none;
+  stroke: rgba(251, 244, 224, 0.5);
+  stroke-linecap: round;
+}
+.quest-theme[data-theme='wartable'] .ln-chain-chain .ln-chain-halo {
+  stroke: rgba(251, 244, 224, 0.35);
+}
+/* off the selected deed's path: far back */
+.quest-theme[data-theme='wartable'] .ln-chain-dim {
+  opacity: 0.15;
+}
+.quest-theme[data-theme='wartable'] .ln-chain-dim .ln-chain-shadow,
+.quest-theme[data-theme='wartable'] .ln-chain-dim .ln-chain-halo {
+  display: none;
+}

@@ -1,0 +1,32 @@
+/* Thread and Pins: thread pulled taut between brass map pins. Static. */
+.quest-theme[data-theme='wartable'] .ln-pins path {
+  fill: none;
+}
+.quest-theme[data-theme='wartable'] .ln-pins-shadow {
+  stroke: rgba(35, 20, 6, 0.3);
+  stroke-linecap: round;
+  transform: translate(1.2px, 2.2px);
+}
+.quest-theme[data-theme='wartable'] .ln-pins-halo {
+  stroke: rgba(251, 244, 224, 0.62);
+  stroke-linecap: round;
+}
+/* the lighter strand, broken into short slanted bits so the thread reads as twisted */
+.quest-theme[data-theme='wartable'] .ln-pins-twist {
+  stroke-dasharray: 2.2 2.6;
+  stroke-linecap: butt;
+}
+.quest-theme[data-theme='wartable'] .ln-pins-trace {
+  stroke: rgba(142, 42, 42, 0.5);
+  stroke-width: 1.3px;
+  stroke-dasharray: 1 5;
+  stroke-linecap: round;
+}
+/* off the selected deed's path: the thread steps far back and its pins come out */
+.quest-theme[data-theme='wartable'] .ln-pins-dim {
+  opacity: 0.15;
+}
+.quest-theme[data-theme='wartable'] .ln-pins-dim .ln-pins-pin,
+.quest-theme[data-theme='wartable'] .ln-pins-dim .ln-pins-shadow {
+  display: none;
+}

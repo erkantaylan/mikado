@@ -1,0 +1,200 @@
+/* Molten Gold: the lines between deeds as grooves cut into the war table (molten.tsx).
+   Layers, bottom to top: lip (the pale cut edge), rim (the dark channel), wall (the shadowed inside),
+   bed (what fills the groove: bare parchment, or metal), fill (held's partial pour), sheen and core
+   (the hot seam on molten gold). The bed sits 0.7px low, so the top inner wall stays in shadow
+   and the groove reads as cut in, not laid on. */
+.quest-theme[data-theme='wartable'] .ln-molten {
+  --ln-molten-rim: #2a1a0e;
+  --ln-molten-lip: rgba(255, 248, 228, 0.78);
+  --ln-molten-empty: #f1e4c2;
+  --ln-molten-empty-shade: #a8916a;
+  --ln-molten-gold: #e7a81e;
+  --ln-molten-gold-shade: #8f5c0c;
+  --ln-molten-gold-hot: #ffd257;
+  --ln-molten-gold-core: #fff6cf;
+  --ln-molten-brass: #c48a1c;
+  --ln-molten-brass-shade: #7a5212;
+  --ln-molten-old: #a88c55;
+  --ln-molten-old-shade: #6d5936;
+  --ln-molten-verdigris: #6fa472;
+  --ln-molten-verdigris-shade: #2f5431;
+  --ln-molten-copper: #4a2c16;
+  /* width of the channel (rim) and of what is inside it */
+  --R: 8px;
+  --W: 4px;
+}
+.quest-theme[data-theme='wartable'] .ln-molten path:not(.ln-molten-drop):not(.ln-molten-glint) {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.quest-theme[data-theme='wartable'] .ln-molten-lip {
+  stroke: var(--ln-molten-lip);
+  stroke-width: calc(var(--R) + 3.5px);
+}
+.quest-theme[data-theme='wartable'] .ln-molten-rim {
+  stroke: var(--ln-molten-rim);
+  stroke-width: var(--R);
+}
+.quest-theme[data-theme='wartable'] .ln-molten-wall {
+  stroke: var(--ln-molten-empty-shade);
+  stroke-width: var(--W);
+}
+.quest-theme[data-theme='wartable'] .ln-molten-bed {
+  stroke: var(--ln-molten-empty);
+  stroke-width: calc(var(--W) - 1.1px);
+}
+.quest-theme[data-theme='wartable'] .ln-molten-fill,
+.quest-theme[data-theme='wartable'] .ln-molten-sheen,
+.quest-theme[data-theme='wartable'] .ln-molten-core,
+.quest-theme[data-theme='wartable'] .ln-molten-glint {
+  display: none;
+}
+.quest-theme[data-theme='wartable'] .ln-molten-well,
+.quest-theme[data-theme='wartable'] .ln-molten-drop {
+  stroke: var(--ln-molten-rim);
+  stroke-width: 2.2px;
+  fill: var(--ln-molten-empty);
+}
+.quest-theme[data-theme='wartable'] .ln-molten-glint {
+  fill: none;
+  stroke: var(--ln-molten-gold-core);
+  stroke-width: 1.3px;
+  stroke-linecap: round;
+}
+
+/* done: molten gold, brightest thing on the table */
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] {
+  --R: 11px;
+  --W: 7px;
+  --ln-molten-lip: rgba(255, 236, 170, 0.9);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-wall {
+  stroke: var(--ln-molten-gold-shade);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-bed {
+  stroke: var(--ln-molten-gold);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-sheen {
+  display: inline;
+  stroke: var(--ln-molten-gold-hot);
+  stroke-width: 2.6px;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-core {
+  display: inline;
+  stroke: var(--ln-molten-gold-core);
+  stroke-width: 1.4px;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-well,
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-drop {
+  fill: var(--ln-molten-gold);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='done'] .ln-molten-glint {
+  display: inline;
+}
+
+/* held: poured most of the way, the last stretch and the drop still empty */
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='held'] {
+  --R: 9.5px;
+  --W: 5.5px;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='held'] .ln-molten-fill {
+  display: inline;
+  stroke: var(--ln-molten-brass);
+  stroke-width: calc(var(--W) - 0.4px);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='held'] .ln-molten-sheen {
+  display: inline;
+  stroke: var(--ln-molten-brass-shade);
+  stroke-width: 1px;
+  opacity: 0.6;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='held'] .ln-molten-well {
+  fill: var(--ln-molten-brass);
+}
+
+/* spent: a thin groove of old, cold gold */
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='spent'] {
+  --R: 6px;
+  --W: 3.4px;
+  --ln-molten-rim: #4a3822;
+  --ln-molten-lip: rgba(255, 248, 228, 0.5);
+  opacity: 0.75;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='spent'] .ln-molten-wall {
+  stroke: var(--ln-molten-old-shade);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='spent'] .ln-molten-bed {
+  stroke: var(--ln-molten-old);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='spent'] .ln-molten-well,
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='spent'] .ln-molten-drop {
+  fill: var(--ln-molten-old);
+  stroke-width: 1.6px;
+}
+
+/* locked: an empty groove (the defaults) */
+
+/* side: a narrow copper groove inlaid with verdigris segments */
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='side'] {
+  --R: 6.5px;
+  --W: 3.4px;
+  --ln-molten-rim: var(--ln-molten-copper);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='side'] .ln-molten-bed {
+  stroke: var(--ln-molten-verdigris);
+  stroke-dasharray: 7 4;
+  stroke-linecap: butt;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='side'] .ln-molten-wall {
+  stroke: var(--ln-molten-verdigris-shade);
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='side'] .ln-molten-well,
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='side'] .ln-molten-drop {
+  fill: var(--ln-molten-verdigris);
+}
+
+/* cancelled: a groove started and abandoned, nothing inside */
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='cancelled'] {
+  --R: 3.5px;
+  --ln-molten-rim: #4a3a26;
+  opacity: 0.75;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='cancelled'] .ln-molten-rim {
+  stroke-dasharray: 3 6;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='cancelled'] .ln-molten-lip {
+  stroke-width: 6px;
+  opacity: 0.6;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='cancelled'] .ln-molten-wall,
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='cancelled'] .ln-molten-bed {
+  display: none;
+}
+
+/* bridge: gold running underground. The groove is roofed over in dark ink, and the gold shows only
+   through a row of round vents cut in the roof. */
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='bridge'] {
+  --R: 9px;
+  --W: 4px;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='bridge'] .ln-molten-wall {
+  display: none;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='bridge'] .ln-molten-bed {
+  stroke: var(--ln-molten-gold-hot);
+  stroke-width: 4.4px;
+  stroke-dasharray: 0 12;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='bridge'] .ln-molten-well,
+.quest-theme[data-theme='wartable'] .ln-molten[data-flow='bridge'] .ln-molten-drop {
+  fill: var(--ln-molten-gold);
+}
+
+/* dimmed: off the selected deed's path, only the bare channel, far back */
+.quest-theme[data-theme='wartable'] .ln-molten[data-dim] {
+  opacity: 0.16;
+}
+.quest-theme[data-theme='wartable'] .ln-molten[data-dim] .ln-molten-lip {
+  display: none;
+}

@@ -786,20 +786,21 @@
   background: #8a4b12;
   mask: url('../assets/wartable/icons/hourglass.svg') center / contain no-repeat;
 }
-/* Fulfilled: a small brass flag planted in the corner, its pole stuck into the paper. */
+/* Fulfilled: a brass flag planted in the corner, its short pole stuck into the paper. Large enough to
+   spot at a glance, and never faded with the card: it is the one bright thing a finished deed keeps. */
 .quest-theme[data-theme='wartable'] .wt-gate[data-gate='done'] {
-  width: 24px;
-  height: 28px;
-  top: -22px;
-  left: 1px;
+  width: 36px;
+  height: 29px;
+  top: -24px;
+  left: -2px;
   background: url('../assets/wartable/flag.svg') center / contain no-repeat;
   filter: drop-shadow(1.5px 1.5px 1px rgba(40, 24, 8, 0.4));
 }
 .quest-theme[data-theme='wartable'] .wt-gate[data-gate='done'][data-small] {
-  width: 20px;
+  width: 28px;
   height: 23px;
-  top: -17px;
-  left: 2px;
+  top: -18px;
+  left: 0;
 }
 /* Where the pole goes into the paper. */
 .quest-theme[data-theme='wartable'] .wt-gate[data-gate='done']::after {
@@ -859,11 +860,16 @@
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='locked']:not([data-side]) {
   --wt-tint: rgba(150, 150, 146, 0.2);
 }
-/* Fulfilled: paler, stepped back. */
+/* Fulfilled: its light is out. The paper sinks into shadow, so the eye goes to what is still lit and still
+   to do; a static filter, drawn once. Selected, it lights up again to be read. */
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='done'] {
-  --wt-tint: rgba(250, 246, 236, 0.5);
-  --wt-ink-rule: rgba(62, 40, 18, 0.4);
-  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.25), 0 3px 8px -2px rgba(40, 24, 8, 0.3);
+  --wt-tint: rgba(250, 246, 236, 0);
+  --wt-ink-rule: rgba(40, 26, 12, 0.55);
+  --wt-shadow: 0 1px 1px rgba(20, 12, 4, 0.3), 0 2px 6px -2px rgba(20, 12, 4, 0.35);
+}
+/* On the paper only: the flag planted on it keeps its colour. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='done'] .quest-plate:not(.quest-lit) {
+  filter: brightness(0.58) saturate(0.7);
 }
 /* Awaiting reply: warmer ochre. */
 .quest-theme[data-theme='wartable'] .quest-deed[data-status='awaiting'] {

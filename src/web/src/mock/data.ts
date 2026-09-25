@@ -283,11 +283,93 @@ const buildLog: LogEntry[] = [
   { at: 'Sep 24', kind: 'assign', id: 'card:real-map', text: 'real pages taken up by a background agent' },
 ]
 
+// A quest drawn to show every kind of line between deeds, for judging line styles:
+// powered into an open deed (it flows), powered but still waiting, between fulfilled deeds,
+// not yet powered (also from a petition), a side quest, from an abandoned deed, and, with
+// fulfilled deeds hidden, a bridge through them. One side quest is done and one is not.
+const linesGoal = { title: 'The spring festival goes live', doneWhen: 'card:festival' }
+
+const linesItems: Item[] = [
+  { id: 'card:festival', kind: 'task', title: 'Open the spring festival to every player', done: false, assignee: 'ada', final: true },
+  { id: 'studio/game#200', kind: 'issue', title: 'Lantern shader', done: true, assignee: 'bo' },
+  { id: 'studio/game#201', kind: 'issue', title: 'Festival lanterns in every town', done: false, assignee: 'bo', working: true },
+  { id: 'studio/net#290', kind: 'issue', title: 'Rate limiter for score uploads', done: false, assignee: 'cyd' },
+  { id: 'studio/net#300', kind: 'issue', title: 'Score API', done: true, assignee: 'cyd' },
+  { id: 'studio/net#305', kind: 'issue', title: 'Anti-cheat check on festival scores', done: false },
+  { id: 'card:legal', kind: 'wait', title: 'Legal sign-off on the prize rules', done: false, waitingOn: 'legal', since: 'Sep 20' },
+  { id: 'studio/net#310', kind: 'issue', title: 'Festival leaderboard', done: false, assignee: 'cyd' },
+  { id: 'studio/build#49', kind: 'issue', title: 'Build scripts for the festival branch', done: true, assignee: 'ada' },
+  { id: 'studio/build#50', kind: 'issue', title: 'Festival build branch', done: true, assignee: 'ada' },
+  {
+    id: 'studio/game#190',
+    kind: 'issue',
+    title: 'Paid lantern skins',
+    done: false,
+    cancelled: true,
+    cancelReason: 'No paid items during the festival.',
+  },
+  { id: 'card:rewards', kind: 'task', title: 'Free rewards instead of paid skins', done: false, npc: true },
+  // Long titles, to see how cards wrap and how the lines route around taller cards.
+  {
+    id: 'studio/game#212',
+    kind: 'issue',
+    title:
+      "The lantern keeper's three errands: record and mix the voice lines in all four voices, place the reward chest in every festival town so it cannot be reached before the third errand, add a fallback path for players who meet the keeper while he is off-screen or asleep, and make sure the errands still complete for players who started the festival on an older save from the launch build",
+    done: false,
+    assignee: 'bo',
+  },
+  {
+    id: 'card:translations',
+    kind: 'wait',
+    title:
+      'Every festival string translated into the eleven store languages, reviewed by the regional partners for tone and for any names that must not be used in their markets, checked against the store rules for prize wording, and returned as one file per language with the context notes filled in so the late changes can be matched back to the original lines',
+    done: false,
+    waitingOn: 'localisation vendor',
+    since: 'Sep 18',
+  },
+  {
+    id: 'studio/net#315',
+    kind: 'issue',
+    title:
+      "Leaderboard pages time out for players with more than two thousand friends, because the query loads every friend's score at once instead of the page being viewed, the cache is keyed by player rather than by page so it never warms, and the retry on timeout sends the same full query again, which doubles the load exactly when the servers are already struggling",
+    done: true,
+    assignee: 'cyd',
+    foundWhile: 'studio/net#310',
+    reason: 'Load-testing the leaderboard with a large friends list; the page never finished loading for the biggest accounts.',
+  },
+]
+
+const linesSideQuests: Item[] = [
+  { id: 'studio/game#205', kind: 'issue', title: 'Polish: lanterns flicker in the wind', done: false, sideOf: 'studio/game#201' },
+  { id: 'studio/net#302', kind: 'issue', title: 'Polish: a toast when your score is saved', done: true, assignee: 'cyd', sideOf: 'studio/net#300' },
+]
+
+const linesNeeds: Need[] = [
+  { from: 'card:festival', to: 'studio/game#201' },
+  { from: 'card:festival', to: 'studio/net#310' },
+  { from: 'card:festival', to: 'studio/build#50' },
+  { from: 'card:festival', to: 'card:rewards' },
+  { from: 'card:festival', to: 'studio/game#212' },
+  { from: 'card:festival', to: 'card:translations' },
+  { from: 'studio/game#212', to: 'studio/game#201' }, // not powered yet: the lanterns are still underway
+  { from: 'studio/net#310', to: 'studio/net#315' }, // powered, but the leaderboard still waits
+  { from: 'studio/game#201', to: 'studio/game#200' }, // powered, into an open deed: it flows
+  { from: 'studio/net#310', to: 'studio/net#300' }, // powered, but the leaderboard still waits
+  { from: 'studio/net#310', to: 'studio/net#305' }, // not powered yet
+  { from: 'studio/net#305', to: 'card:legal' }, // not powered yet, from a petition
+  { from: 'studio/net#300', to: 'studio/net#290' }, // with fulfilled deeds hidden: a bridge to the leaderboard
+  { from: 'studio/build#50', to: 'studio/build#49' }, // between fulfilled deeds
+  { from: 'card:rewards', to: 'studio/game#190' }, // from an abandoned deed
+]
+
+const linesLog: LogEntry[] = [{ at: 'Sep 20', kind: 'create', text: 'quest started' }]
+
 export type QuestData = { goal: typeof winterGoal; items: Item[]; sideQuests: Item[]; needs: Need[]; log: LogEntry[] }
 
 export const maps: Record<string, QuestData> = {
   'winter-update': { goal: winterGoal, items: winterItems, sideQuests: winterSideQuests, needs: winterNeeds, log: winterLog },
   'mikado-slice-1': { goal: buildGoal, items: buildItems, sideQuests: buildSideQuests, needs: buildNeeds, log: buildLog },
+  'all-lines': { goal: linesGoal, items: linesItems, sideQuests: linesSideQuests, needs: linesNeeds, log: linesLog },
 }
 
 export const hasMap = (slug: string) => slug in maps

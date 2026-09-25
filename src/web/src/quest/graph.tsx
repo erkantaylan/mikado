@@ -228,7 +228,8 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 // A bridge stands in for a chain that runs through hidden deeds.
 type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
 // torn: the line comes from an abandoned deed, whose paper the war table draws with a strip torn off its right side.
-export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean }, 'quest'>
+// powered: the deed the line comes from is fulfilled (for a side quest's line: the side quest is).
+export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean; powered: boolean }, 'quest'>
 
 // Each colour and width reads a --edge-<flow> / --edge-<flow>-w token first and falls back to the
 // theme's own palette, so a theme can repaint the lines without touching the others (the war table
@@ -254,10 +255,13 @@ export const stroke: Record<Flow, CSSProperties> = {
 const TUCK = 12
 const TORN_TUCK = 32
 
-function QuestEdgeView({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>) {
-  const wt = useWarTable()
+/** The curve a line follows, with the war table's tuck under the cards. Shared with the mock's trial line designs. */
+export function questEdgePath(
+  { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>,
+  wt: boolean,
+) {
   const tuck = wt ? TUCK : 0
-  const [path] = getBezierPath({
+  const [path, labelX, labelY] = getBezierPath({
     sourceX: sourceX - (wt && data!.torn ? TORN_TUCK : tuck),
     sourceY,
     targetX: targetX + tuck,
@@ -265,6 +269,12 @@ function QuestEdgeView({ sourceX, sourceY, targetX, targetY, sourcePosition, tar
     sourcePosition,
     targetPosition,
   })
+  return { path, labelX, labelY }
+}
+
+export function QuestEdgeView(props: EdgeProps<QuestEdge>) {
+  const { data } = props
+  const { path } = questEdgePath(props, useWarTable())
   const style = stroke[data!.flow]
   const opacity = data!.dim ? 0.15 : ((style.opacity as number | undefined) ?? 1)
   return (
@@ -428,6 +438,7 @@ export function buildGraph(
                   ? 'spent'
                   : 'held',
         live: !side && powered && !!to && m.statusOf(to) === 'available',
+        powered,
         dim: dim(source, target),
         torn: torn(source),
       },
@@ -441,7 +452,7 @@ export function buildGraph(
     source,
     target,
     type: 'quest',
-    data: { flow: 'bridge', live: false, dim: dim(source, target), torn: torn(source) },
+    data: { flow: 'bridge', live: false, dim: dim(source, target), torn: torn(source), powered: false },
   })
   return {
     nodes,
@@ -482,22 +493,27 @@ function shapeOf(s: ReactFlowState): string {
 /** Whenever React Flow has measured a new set of cards, run ELK with the real sizes. */
 export function LayoutWhenMeasured({ onPlaced }: { onPlaced: (p: Placed) => void }) {
   const shape = useStore(shapeOf)
+  // The war table's lines are drawn objects (roads, tracks) that need room to read, so its columns sit further apart.
+  const wt = useWarTable()
   const { getNodes, getEdges, getInternalNode } = useReactFlow()
   const ran = useRef('')
   useEffect(() => {
-    if (!shape || shape === ran.current) return
-    ran.current = shape
+    // The spacing is part of what was laid out, so switching into or out of the war table lays out again.
+    const key = shape && `${shape}|${wt}`
+    if (!key || key === ran.current) return
+    ran.current = key
     const size = (n: Node) => {
       const m = getInternalNode(n.id)?.measured ?? n.measured
       return { width: m?.width ?? 0, height: m?.height ?? 0 }
     }
+    const spacing = wt ? { layers: 160, nodes: 48 } : undefined
     import('../graph/layout')
-      .then(({ layout }) => layout(getNodes(), getEdges(), size, 'RIGHT'))
+      .then(({ layout }) => layout(getNodes(), getEdges(), size, 'RIGHT', spacing))
       .then((placed) => {
         // A newer shape arrived while ELK was busy: its own run will place the nodes.
-        if (ran.current === shape) onPlaced(new Map(placed.map((n) => [n.id, n.position])))
+        if (ran.current === key) onPlaced(new Map(placed.map((n) => [n.id, n.position])))
       })
-  }, [shape, getNodes, getEdges, getInternalNode, onPlaced])
+  }, [shape, getNodes, getEdges, getInternalNode, onPlaced, wt])
   return null
 }
 

@@ -1,0 +1,189 @@
+/* King's Highway: cased roads between deeds (see road.tsx). Static: no animation, no filters. */
+.quest-theme[data-theme='wartable'] {
+  --ln-road-ink: #2a1a0c;
+  --ln-road-paper: #f6edd3;
+  --ln-road-brass: #d9a227;
+  --ln-road-brass-deep: #b07d12;
+  --ln-road-gilt: #fff0b0;
+  --ln-road-green: #3b5a1a;
+  --ln-road-verge: rgba(251, 244, 224, 0.55);
+}
+
+.quest-theme[data-theme='wartable'] .ln-road path,
+.quest-theme[data-theme='wartable'] .ln-road circle {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+}
+.quest-theme[data-theme='wartable'] .ln-road[data-dim] {
+  opacity: 0.15;
+}
+
+/* The verge: a pale wash wider than the road, so the casing never sits straight on the map's ink. */
+.quest-theme[data-theme='wartable'] .ln-road-verge {
+  stroke: var(--ln-road-verge);
+  stroke-width: 15px;
+}
+
+/* ---- done: the gilded highway ---- */
+.quest-theme[data-theme='wartable'] [data-flow='done'] .ln-road-casing {
+  stroke: var(--ln-road-ink);
+  stroke-width: 11px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='done'] .ln-road-core {
+  stroke: var(--ln-road-brass);
+  stroke-width: 6.5px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='done'] .ln-road-crown {
+  stroke: var(--ln-road-gilt);
+  stroke-width: 1.6px;
+  stroke-opacity: 0.85;
+}
+
+/* ---- held: the same road, its brass paving laid in blocks on a paper bed ---- */
+.quest-theme[data-theme='wartable'] [data-flow='held'] .ln-road-casing {
+  stroke: var(--ln-road-ink);
+  stroke-width: 10px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='held'] .ln-road-core {
+  stroke: var(--ln-road-paper);
+  stroke-width: 5.5px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='held'] .ln-road-paving {
+  stroke: var(--ln-road-brass);
+  stroke-width: 5.5px;
+  stroke-dasharray: 10 5;
+}
+
+/* ---- locked: an unmetalled road, ink edges and an empty paper core ---- */
+.quest-theme[data-theme='wartable'] [data-flow='locked'] .ln-road-casing {
+  stroke: #34251a;
+  stroke-width: 8px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='locked'] .ln-road-core {
+  stroke: var(--ln-road-paper);
+  stroke-width: 4px;
+}
+
+/* ---- bridge: a road in a tunnel, dashed casing over a solid core ---- */
+.quest-theme[data-theme='wartable'] [data-flow='bridge'] .ln-road-casing {
+  stroke: var(--ln-road-ink);
+  stroke-width: 8px;
+  stroke-dasharray: 7 4;
+}
+.quest-theme[data-theme='wartable'] [data-flow='bridge'] .ln-road-core {
+  stroke: var(--ln-road-paper);
+  stroke-width: 4px;
+}
+
+/* the tunnel mouths at each end of a bridge */
+.quest-theme[data-theme='wartable'] .ln-road .ln-road-portal {
+  stroke: var(--ln-road-ink);
+  stroke-width: 2px;
+}
+
+/* ---- cancelled: a washed-out road, broken and faded, crossed out where it gave way ---- */
+.quest-theme[data-theme='wartable'] .ln-road[data-flow='cancelled'] {
+  opacity: 0.6;
+}
+.quest-theme[data-theme='wartable'] .ln-road[data-flow='cancelled'][data-dim] {
+  opacity: 0.12;
+}
+.quest-theme[data-theme='wartable'] [data-flow='cancelled'] .ln-road-verge {
+  stroke-width: 12px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='cancelled'] .ln-road-casing {
+  stroke: #4a3a26;
+  stroke-width: 7px;
+  stroke-dasharray: 5 9;
+}
+.quest-theme[data-theme='wartable'] [data-flow='cancelled'] .ln-road-core {
+  stroke: var(--ln-road-paper);
+  stroke-width: 3.5px;
+  stroke-dasharray: 5 9;
+}
+
+/* ---- spent: an old road, one faded ink line ---- */
+.quest-theme[data-theme='wartable'] [data-flow='spent'] .ln-road-verge {
+  stroke-width: 7px;
+  stroke-opacity: 0.7;
+}
+.quest-theme[data-theme='wartable'] [data-flow='spent'] .ln-road-casing {
+  stroke: rgba(52, 36, 20, 0.5);
+  stroke-width: 2.5px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='spent'] .ln-road-core {
+  display: none;
+}
+
+/* ---- side: a green bridleway, a dotted track ---- */
+.quest-theme[data-theme='wartable'] [data-flow='side'] .ln-road-verge {
+  stroke-width: 9px;
+}
+.quest-theme[data-theme='wartable'] [data-flow='side'] .ln-road-casing {
+  stroke: var(--ln-road-green);
+  stroke-width: 3.6px;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 6.5;
+}
+.quest-theme[data-theme='wartable'] [data-flow='side'] .ln-road-core {
+  display: none;
+}
+
+/* ---- the one-way arrow painted on the road ---- */
+.quest-theme[data-theme='wartable'] .ln-road-arrow path {
+  fill: var(--ln-road-ink);
+  stroke: none;
+}
+.quest-theme[data-theme='wartable'] [data-flow='locked'] .ln-road-arrow path,
+.quest-theme[data-theme='wartable'] [data-flow='bridge'] .ln-road-arrow path {
+  fill: #34251a;
+  transform: scale(0.85);
+}
+.quest-theme[data-theme='wartable'] [data-flow='held'] .ln-road-arrow path {
+  /* a paper plate under the arrow, so it reads on brass and paper blocks alike */
+  stroke: var(--ln-road-paper);
+  stroke-width: 1.4px;
+  paint-order: stroke;
+}
+.quest-theme[data-theme='wartable'] [data-flow='spent'] .ln-road-arrow path {
+  fill: none;
+  stroke: rgba(52, 36, 20, 0.6);
+  stroke-width: 1.8px;
+  stroke-linecap: round;
+}
+.quest-theme[data-theme='wartable'] [data-flow='side'] .ln-road-arrow path {
+  fill: none;
+  stroke: var(--ln-road-green);
+  stroke-width: 2px;
+  stroke-linecap: round;
+}
+.quest-theme[data-theme='wartable'] .ln-road-breach path {
+  stroke: #7a2a1a;
+  stroke-width: 2.2px;
+  stroke-linecap: round;
+}
+
+/* ---- the milestone ring where a powered road reaches its card (in the label layer, above the roads) ---- */
+.quest-theme[data-theme='wartable'] .ln-road-milestone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.quest-theme[data-theme='wartable'] .ln-road-milestone[data-dim] {
+  opacity: 0.15;
+}
+.quest-theme[data-theme='wartable'] .ln-road-milestone .ln-road-ring {
+  fill: var(--ln-road-gilt);
+  stroke: var(--ln-road-ink);
+  stroke-width: 2.2px;
+}
+.quest-theme[data-theme='wartable'] .ln-road-milestone[data-flow='held'] .ln-road-ring {
+  fill: var(--ln-road-paper);
+}
+.quest-theme[data-theme='wartable'] .ln-road-milestone .ln-road-pip {
+  fill: var(--ln-road-ink);
+  stroke: none;
+}
