@@ -112,7 +112,9 @@ function Legend() {
       <li className="flex items-center gap-2">
         <Npc /> just for fun, nothing reads it
       </li>
-      <li className="flex items-center gap-2">{line(stroke.done)} Powered: comes from a fulfilled deed</li>
+      <li className="flex items-center gap-2">{line(stroke.done)} Powered: a fulfilled deed opening one you can do now</li>
+      <li className="flex items-center gap-2">{line(stroke.held)} Powered, but its deed still waits on others</li>
+      <li className="flex items-center gap-2">{line(stroke.spent)} Spent: between two fulfilled deeds</li>
       <li className="flex items-center gap-2">{line(stroke.locked)} Not powered yet: its deed is not fulfilled</li>
       <li className="flex items-center gap-2">{line(stroke.side)} Side quest, hung on its deed</li>
       <li className="flex items-center gap-2">

@@ -144,7 +144,7 @@
 
 /* Mini-map nodes: SVG fill has to come from CSS for theme variables to apply. */
 .react-flow__minimap-node.mm-done {
-  fill: var(--gold);
+  fill: color-mix(in srgb, var(--gold) 45%, var(--panel));
 }
 .react-flow__minimap-node.mm-available {
   fill: var(--avail);

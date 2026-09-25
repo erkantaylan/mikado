@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import type { Item, QuestModel, QuestRef, QuestState, Status } from './model'
-import { Achievements, Hero, Label, Npc, Working, glow, medal, plate, sideMedal, sidePlate, stateColour, words } from './look'
+import { Achievements, Hero, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words } from './look'
 
 // ---- nodes -----------------------------------------------------------------
 
@@ -56,7 +56,7 @@ function GoalView({ data }: NodeProps<GoalNode>) {
       <Handle type="target" position={Position.Left} className={hidden} />
       <span
         className="grid size-12 place-items-center rounded-full border-2"
-        style={data.reached ? medal.done : data.state === 'cancelled' ? medal.cancelled : { borderColor: 'var(--gold)', color: 'var(--gold)' }}
+        style={data.reached ? crownMedal : data.state === 'cancelled' ? medal.cancelled : { borderColor: 'var(--gold)', color: 'var(--gold)' }}
       >
         {data.state === 'cancelled' ? <Ban size={24} /> : <Trophy size={24} />}
       </span>
@@ -146,9 +146,9 @@ function CardView({ data }: NodeProps<CardNode>) {
           )}
         </div>
         <span
-          className={`leading-snug ${side ? 'text-[13.5px] text-[var(--ink-soft)]' : 'text-[15px] font-semibold'} ${
-            status === 'cancelled' ? 'text-[var(--ink-faint)] line-through' : ''
-          }`}
+          className={`leading-snug ${
+            side || status === 'done' ? 'text-[var(--ink-soft)]' : status === 'cancelled' ? 'text-[var(--ink-faint)] line-through' : ''
+          } ${side ? 'text-[13.5px]' : status === 'done' ? 'text-[15px] font-medium' : 'text-[15px] font-semibold'}`}
         >
           {item.title.replace(/^Polish: /, '')}
         </span>
@@ -156,7 +156,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         <div className="flex items-center justify-between">
           <span
             className="text-[12px] font-bold tracking-wider uppercase"
-            style={{ color: side && status !== 'done' ? 'var(--side)' : stateColour[status] }}
+            style={{ color: side && status !== 'done' ? 'var(--side)' : status === 'done' ? spentText : stateColour[status] }}
           >
             {label}
             {status === 'locked' && ` · ${openBefore} to go`}
@@ -173,11 +173,15 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 
 // ---- edges -----------------------------------------------------------------
 
-type Flow = 'done' | 'locked' | 'side' | 'cancelled'
+// From a fulfilled deed: done opens a deed you can do now (bright, and it flows); held feeds one that still
+// waits on others; spent joins two fulfilled deeds, so it steps back.
+type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled'
 export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean }, 'quest'>
 
 export const stroke: Record<Flow, CSSProperties> = {
   done: { stroke: 'var(--gold)', strokeWidth: 3.5, filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--gold) 70%, transparent))' },
+  held: { stroke: 'var(--gold)', strokeWidth: 2.5, opacity: 0.75 },
+  spent: { stroke: 'color-mix(in srgb, var(--gold) 40%, var(--edge-off))', strokeWidth: 2 },
   locked: { stroke: 'var(--edge-off)', strokeWidth: 2.5 },
   side: { stroke: 'var(--side)', strokeWidth: 1.5, strokeDasharray: '5 6' },
   cancelled: { stroke: 'var(--edge-off)', strokeWidth: 1.5, strokeDasharray: '2 5', opacity: 0.6 },
@@ -185,10 +189,11 @@ export const stroke: Record<Flow, CSSProperties> = {
 
 function QuestEdgeView({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
-  const opacity = data!.dim ? 0.15 : 1
+  const style = stroke[data!.flow]
+  const opacity = data!.dim ? 0.15 : ((style.opacity as number | undefined) ?? 1)
   return (
     <>
-      <BaseEdge path={path} style={{ ...stroke[data!.flow], opacity }} />
+      <BaseEdge path={path} style={{ ...style, opacity }} />
       {data!.live && <path d={path} fill="none" stroke="var(--gold-ink)" strokeWidth={2} className="quest-flow" style={{ opacity }} />}
     </>
   )
@@ -248,8 +253,18 @@ export function buildGraph(m: QuestModel, selected: string | null, state?: Quest
       target,
       type: 'quest',
       data: {
-        flow: side ? 'side' : byId.get(source)?.cancelled ? 'cancelled' : powered ? 'done' : 'locked',
-        live: !side && powered && !!to && !to.done,
+        flow: side
+          ? 'side'
+          : byId.get(source)?.cancelled
+            ? 'cancelled'
+            : !powered
+              ? 'locked'
+              : !to || m.statusOf(to) === 'available'
+                ? 'done' // into an open deed, or the crowning deed into the quest
+                : to.done
+                  ? 'spent'
+                  : 'held',
+        live: !side && powered && !!to && m.statusOf(to) === 'available',
         dim: dim(source, target),
       },
     }

@@ -13,19 +13,23 @@ export const words: Record<Status, string> = {
 
 export const glow = (v: string, px: number, pct: number) => `0 0 ${px}px color-mix(in srgb, var(${v}) ${pct}%, transparent)`
 
-// Main-quest deeds keep full-contrast text in every state; only the medallion says "sealed".
+// What is still to do catches the eye; what is fulfilled steps back (muted, no glow), so a chart
+// full of finished deeds still points at the open ones.
+const spentGold = 'color-mix(in srgb, var(--gold) 55%, var(--panel))'
 export const medal: Record<Status, CSSProperties> = {
-  done: { background: 'var(--gold)', borderColor: 'var(--gold)', color: 'var(--gold-ink)', boxShadow: glow('--gold', 16, 55) },
+  done: { background: spentGold, borderColor: spentGold, color: 'var(--gold-ink)' },
   available: { background: 'var(--avail)', borderColor: 'var(--avail)', color: '#fff' },
   locked: { background: 'var(--locked-medal)', borderColor: 'var(--plate-border)', color: 'var(--ink)' },
   awaiting: { background: 'var(--await)', borderColor: 'var(--await)', color: '#fff' },
   cancelled: { background: 'var(--panel)', borderColor: 'var(--edge-off)', color: 'var(--ink-faint)' },
 }
+// The quest itself, once its crowning deed is fulfilled: the one win that keeps the full gold.
+export const crownMedal: CSSProperties = { background: 'var(--gold)', borderColor: 'var(--gold)', color: 'var(--gold-ink)', boxShadow: glow('--gold', 16, 55) }
 export const sideMedal: CSSProperties = { background: 'var(--panel)', borderColor: 'var(--side)', color: 'var(--side)' }
 
 export const plate: Record<Status, CSSProperties> = {
-  done: { background: 'var(--done-plate)', borderColor: 'var(--gold)' },
-  available: { background: 'var(--avail-plate)', borderColor: 'var(--avail)', boxShadow: glow('--avail', 14, 30) },
+  done: { background: 'var(--panel)', borderColor: 'var(--plate-border)' },
+  available: { background: 'var(--avail-plate)', borderColor: 'var(--avail)', boxShadow: glow('--avail', 18, 45) },
   locked: { background: 'var(--plate)', borderColor: 'var(--plate-border)' },
   awaiting: { background: 'var(--await-plate)', borderColor: 'var(--await)' },
   cancelled: { background: 'var(--panel)', borderColor: 'var(--edge-off)', opacity: 0.75 },
@@ -39,6 +43,9 @@ export const stateColour: Record<Status, string> = {
   awaiting: 'var(--await)',
   cancelled: 'var(--ink-faint)',
 }
+
+/** A fulfilled deed's own label: still gold, but quiet. The header counts keep stateColour.done. */
+export const spentText = 'color-mix(in srgb, var(--gold) 55%, var(--ink-faint))'
 
 export function Hero({ name }: { name?: string }) {
   if (!name)
