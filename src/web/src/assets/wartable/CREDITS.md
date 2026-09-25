@@ -65,3 +65,4 @@ with a CSS `mask-image`, or used as a `border-image` 9-slice.
 | File | Source | Licence / changes |
 |---|---|---|
 | `map.webp` | Generated with Google Gemini for mikado (2026-09-25) from a text prompt: a blank parchment campaign map, no labels | Made for this project; resized to 2400px and saved as WebP |
+| `crown-castle.webp`, `emblem.webp`, `seal.webp`, `seal-broken.webp` | Generated with Google Gemini for mikado (2026-09-25) as one asset sheet, then cut apart with the white background removed | Made for this project; 256px WebP with transparency |

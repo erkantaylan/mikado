@@ -498,6 +498,364 @@
   border-bottom: 1px solid rgba(110, 80, 40, 0.25);
 }
 
+/* ---- the deeds: parchment notes pinned to the map ----
+   Each deed is a sheet of paper pinned on the map. Its state is told by a small
+   mark on the corner (a broken seal, a whole seal, a brass check, an hourglass),
+   a tint of the paper and the coloured status word; nothing else competes with
+   the title. The plates' colours come from inline styles (look.tsx), so the
+   paper overrides them with !important. */
+.quest-theme[data-theme='wartable'] .quest-deed {
+  --wt-ink-rule: rgba(62, 40, 18, 0.72);
+  --wt-tint: rgba(255, 255, 255, 0);
+  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.35), 0 5px 12px -2px rgba(40, 24, 8, 0.4);
+  transition:
+    opacity 0.2s,
+    filter 0.2s;
+}
+.quest-theme[data-theme='wartable'] .quest-deed .quest-plate {
+  background:
+    linear-gradient(var(--wt-tint), var(--wt-tint)),
+    #f3e9cf url('../assets/wartable/paper-card.webp') center / 512px !important;
+  border-color: var(--wt-ink-rule) !important;
+  border-width: 1.5px;
+  /* Hand-cut paper: never quite a rectangle. */
+  border-radius: 4px 7px 5px 8px / 7px 4px 8px 5px;
+  box-shadow: var(--wt-shadow) !important;
+  opacity: 1 !important; /* paper stays opaque, so the map never shows through the text */
+}
+.quest-theme[data-theme='wartable'] .quest-deed .quest-title {
+  font-size: 16.5px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-side] .quest-title {
+  font-size: 15px;
+}
+.quest-theme[data-theme='wartable'] .quest-stack .quest-title {
+  font-size: 15.5px; /* set in Cinzel capitals, which read larger */
+}
+
+/* The pin: a small brass head at the top centre, with its shadow on the paper. */
+.quest-theme[data-theme='wartable'] .quest-deed::before {
+  content: '';
+  position: absolute;
+  z-index: 11;
+  top: -5px;
+  left: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff1c2 0 1.5px, #d9aa4c 3px, #8a5f1c 6px);
+  box-shadow:
+    0 0 0 0.5px rgba(60, 35, 5, 0.7),
+    1.5px 2.5px 2px rgba(30, 18, 5, 0.45);
+  pointer-events: none;
+}
+.quest-theme[data-theme='wartable'] .quest-stack::before {
+  left: calc(50% - 11px); /* over the front sheet, not the stack behind it */
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-side]::before {
+  /* A side quest's scrap is held by a smaller iron tack. */
+  top: -4px;
+  width: 9px;
+  height: 9px;
+  left: calc(50% - 4.5px);
+  background: radial-gradient(circle at 35% 30%, #e4e0d8 0 1px, #7d776c 2.5px, #3b3730 4.5px);
+}
+
+/* ---- the state marks, in the corner badge's place ---- */
+.quest-theme[data-theme='wartable'] .quest-medal {
+  animation: none;
+  box-shadow: none !important;
+}
+/* Seals: the painted wax replaces the badge; the lucide icon is dropped. */
+.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='available'], [data-mark='locked']) {
+  width: 38px;
+  height: 38px;
+  top: -14px;
+  left: -14px;
+  border: 0;
+  border-radius: 0;
+  background: center / contain no-repeat !important;
+  filter: drop-shadow(0 1.5px 1.5px rgba(40, 10, 5, 0.45));
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='available'] {
+  background-image: url('../assets/wartable/seal-broken.webp') !important;
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='locked'] {
+  background-image: url('../assets/wartable/seal.webp') !important;
+  color: #fbeedd !important;
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='locked'] > span {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 16px;
+  text-shadow: 0 1px 1px rgba(40, 5, 3, 0.8);
+}
+.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='available'], [data-mark='locked']) > svg {
+  display: none;
+}
+/* Fulfilled and awaiting: a small ink-ringed paper disc with a game-icons mark in it. */
+.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='done'], [data-mark='awaiting'], [data-mark='cancelled']) {
+  width: 32px;
+  height: 32px;
+  top: -11px;
+  left: -11px;
+  border-width: 1.5px;
+  background: #f4ead0 url('../assets/wartable/paper-card.webp') center / 256px !important;
+  box-shadow: 0 1px 2px rgba(40, 24, 8, 0.35) !important;
+}
+.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='done'], [data-mark='awaiting']) > svg {
+  display: none;
+}
+.quest-theme[data-theme='wartable'] .quest-medal:is([data-mark='done'], [data-mark='awaiting'])::before {
+  content: '';
+  width: 19px;
+  height: 19px;
+  background: var(--wt-mark);
+  mask: var(--wt-icon) center / contain no-repeat;
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='done'] {
+  --wt-mark: linear-gradient(160deg, #d9aa4c, #8a5f1c);
+  --wt-icon: url('../assets/wartable/icons/check.svg');
+  border-color: #a47a2c !important;
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='awaiting'] {
+  --wt-mark: #8a4b12;
+  --wt-icon: url('../assets/wartable/icons/hourglass.svg');
+  border-color: #a8661a !important;
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='cancelled'] {
+  border-color: rgba(90, 70, 45, 0.5) !important;
+  color: #7a6446 !important;
+}
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='cancelled'] > svg {
+  width: 14px;
+  height: 14px;
+}
+/* A side quest keeps its gem, on paper with green ink. */
+.quest-theme[data-theme='wartable'] .quest-medal[data-mark='side'] {
+  top: -9px;
+  left: -9px;
+  border-width: 1.5px;
+  background: #f4ead0 url('../assets/wartable/paper-card.webp') center / 256px !important;
+  box-shadow: 0 1px 2px rgba(40, 24, 8, 0.3) !important;
+}
+
+/* ---- the paper, per state ---- */
+/* Open: warm candlelight on the paper instead of the blue pulse. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='available']:not([data-side]) {
+  --wt-tint: rgba(255, 236, 190, 0.28);
+  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.35), 0 5px 12px -2px rgba(40, 24, 8, 0.4), 0 0 14px 2px rgba(255, 184, 82, 0.45);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='available']:not([data-side]) .quest-plate {
+  animation: wt-candle 3.6s ease-in-out infinite;
+}
+@keyframes wt-candle {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 1px rgba(40, 24, 8, 0.35),
+      0 5px 12px -2px rgba(40, 24, 8, 0.4),
+      0 0 14px 2px rgba(255, 184, 82, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 1px 1px rgba(40, 24, 8, 0.35),
+      0 5px 12px -2px rgba(40, 24, 8, 0.4),
+      0 0 18px 4px rgba(255, 184, 82, 0.6);
+  }
+}
+/* Sealed: a touch cooler and greyer. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='locked']:not([data-side]) {
+  --wt-tint: rgba(150, 150, 146, 0.2);
+}
+/* Fulfilled: paler, stepped back. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='done'] {
+  --wt-tint: rgba(250, 246, 236, 0.5);
+  --wt-ink-rule: rgba(62, 40, 18, 0.4);
+  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.25), 0 3px 8px -2px rgba(40, 24, 8, 0.3);
+}
+/* Awaiting reply: warmer ochre. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='awaiting'] {
+  --wt-tint: rgba(214, 150, 60, 0.2);
+}
+/* Abandoned: faded sepia, struck through with a hand-drawn ink X. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] {
+  --wt-tint: rgba(214, 204, 186, 0.45);
+  --wt-ink-rule: rgba(62, 40, 18, 0.35);
+  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.2), 0 3px 8px -2px rgba(40, 24, 8, 0.25);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate {
+  filter: sepia(0.35) saturate(0.6);
+  isolation: isolate; /* the X below lies on the paper, under the writing */
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate > * {
+  opacity: 0.72;
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-status='cancelled'] .quest-plate::before {
+  content: '';
+  position: absolute;
+  inset: 6px 10px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.32;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%235a3418' stroke-width='2' stroke-linecap='round' vector-effect='non-scaling-stroke'%3E%3Cpath vector-effect='non-scaling-stroke' d='M3 6 C 30 30, 62 58, 97 95'/%3E%3Cpath vector-effect='non-scaling-stroke' d='M96 4 C 70 34, 38 62, 4 96'/%3E%3C/g%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+}
+/* NPC: a red ink border and a faint red wash, whatever its state. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-npc] {
+  --wt-ink-rule: var(--npc);
+  --wt-tint: rgba(214, 60, 40, 0.1);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-npc] .quest-plate {
+  border-width: 2px;
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-npc]:is([data-status='done'], [data-status='cancelled']) {
+  --wt-ink-rule: color-mix(in srgb, var(--npc) 55%, #f3e9cf);
+}
+/* Side quest: a smaller, lighter scrap. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-side] {
+  --wt-tint: rgba(255, 253, 245, 0.4);
+  --wt-ink-rule: color-mix(in srgb, var(--side) 55%, rgba(62, 40, 18, 0.5));
+  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.25), 0 3px 8px -2px rgba(40, 24, 8, 0.3);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-side] .quest-plate {
+  border-width: 1px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  gap: 4px;
+}
+/* Unearthed: a dashed ink rule (the dash comes from the plate's own class). */
+.quest-theme[data-theme='wartable'] .quest-deed .quest-discovered {
+  border-width: 1.5px;
+}
+/* Selected: the warm rim of light, on brass. */
+.quest-theme[data-theme='wartable'] .quest-deed .quest-plate.quest-lit {
+  border-color: #c98a1e !important;
+}
+/* Off the selected deed's path: paler, greyer paper, still opaque. */
+.quest-theme[data-theme='wartable'] .quest-deed[data-dim] {
+  opacity: 1 !important;
+  filter: grayscale(0.85) contrast(0.42) brightness(1.28);
+}
+.quest-theme[data-theme='wartable'] .quest-deed[data-dim] .quest-plate {
+  animation: none;
+}
+
+/* Underway: a small blue pennant instead of the pill. */
+.quest-theme[data-theme='wartable'] .quest-working {
+  border-radius: 0;
+  padding: 2px 12px 2px 8px;
+  background: linear-gradient(180deg, #2f5f9e, #1b3e6e);
+  box-shadow: 0 1px 2px rgba(20, 12, 4, 0.45);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.quest-theme[data-theme='wartable'] .quest-working > .quest-working-dot {
+  background: #f6d98a;
+}
+
+/* ---- quest cards: a stack of pinned sheets ---- */
+.quest-theme[data-theme='wartable'] .quest-behind {
+  background: #e6d7b2 url('../assets/wartable/paper-card.webp') center / 512px !important;
+  border-width: 1.5px;
+  border-color: rgba(62, 40, 18, 0.45) !important;
+  border-radius: 5px 4px 7px 5px / 4px 7px 5px 6px;
+  box-shadow: 0 2px 5px rgba(40, 24, 8, 0.3);
+  opacity: 1 !important;
+}
+.quest-theme[data-theme='wartable'] .quest-behind:first-of-type {
+  filter: brightness(0.9);
+}
+.quest-theme[data-theme='wartable'] .quest-stack[data-status='done'] .quest-behind,
+.quest-theme[data-theme='wartable'] .quest-stack[data-status='cancelled'] .quest-behind {
+  filter: brightness(0.97) saturate(0.6);
+}
+/* Progress, in brass (here and on the crowning deed's card). */
+.quest-theme[data-theme='wartable'] .quest-progress {
+  background: linear-gradient(180deg, #f1d58e 0%, #c9983e 45%, #8d6420 100%) !important;
+}
+.quest-theme[data-theme='wartable'] :is(.quest-deed, .quest-goal) .quest-progress {
+  box-shadow: inset 0 -1px 0 rgba(60, 35, 5, 0.35);
+}
+.quest-theme[data-theme='wartable'] .quest-stack:is([data-status='done'], [data-status='cancelled']) .quest-progress {
+  filter: saturate(0.55) brightness(1.1);
+}
+
+/* ---- the quest's own card: the crown above the castle ---- */
+.quest-theme[data-theme='wartable'] .quest-goal {
+  position: relative;
+  width: 320px !important;
+  padding: 20px 22px 18px;
+  gap: 10px;
+  border-width: 2px;
+  border-color: #a87417 !important;
+  border-radius: 6px 9px 7px 10px / 9px 6px 10px 7px;
+  background:
+    linear-gradient(rgba(255, 238, 196, 0.25), rgba(255, 238, 196, 0.25)),
+    #f3e9cf url('../assets/wartable/paper-card.webp') center / 512px !important;
+  box-shadow:
+    inset 0 0 0 3px rgba(252, 246, 230, 0.8),
+    inset 0 0 0 4px #b98a3a,
+    0 1px 1px rgba(40, 24, 8, 0.35),
+    0 6px 16px -2px rgba(40, 24, 8, 0.45) !important;
+}
+.quest-theme[data-theme='wartable'] .quest-goal::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 50px);
+  top: -104px; /* above the card: the quest's card ends the chart, alone in its column */
+  width: 100px;
+  height: 100px;
+  background: url('../assets/wartable/crown-castle.webp') center bottom / contain no-repeat;
+  filter: drop-shadow(0 3px 3px rgba(40, 24, 8, 0.45));
+  pointer-events: none;
+}
+.quest-theme[data-theme='wartable'] .quest-goal[data-state='cancelled']::before {
+  filter: grayscale(1) opacity(0.55);
+}
+/* The crown and castle stand for the quest here, so the trophy badge steps aside (an abandoned quest keeps its mark). */
+.quest-theme[data-theme='wartable'] .quest-goal:not([data-state='cancelled']) .quest-goal-medal {
+  display: none;
+}
+.quest-theme[data-theme='wartable'] .quest-goal .quest-goal-title {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+/* The header's quest medallion. */
+.quest-theme[data-theme='wartable'] .quest-emblem {
+  border: 0 !important;
+  background: url('../assets/wartable/emblem.webp') center / contain no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+.quest-theme[data-theme='wartable'] .quest-emblem > svg {
+  display: none;
+}
+
+/* The mini-map, in the paper's colours: sealed a cool grey, awaiting ochre, abandoned faint sepia. */
+.quest-theme[data-theme='wartable'] .react-flow__minimap-node.mm-locked {
+  fill: #8c877c;
+}
+.quest-theme[data-theme='wartable'] .react-flow__minimap-node.mm-awaiting {
+  fill: #b07423;
+}
+.quest-theme[data-theme='wartable'] .react-flow__minimap-node.mm-cancelled {
+  fill: #cdbb98;
+}
+.quest-theme[data-theme='wartable'] .react-flow__minimap-node.mm-done {
+  fill: #d9bc7c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-theme[data-theme='wartable'] .quest-deed .quest-plate {
+    animation: none;
+  }
+}
+
 @keyframes quest-pulse {
   0% {
     box-shadow: 0 0 0 0px color-mix(in srgb, var(--avail) 60%, transparent);

@@ -137,7 +137,7 @@ export function Working({ compact = false, by }: { compact?: boolean; by?: strin
   return (
     <span
       title={by ? `taken up by ${by}` : undefined}
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full font-bold tracking-wider whitespace-nowrap uppercase ${
+      className={`${compact ? '' : 'quest-working'} inline-flex shrink-0 items-center gap-1 rounded-full font-bold tracking-wider whitespace-nowrap uppercase ${
         compact ? 'text-[11px] text-[var(--avail)]' : 'bg-[var(--avail)] px-2 py-0.5 text-[11px] text-white shadow'
       }`}
     >

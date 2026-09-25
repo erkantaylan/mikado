@@ -32,7 +32,7 @@ export function QuestProgress({ q, done }: { q: QuestCard; done: boolean }) {
     <div className="flex items-center gap-2">
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
         <div
-          className="h-full"
+          className="quest-progress h-full"
           style={{ width: `${pct}%`, background: done ? 'color-mix(in srgb, var(--gold) 55%, var(--panel))' : 'var(--gold)' }}
         />
       </div>
@@ -61,7 +61,9 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
   return (
     <div
       style={{ width: CARD_WIDTH + STACK * 2, paddingRight: STACK * 2, paddingBottom: STACK * 2 }}
-      className={`relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
+      data-status={status}
+      data-dim={dim || undefined}
+      className={`quest-deed quest-stack relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
       {/* The quest's own deeds, folded behind it. */}
@@ -70,12 +72,13 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
           key={depth}
           aria-hidden
           style={{ ...behind(status, depth), right: STACK * 2, bottom: STACK * 2 }}
-          className="absolute top-0 left-0 rounded-lg border-2"
+          className="quest-behind absolute top-0 left-0 rounded-lg border-2"
         />
       ))}
       <span
         style={medal[status]}
-        className={`absolute -top-3 -left-3 z-10 grid size-9 place-items-center rounded-full border-2 ${status === 'available' ? 'quest-available' : ''}`}
+        data-mark={status}
+        className={`quest-medal absolute -top-3 -left-3 z-10 grid size-9 place-items-center rounded-full border-2 ${status === 'available' ? 'quest-available' : ''}`}
       >
         {done ? <Check size={16} strokeWidth={3} /> : status === 'cancelled' ? <Ban size={16} /> : <Flag size={16} />}
       </span>
@@ -101,7 +104,7 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
           )}
         </div>
         <span
-          className={`quest-display leading-snug ${
+          className={`quest-display quest-title leading-snug ${
             over ? 'text-[15px] font-medium text-[var(--ink-soft)]' : 'text-[15px] font-semibold'
           } ${status === 'cancelled' ? 'line-through' : ''}`}
         >

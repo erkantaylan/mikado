@@ -52,11 +52,13 @@ function GoalView({ data }: NodeProps<GoalNode>) {
   return (
     <div
       style={{ width: GOAL_WIDTH, borderColor: 'var(--gold)', background: 'var(--plate)', boxShadow: glow('--gold', 30, 35) }}
-      className="flex flex-col items-center justify-center gap-2 rounded-2xl border-[3px] px-4 py-4 text-center"
+      data-state={data.state ?? 'active'}
+      data-reached={data.reached || undefined}
+      className="quest-goal flex flex-col items-center justify-center gap-2 rounded-2xl border-[3px] px-4 py-4 text-center"
     >
       <Handle type="target" position={Position.Left} className={hidden} />
       <span
-        className="grid size-12 place-items-center rounded-full border-2"
+        className="quest-goal-medal grid size-12 place-items-center rounded-full border-2"
         style={data.reached ? crownMedal : data.state === 'cancelled' ? medal.cancelled : { borderColor: 'var(--gold)', color: 'var(--gold)' }}
       >
         {data.state === 'cancelled' ? <Ban size={24} /> : <Trophy size={24} />}
@@ -67,10 +69,10 @@ function GoalView({ data }: NodeProps<GoalNode>) {
       >
         {questWord[data.state ?? 'active']}
       </span>
-      <span className="quest-display text-[15px] leading-tight font-semibold">{data.title}</span>
+      <span className="quest-display quest-goal-title text-[15px] leading-tight font-semibold">{data.title}</span>
       <div className="w-full">
         <div className="h-2 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
-          <div className="h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
+          <div className="quest-progress h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
         </div>
         <div className="mt-1 text-[13px] text-[var(--ink-soft)]">
           Main quest {data.done}/{data.total}
@@ -123,12 +125,21 @@ function CardView({ data }: NodeProps<CardNode>) {
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   return (
-    <div style={{ width: side ? SIDE_WIDTH : CARD_WIDTH }} className={`relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}>
+    <div
+      style={{ width: side ? SIDE_WIDTH : CARD_WIDTH }}
+      // The data-* attributes are only for the war-table theme's CSS; the other themes ignore them.
+      data-status={status}
+      data-side={side || undefined}
+      data-npc={item.npc || undefined}
+      data-dim={dim || undefined}
+      className={`quest-deed relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
+    >
       <Handle type="target" position={Position.Left} className={hidden} />
       {/* The state badge sits on the deed's corner. */}
       <span
         style={side && status !== 'done' ? sideMedal : medal[status]}
-        className={`absolute -top-3 -left-3 z-10 grid place-items-center rounded-full border-2 ${side ? 'size-7' : 'size-9'} ${
+        data-mark={side && status !== 'done' ? 'side' : status}
+        className={`quest-medal absolute -top-3 -left-3 z-10 grid place-items-center rounded-full border-2 ${side ? 'size-7' : 'size-9'} ${
           status === 'available' && !side ? 'quest-available' : ''
         }`}
       >
@@ -164,7 +175,7 @@ function CardView({ data }: NodeProps<CardNode>) {
           )}
         </div>
         <span
-          className={`leading-snug ${
+          className={`quest-title leading-snug ${
             side || status === 'done' ? 'text-[var(--ink-soft)]' : status === 'cancelled' ? 'text-[var(--ink-faint)] line-through' : ''
           } ${side ? 'text-[13.5px]' : status === 'done' ? 'text-[15px] font-medium' : 'text-[15px] font-semibold'}`}
         >
