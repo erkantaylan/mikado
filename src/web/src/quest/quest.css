@@ -193,6 +193,21 @@
   margin-bottom: 22px;
   padding: 28px 32px 36px;
 }
+/* A shelf's heading on the Quest Board is a paper label laid on the map, so
+   the map's inked roads and names never run through the words. */
+.quest-theme[data-theme='wartable'] .wt-sheet .quest-shelf-title {
+  width: fit-content;
+  padding: 5px 14px 4px;
+  border: 1px solid rgba(62, 40, 18, 0.45);
+  border-radius: 3px 6px 4px 5px / 5px 3px 6px 4px;
+  background: #f3e9cf url('../assets/wartable/paper-card.webp') center / 512px;
+  box-shadow:
+    0 1px 1px rgba(40, 24, 8, 0.35),
+    0 4px 10px -2px rgba(40, 24, 8, 0.4);
+}
+.quest-theme[data-theme='wartable'] .wt-sheet .quest-shelf-title h2 {
+  color: #6b4812;
+}
 
 /* The lines between deeds. The map is drawn in brown ink, so the lines are a
    darker, heavier ink than anything on it, each on a thin pale halo that

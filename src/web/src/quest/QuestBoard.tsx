@@ -51,7 +51,9 @@ function Heroes({ names }: { names: string[] }) {
 }
 
 // The row's columns, shared by every row so the shelves line up. Narrow screens wrap instead.
-const columns = 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px_96px]'
+// The heroes column is left out when no quest on the board has a hero, so it is not an empty strip.
+const columns = (heroes: boolean) =>
+  heroes ? 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px_96px]' : 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px]'
 
 /** One linked quest in a row's "Blocked by" / "Blocks" line: a finished one steps back. */
 function LinkedQuest({ q }: { q: QuestLink }) {
@@ -86,7 +88,8 @@ function Linked({ label, quests }: { label: string; quests?: QuestLink[] }) {
   )
 }
 
-function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: string }) {
+// `chip`: say fulfilled or abandoned on the row; off on a shelf whose heading already says it.
+function QuestRow({ q, href, noMap, heroes, chip }: { q: BoardQuest; href?: string; noMap?: string; heroes: boolean; chip: boolean }) {
   const pct = q.main.total ? Math.round((q.main.done / q.main.total) * 100) : 0
   const done = mainDone(q)
   const medal: CSSProperties = cancelled(q)
@@ -100,7 +103,7 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
   const body = (
     <div
       style={{ opacity: cancelled(q) || q.archivedAt ? 0.8 : undefined }}
-      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
+      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 bg-[var(--plate)] px-4 py-2.5 ${columns(heroes)} ${
         href ? 'transition-colors hover:bg-[var(--panel)]' : ''
       }`}
     >
@@ -129,7 +132,7 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
               {q.title}
             </span>
           )}
-          <QuestStateChip state={q.state} />
+          {chip && <QuestStateChip state={q.state} />}
         </div>
         <div className="truncate text-[13px] text-[var(--ink-soft)]">
           {[...q.repos, `last move ${q.lastActivity}`].join(' · ')}
@@ -183,9 +186,11 @@ function QuestRow({ q, href, noMap }: { q: BoardQuest; href?: string; noMap?: st
         {!href && noMap && <span className="font-normal text-[var(--ink-faint)]">{noMap}</span>}
       </div>
 
-      <span className="flex justify-end">
-        <Heroes names={q.heroes} />
-      </span>
+      {heroes && (
+        <span className="flex justify-end">
+          <Heroes names={q.heroes} />
+        </span>
+      )}
     </div>
   )
   return body
@@ -203,7 +208,7 @@ function Rows({ children }: { children: ReactNode }) {
 function Section({ title, hint, children }: { title: string; hint: string; children: ReactNode[] }) {
   return (
     <section>
-      <div className="mb-3 flex items-baseline gap-3">
+      <div className="quest-shelf-title mb-3 flex items-baseline gap-3">
         <h2 className="quest-display text-[13px] font-bold tracking-[0.2em] uppercase">{title}</h2>
         <span className="text-[14px] text-[var(--ink-soft)]">{hint}</span>
       </div>
@@ -232,7 +237,10 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
   const hundred = shelved.filter((q) => !cancelled(q) && perfect(q))
   const gone = shelved.filter(cancelled)
   const sum = (f: (q: BoardQuest) => number) => active.reduce((n, q) => n + f(q), 0)
-  const row = (q: BoardQuest) => <QuestRow key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} />
+  const heroes = shelved.some((q) => q.heroes.length > 0) || archived.some((q) => q.heroes.length > 0)
+  const row = (q: BoardQuest) => <QuestRow key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip={false} />
+  // The archive mixes every state, so there each row says its own.
+  const archivedRow = (q: BoardQuest) => <QuestRow key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip />
 
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">
@@ -287,7 +295,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
           {archived.length > 0 && (
             // Closed by default; the browser keeps it open across the 15 s refresh.
             <details className="group">
-              <summary className="mb-3 flex cursor-pointer list-none items-baseline gap-3 select-none">
+              <summary className="quest-shelf-title mb-3 flex cursor-pointer list-none items-baseline gap-3 select-none">
                 <h2 className="quest-display text-[13px] font-bold tracking-[0.2em] whitespace-nowrap uppercase">
                   <ChevronRight size={14} className="mr-1 inline align-[-2px] transition-transform group-open:rotate-90" />
                   Archived ({archived.length})
@@ -296,7 +304,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
                   put away with <span className="font-mono">mikado quest archive</span> — charts still open
                 </span>
               </summary>
-              <Rows>{archived.map(row)}</Rows>
+              <Rows>{archived.map(archivedRow)}</Rows>
             </details>
           )}
         </main>

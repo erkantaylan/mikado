@@ -1,3 +1,4 @@
+import type { BoardQuest } from '../quest/QuestBoard'
 // A made-up goal used to agree on the workflow before any real data exists.
 // Repos, people and numbers are fictional.
 
@@ -309,30 +310,26 @@ const summarise = (slug: string, heroes: string[], repos: string[]): QuestSummar
 }
 
 // The quest board: every quest at a glance. Only the quests in `maps` open a map.
-export type QuestSummary = {
-  slug: string
-  title: string
-  main: { done: number; total: number }
-  achievements: { done: number; total: number } // side quests
-  available: number
-  awaiting: number
-  heroes: string[]
-  repos: string[]
-  lastActivity: string
-}
+// Between them the rows use every field a board row can show: underway, open, awaiting reply and abandoned
+// counts, heroes, "Blocked by" / "Blocks", and every shelf (underway, main quest fulfilled, 100%, abandoned, archived).
+export type QuestSummary = BoardQuest
 
 export const quests: QuestSummary[] = [
   summarise('mikado-slice-1', ['claude', 'erkan'], ['mikado']),
   {
     slug: 'winter-update',
     title: 'The winter update ships to every player',
+    state: 'active',
     main: { done: 1, total: 9 },
     achievements: { done: 0, total: 2 },
     available: 2,
     awaiting: 1,
+    inProgress: 2,
+    cancelled: 1,
     heroes: ['ada', 'bo', 'cyd'],
     repos: ['game', 'saves', 'net', 'build'],
     lastActivity: 'Sep 19',
+    blockedBy: [{ slug: 'controller-support', title: 'Controller support on every platform', state: 'active' }],
   },
   {
     slug: 'controller-support',
@@ -341,9 +338,12 @@ export const quests: QuestSummary[] = [
     achievements: { done: 1, total: 4 },
     available: 3,
     awaiting: 0,
+    inProgress: 1,
     heroes: ['bo', 'dex'],
     repos: ['input', 'game'],
     lastActivity: 'Sep 23',
+    state: 'active',
+    blocks: [{ slug: 'winter-update', title: 'The winter update ships to every player', state: 'active' }],
   },
   {
     slug: 'level-editor',
@@ -355,6 +355,7 @@ export const quests: QuestSummary[] = [
     heroes: ['cyd'],
     repos: ['editor', 'build'],
     lastActivity: 'Sep 21',
+    state: 'complete',
   },
   {
     slug: 'crash-reports',
@@ -377,5 +378,32 @@ export const quests: QuestSummary[] = [
     heroes: ['cyd', 'dex'],
     repos: ['net'],
     lastActivity: 'Sep 02',
+    state: 'complete',
+  },
+  {
+    slug: 'split-screen',
+    title: 'Split-screen co-op on the couch',
+    state: 'cancelled',
+    main: { done: 2, total: 7 },
+    achievements: { done: 0, total: 1 },
+    available: 0,
+    awaiting: 0,
+    cancelled: 5,
+    heroes: ['bo'],
+    repos: ['game', 'net'],
+    lastActivity: 'Aug 30',
+  },
+  {
+    slug: 'old-launcher',
+    title: 'The old launcher is retired',
+    state: 'complete',
+    main: { done: 3, total: 3 },
+    achievements: { done: 0, total: 0 },
+    available: 0,
+    awaiting: 0,
+    heroes: [],
+    repos: ['launcher'],
+    lastActivity: 'Jul 14',
+    archivedAt: '2026-08-01',
   },
 ]
