@@ -91,8 +91,12 @@ function Row({ m, item, onPick, right }: { m: QuestModel; item: Item; onPick: (i
         onClick={() => onPick(item.id)}
         className="quest-row flex w-full items-center justify-between gap-2 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-left text-[14px] hover:border-[var(--ink-faint)]"
       >
-        <span className="min-w-0 truncate">
-          <Label item={item} tag={m.short(item.id)} /> {titleOf(item).replace(/^Polish: /, '')}
+        {/* Two spans so the war table can set the labels and the title on lines of their own; elsewhere they run inline as one. */}
+        <span className="quest-row-text min-w-0 truncate">
+          <span className="quest-row-meta">
+            <Label item={item} tag={m.short(item.id)} />
+          </span>{' '}
+          <span className="quest-row-title">{titleOf(item).replace(/^Polish: /, '')}</span>
         </span>
         {right}
       </button>
@@ -199,7 +203,7 @@ function QuestDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Quest
   const heading = 'mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase'
   const crownedBy = m.refOf(item) ? m.short(item.id) : (item.key ?? item.title)
   return (
-    <section className="space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
+    <section className="quest-details space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1 font-mono text-[12px] text-[var(--ink-faint)]">
@@ -286,10 +290,10 @@ function DeedDetails({ m, item, onPick, onClose }: DetailsProps) {
   const ref = m.refOf(item)
   const url = ref ? m.urlOf(item) : undefined
   return (
-    <section className="space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
+    <section className="quest-details space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="font-mono text-[12px] text-[var(--ink-faint)]">
+          <div className="quest-ref font-mono text-[12px] text-[var(--ink-faint)]">
             {item.key && (
               <>
                 <Key id={item.key} />
@@ -1142,7 +1146,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
                     {e.id && (
                       <button
                         onClick={() => focus(e.id!)}
-                        className={`font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
+                        className={`quest-ref font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
                           e.kind === 'remove' ? 'line-through' : ''
                         }`}
                       >

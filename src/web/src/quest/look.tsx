@@ -51,7 +51,7 @@ export const spentText = 'color-mix(in srgb, var(--gold) 55%, var(--ink-faint))'
 export function Hero({ name }: { name?: string }) {
   if (!name)
     return (
-      <span className="shrink-0 text-[12px] font-bold tracking-wide whitespace-nowrap text-[#e11d48] uppercase">no hero</span>
+      <span className="quest-nohero shrink-0 text-[12px] font-bold tracking-wide whitespace-nowrap text-[#e11d48] uppercase">no hero</span>
     )
   return (
     <span className="flex items-center gap-1 text-[13px] text-[var(--ink-soft)]">
@@ -78,7 +78,7 @@ export function Npc() {
 /** The deed's key (M142), the id people use for it, in front of everything else. */
 export function Key({ id }: { id?: string }) {
   if (!id) return null
-  return <span className="shrink-0 font-mono text-[12px] font-semibold text-[var(--ink-faint)]">{id}</span>
+  return <span className="quest-key shrink-0 font-mono text-[12px] font-semibold text-[var(--ink-faint)]">{id}</span>
 }
 
 /** The kind tag in front of a title: the deed's key, then the issue's repo#n or what sort of deed it is. */
@@ -89,17 +89,17 @@ export function Label({ item, tag }: { item: Item; tag: string }) {
       <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.done }}>
         <Layers size={12} /> Quest
       </span>
-      <span className="min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.slug}>
+      <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.slug}>
         {item.crowns.slug}
       </span>
     </span>
   ) : item.kind === 'wait' ? (
-      <span className="shrink-0 text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>
+      <span className="quest-kind shrink-0 text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>
     ) : item.kind === 'task' ? (
-      <span className="shrink-0 text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>
+      <span className="quest-kind shrink-0 text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>
     ) : (
       // A long repo name is what gives way when the row is tight, never the labels after it.
-      <span className="min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={tag}>
+      <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={tag}>
         {tag}
       </span>
     )
