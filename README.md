@@ -168,13 +168,17 @@ there is no authentication yet.
 
 ## Install
 
+Needs Go and [bun](https://bun.sh); `make` alone lists every target.
+
 ```bash
 make install           # build, copy to ~/.local/bin/mikado, refresh the agent skill
 make install-service   # also run `mikado serve` as a systemd user service (contrib/mikado.service)
+make update            # git pull, then install again (restarts the service if it is running)
+make uninstall         # remove the binary, the skill and the service; keeps ~/.local/share/mikado
 ```
 
-After an upgrade, `make install` alone rebuilds, replaces the binary and restarts the service if
-it is running. `systemctl --user status mikado` / `journalctl --user -u mikado` for the service.
+`make install` alone also rebuilds, replaces the binary and restarts the service if it is running.
+For the service: `make start`, `stop`, `restart`, `status` and `logs` (follows the journal).
 The dashboard shows the running server's version in small print (its commit links to GitHub), and
 `mikado version` prints the CLI's version next to the server's, saying so when they differ.
 
