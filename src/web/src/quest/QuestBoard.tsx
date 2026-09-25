@@ -5,6 +5,7 @@ import type { QuestState } from './model'
 import { QuestStateChip } from './look'
 import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
+import { VersionLine } from './VersionLine'
 
 // One quest on the Quest Board, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
 export type BoardQuest = {
@@ -169,9 +170,10 @@ export type QuestBoardProps = {
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
   empty?: ReactNode // shown instead of the shelves when there are no quests at all
   search?: boolean // the live board searches the API; the mock has none
+  version?: string // the running server's version, shown small at the bottom; the mock has none
 }
 
-export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, empty, search }: QuestBoardProps) {
+export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, empty, search, version }: QuestBoardProps) {
   const [theme, setTheme] = useTheme()
   const shelved = quests.filter((q) => !q.archivedAt)
   const archived = quests.filter((q) => q.archivedAt)
@@ -247,6 +249,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
           )}
         </main>
       )}
+      {version && <VersionLine version={version} className="mx-auto max-w-7xl px-6 pb-4" />}
     </div>
   )
 }

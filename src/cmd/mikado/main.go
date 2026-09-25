@@ -44,7 +44,7 @@ func main() {
 	var err error
 	switch cmd {
 	case "version":
-		fmt.Println("mikado", version)
+		err = versionCmd(args)
 	case "serve":
 		err = serve(args)
 	case "skill":
@@ -159,6 +159,38 @@ func serve(args []string) error {
 	return nil
 }
 
+// versionCmd prints the CLI's version and the running server's. It never
+// fails for want of a server: the version is worth knowing then too.
+func versionCmd(args []string) error {
+	cmd := newCommand("version")
+	if _, err := cmd.parse(args, 0, 0, "[--server URL] [--json]"); err != nil {
+		return err
+	}
+	cl := cmd.client()
+	cl.hc.Timeout = 3 * time.Second
+	var health struct {
+		Version string `json:"version"`
+	}
+	_, err := cl.do("GET", "/api/health", nil, &health)
+	if *cmd.json {
+		out := map[string]any{"version": version, "server": cl.base, "serverVersion": nil}
+		if err == nil {
+			out["serverVersion"] = health.Version
+		}
+		return printJSON(out)
+	}
+	fmt.Println("mikado", version)
+	if err != nil {
+		fmt.Printf("server not reachable at %s\n", cl.base)
+		return nil
+	}
+	fmt.Printf("server %s at %s\n", health.Version, cl.base)
+	if health.Version != version {
+		fmt.Println("the running server is a different build; if you just installed mikado, restart it: systemctl --user restart mikado")
+	}
+	return nil
+}
+
 // dataDir picks the data directory: the flag, else $MIKADO_DATA, else
 // $XDG_DATA_HOME/mikado, else ~/.local/share/mikado.
 func dataDir(flagValue string) (string, error) {
@@ -229,7 +261,7 @@ server:
   hosts add HOST... / remove HOST...  accept a host name, or stop, right away; kept in the
                                       database (--allow-host, repeatable, and
                                       $MIKADO_ALLOWED_HOSTS still add hosts for one run)
-  version                             print the version
+  version                             print the CLI's version and the running server's
 
 agents:
   skill                               print the guide to working with mikado (SKILL.md)

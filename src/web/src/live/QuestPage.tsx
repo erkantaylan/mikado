@@ -6,12 +6,14 @@ import { Banner, NoticePage } from '../quest/Notice'
 import { toQuestData } from './adapt'
 import { Failed, Loading, StaleBanner } from './states'
 import { usePoll } from './usePoll'
+import { useVersion } from './useVersion'
 
 /** `/quest/:slug`: one quest's chart, refreshed every 15 s without moving the view. */
 export default function QuestPage({ slug }: { slug: string }) {
   const load = useCallback(() => fetchQuest(slug), [slug])
   const { data, error, refresh } = usePoll(load)
   const model = useMemo(() => (data ? questModel(toQuestData(data)) : undefined), [data])
+  const version = useVersion()
 
   if (error?.status === 404)
     return (
@@ -37,6 +39,7 @@ export default function QuestPage({ slug }: { slug: string }) {
         await refresh()
       }}
       boardHref="/"
+      version={version}
       banner={
         <>
           {error && <StaleBanner error={error} />}

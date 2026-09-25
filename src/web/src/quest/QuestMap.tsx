@@ -20,6 +20,7 @@ import {
 } from './graph'
 import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
+import { VersionLine } from './VersionLine'
 
 // ---- side panel ------------------------------------------------------------
 
@@ -343,6 +344,7 @@ export type QuestMapProps = {
   onSetNpc?: (item: Item, npc: boolean) => Promise<void> // turns on the deed's right-click menu. The mock has none
   boardHref: string
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
+  version?: string // the running server's version, shown small under the side panel; the mock has none
 }
 
 /**
@@ -496,7 +498,7 @@ function cardFromUrl(m: QuestModel): string | null {
   return [...m.items, ...m.sideQuests].find((i) => i.key?.toLowerCase() === `m${n}`)?.id ?? null
 }
 
-function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, boardHref, banner }: QuestMapProps) {
+function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, boardHref, banner, version }: QuestMapProps) {
   const { goal, items, sideQuests, log } = m
   const [theme, setTheme] = useTheme()
   // `?deed=M142` (as `mikado open M142` links) opens the chart with that deed selected.
@@ -839,6 +841,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
               </ol>
             )}
             </div>
+            {version && <VersionLine version={version} className="shrink-0 px-4 py-1.5" />}
           </aside>
         )}
       </div>

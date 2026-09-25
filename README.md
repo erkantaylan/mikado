@@ -163,6 +163,8 @@ make install-service   # also run `mikado serve` as a systemd user service (cont
 
 After an upgrade, `make install` alone rebuilds, replaces the binary and restarts the service if
 it is running. `systemctl --user status mikado` / `journalctl --user -u mikado` for the service.
+The dashboard shows the running server's version in small print (its commit links to GitHub), and
+`mikado version` prints the CLI's version next to the server's, saying so when they differ.
 
 ## For AI agents
 

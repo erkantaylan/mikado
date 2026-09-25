@@ -5,11 +5,13 @@ import { Banner, Cli, Notice } from '../quest/Notice'
 import { toBoardQuest } from './adapt'
 import { Failed, Loading, StaleBanner } from './states'
 import { usePoll } from './usePoll'
+import { useVersion } from './useVersion'
 
 /** `/`: every quest the server knows, refreshed every 15 s. */
 export default function BoardPage() {
   const { data, error } = usePoll(fetchQuests)
   const quests = useMemo(() => data?.quests.map(toBoardQuest), [data])
+  const version = useVersion()
   if (!data || !quests) return error ? <Failed error={error} what="the Quest Board" /> : <Loading what="the Quest Board" />
   return (
     <QuestBoard
@@ -17,6 +19,7 @@ export default function BoardPage() {
       hrefOf={(q) => `/quest/${encodeURIComponent(q.slug)}`}
       eyebrow="mikado"
       search
+      version={version}
       banner={
         <>
           {error && <StaleBanner error={error} />}
