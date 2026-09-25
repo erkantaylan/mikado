@@ -89,7 +89,7 @@ function Row({ m, item, onPick, right }: { m: QuestModel; item: Item; onPick: (i
     <li>
       <button
         onClick={() => onPick(item.id)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-left text-[14px] hover:border-[var(--ink-faint)]"
+        className="quest-row flex w-full items-center justify-between gap-2 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-left text-[14px] hover:border-[var(--ink-faint)]"
       >
         <span className="min-w-0 truncate">
           <Label item={item} tag={m.short(item.id)} /> {titleOf(item).replace(/^Polish: /, '')}
@@ -581,14 +581,14 @@ function PanelTabs({ tab, onChange, logCount }: { tab: PanelTab; onChange: (t: P
     ['glossary', 'Glossary'],
   ]
   return (
-    <div role="tablist" className="flex shrink-0 gap-1 border-b border-[var(--panel-border)] px-3 pt-3">
+    <div role="tablist" className="quest-tabs flex shrink-0 gap-1 border-b border-[var(--panel-border)] px-3 pt-3">
       {tabs.map(([id, label]) => (
         <button
           key={id}
           role="tab"
           aria-selected={tab === id}
           onClick={() => onChange(id)}
-          className={`-mb-px rounded-t-md border px-3 py-1.5 text-[13px] font-semibold tracking-wide transition ${
+          className={`quest-tab -mb-px rounded-t-md border px-3 py-1.5 text-[13px] font-semibold tracking-wide transition ${
             tab === id
               ? 'border-[var(--panel-border)] border-b-[var(--panel)] bg-[var(--panel)] text-[var(--ink)]'
               : 'border-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]'
@@ -912,9 +912,9 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
 
   return (
     <div data-theme={theme} className="quest-theme flex h-screen flex-col">
-      <header className="flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
+      <header className="quest-header flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+          <span className="quest-emblem grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
             <Trophy size={20} />
           </span>
           <div className="min-w-0">
@@ -946,13 +946,13 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
           </div>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <Pill n={count('done')} label="fulfilled" colour={stateColour.done} />
-          <Pill n={count('available')} label="open" colour="var(--avail)" />
-          <Pill n={working} label="underway" colour="var(--avail)" />
-          <Pill n={count('awaiting')} label="awaiting reply" colour="var(--await)" />
-          <Pill n={count('locked')} label="sealed" colour="var(--ink)" />
-          {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" />}
-          <Pill n={heroless} label="no hero" colour="#e11d48" />
+          <Pill n={count('done')} label="fulfilled" colour={stateColour.done} coin="gold" />
+          <Pill n={count('available')} label="open" colour="var(--avail)" coin="enamel" />
+          <Pill n={working} label="underway" colour="var(--avail)" coin="bronze" />
+          <Pill n={count('awaiting')} label="awaiting reply" colour="var(--await)" coin="silver" />
+          <Pill n={count('locked')} label="sealed" colour="var(--ink)" coin="wax" />
+          {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" coin="iron" />}
+          <Pill n={heroless} label="no hero" colour="#e11d48" coin="crimson" />
           <span className="ml-2" />
           {slug && (
             <Search
@@ -981,6 +981,8 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
 
       <div className="flex min-h-0 flex-1">
         <main ref={mapRef} className="relative min-w-0 flex-1">
+          {/* The war table's campaign map: a still backdrop, not part of the chart, so it stays put as the chart pans and zooms. */}
+          {theme === 'wartable' && <div className="wt-map wt-map-table" aria-hidden />}
           {!shown && <div className="absolute inset-0 z-10 grid place-items-center text-[var(--ink-soft)]">Drawing the chart…</div>}
           {/* Rendered before it is laid out (invisibly) so the deeds can be measured first. */}
           <div className="h-full" style={{ opacity: shown ? 1 : 0 }}>
@@ -1017,7 +1019,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
               proOptions={{ hideAttribution: true }}
               style={{ background: 'transparent' }}
             >
-              <Background gap={24} size={1.5} color="var(--dots)" bgColor="transparent" />
+              {theme !== 'wartable' && <Background gap={24} size={1.5} color="var(--dots)" bgColor="transparent" />}
               <Controls showInteractive={false}>
                 <ControlButton
                   onClick={toggleMini}
@@ -1070,7 +1072,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
         </main>
 
         {panelOpen && (
-          <aside className="relative z-10 flex w-[400px] shrink-0 flex-col border-l border-[var(--panel-border)] bg-[var(--panel)] shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]">
+          <aside className="quest-ledger relative z-10 flex w-[400px] shrink-0 flex-col border-l border-[var(--panel-border)] bg-[var(--panel)] shadow-[-8px_0_16px_-10px_rgba(0,0,0,0.35)]">
             <PanelTabs tab={tab} onChange={setTab} logCount={log.length} />
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
             {tab === 'quest' && (
@@ -1078,7 +1080,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
             {sel && <Details m={m} item={sel} onPick={focus} onClose={() => setSelected(null)} />}
 
             <Panel title="Open now">
-              <ul className="space-y-1.5">
+              <ul className="quest-rows space-y-1.5">
                 {available.map((i) => (
                   <Row
                     key={i.id}
@@ -1097,7 +1099,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
             </Panel>
 
             <Panel title="Awaiting reply">
-              <ul className="space-y-1.5">
+              <ul className="quest-rows space-y-1.5">
                 {awaiting.map((i) => (
                   <Row
                     key={i.id}
@@ -1115,7 +1117,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
             </Panel>
 
             <Panel title="Side quests — achievements">
-              <ul className="space-y-1.5">
+              <ul className="quest-rows space-y-1.5">
                 {sideQuests.map((q) => (
                   <Row key={q.id} m={m} item={q} onPick={focus} right={<Hero name={q.assignee} />} />
                 ))}
@@ -1130,7 +1132,7 @@ function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, b
             {tab === 'glossary' && <Glossary />}
 
             {tab === 'chronicle' && (
-              <ol className="space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
+              <ol className="quest-chronicle space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
                 {log.map((e, k) => (
                   <li key={k} className="text-[14px] leading-snug">
                     <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>

@@ -5,6 +5,7 @@ export const THEMES = [
   { id: 'parchment', name: 'Parchment' },
   { id: 'midnight', name: 'Midnight' },
   { id: 'medieval', name: 'Medieval' },
+  { id: 'wartable', name: 'War table (preview)' },
 ] as const
 
 export type ThemeId = (typeof THEMES)[number]['id']

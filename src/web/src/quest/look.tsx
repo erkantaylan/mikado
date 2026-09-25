@@ -147,15 +147,19 @@ export function Working({ compact = false, by }: { compact?: boolean; by?: strin
   )
 }
 
+/** Which coin a count is struck on in the war-table theme (quest.css); other themes ignore it. */
+export type Coin = 'gold' | 'enamel' | 'bronze' | 'silver' | 'wax' | 'iron' | 'crimson'
+
 /** A slim count for the chart header: the number and its word on one line; zeros step back. */
-export function Pill({ n, label, colour }: { n: number; label: string; colour: string }) {
+export function Pill({ n, label, colour, coin }: { n: number; label: string; colour: string; coin?: Coin }) {
   return (
     <span
-      className={`inline-flex items-baseline gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-1 whitespace-nowrap ${
+      data-coin={coin}
+      className={`quest-pill inline-flex items-baseline gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-1 whitespace-nowrap ${
         n === 0 ? 'opacity-45' : ''
       }`}
     >
-      <span className="text-[15px] leading-none font-bold" style={{ color: n === 0 ? 'var(--ink-faint)' : colour }}>
+      <span className="quest-coin text-[15px] leading-none font-bold" style={{ color: n === 0 ? 'var(--ink-faint)' : colour }}>
         {n}
       </span>
       <span className="text-[12px] font-semibold tracking-wide text-[var(--ink-soft)] uppercase">{label}</span>

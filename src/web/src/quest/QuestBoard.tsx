@@ -237,7 +237,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
 
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
+      <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
         <div>
           <div className="text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
           <h1 className="quest-display text-2xl font-semibold">Quest Board</h1>
@@ -249,13 +249,13 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
         <div className="ml-auto flex gap-2 text-center">
           {(
             [
-              [active.length, 'active quests', 'var(--gold)'],
-              [sum((q) => q.available), 'open now', 'var(--avail)'],
-              [sum((q) => q.awaiting), 'awaiting reply', 'var(--await)'],
+              [active.length, 'active quests', 'var(--gold)', 'gold'],
+              [sum((q) => q.available), 'open now', 'var(--avail)', 'enamel'],
+              [sum((q) => q.awaiting), 'awaiting reply', 'var(--await)', 'silver'],
             ] as const
-          ).map(([n, label, colour]) => (
-            <div key={label} className="rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-3 py-1.5">
-              <div className="text-xl leading-none font-bold" style={{ color: colour }}>
+          ).map(([n, label, colour, coin]) => (
+            <div key={label} data-coin={coin} className="quest-stat rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-3 py-1.5">
+              <div className="quest-coin text-xl leading-none font-bold" style={{ color: colour }}>
                 {n}
               </div>
               <div className="text-[11px] font-semibold tracking-wider text-[var(--ink-soft)] uppercase">{label}</div>
@@ -268,7 +268,9 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
       {quests.length === 0 && empty ? (
         <main className="mx-auto max-w-7xl p-6">{empty}</main>
       ) : (
-        <main className="mx-auto max-w-7xl space-y-8 p-6">
+        <main className={`mx-auto max-w-7xl space-y-8 p-6 ${theme === 'wartable' ? 'wt-sheet' : ''}`}>
+          {/* The war table's campaign map, spread under the shelves. */}
+          {theme === 'wartable' && <div className="wt-map" aria-hidden />}
           <Section title="Underway" hint="the main quest still has deeds to fulfil">
             {active.map(row)}
           </Section>
