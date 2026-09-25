@@ -141,8 +141,8 @@ export const glossary: Term[] = [
   {
     id: 'G23',
     term: 'NPC',
-    text: 'A decorative joke badge any deed can wear. Nothing reads it.',
-    cli: '--npc',
+    text: 'A mark any deed can wear. It changes nothing about the deed’s status, but NPC deeds show in red on the chart; right-click a deed there to mark or unmark it.',
+    cli: '--npc · mikado set D --npc=true|false',
   },
   {
     id: 'G24',

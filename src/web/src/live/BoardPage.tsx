@@ -16,6 +16,7 @@ export default function BoardPage() {
       quests={quests}
       hrefOf={(q) => `/quest/${encodeURIComponent(q.slug)}`}
       eyebrow="mikado"
+      search
       banner={
         <>
           {error && <StaleBanner error={error} />}

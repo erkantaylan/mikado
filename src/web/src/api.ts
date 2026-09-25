@@ -103,11 +103,12 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string): Promise<{ body: T; res: Response }> {
+async function get<T>(path: string, signal?: AbortSignal): Promise<{ body: T; res: Response }> {
   let res: Response
   try {
-    res = await fetch(path, { headers: { Accept: 'application/json' } })
+    res = await fetch(path, { headers: { Accept: 'application/json' }, signal })
   } catch (e) {
+    if (signal?.aborted) throw e
     throw new ApiError(0, e instanceof Error ? e.message : String(e), true)
   }
   const text = await res.text()
@@ -124,6 +125,32 @@ async function get<T>(path: string): Promise<{ body: T; res: Response }> {
   return { body: body as T, res }
 }
 
+/** A change: a JSON body (the API refuses anything else), the JSON answer back. */
+async function send<T>(method: 'PATCH' | 'POST' | 'DELETE', path: string, body: unknown): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(path, { method, headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  } catch (e) {
+    throw new ApiError(0, e instanceof Error ? e.message : String(e), true)
+  }
+  const out: unknown = await res.json().catch(() => undefined)
+  if (!res.ok) {
+    const msg = typeof out === 'object' && out !== null && 'error' in out ? String(out.error) : `HTTP ${res.status}`
+    throw new ApiError(res.status, msg, out === undefined)
+  }
+  return out as T
+}
+
+/** Retitles a quest; its slug, and so its links, stay as they are. */
+export async function retitleQuest(slug: string, title: string): Promise<QuestSummary> {
+  return send<QuestSummary>('PATCH', `/api/quests/${encodeURIComponent(slug)}`, { title })
+}
+
+/** Marks a deed as an NPC, or not: it only changes how the deed looks on the chart. */
+export async function setNpc(id: number, npc: boolean): Promise<Card> {
+  return send<Card>('PATCH', `/api/cards/${id}`, { npc })
+}
+
 export async function fetchHealth(): Promise<Health> {
   return (await get<Health>('/api/health')).body
 }
@@ -132,6 +159,13 @@ export async function fetchHealth(): Promise<Health> {
 export async function fetchQuests(): Promise<{ quests: QuestSummary[]; github?: string }> {
   const { body, res } = await get<QuestSummary[]>('/api/quests')
   return { quests: body, github: res.headers.get('X-Mikado-GitHub') ?? undefined }
+}
+
+/** What the search popup finds (store.SearchResult). `exact` is the deed the query names by id or issue. */
+export type SearchResult = { quests: QuestInfo[]; deeds: Card[]; exact?: Card }
+
+export async function fetchSearch(q: string, signal?: AbortSignal): Promise<SearchResult> {
+  return (await get<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`, signal)).body
 }
 
 export async function fetchQuest(slug: string): Promise<QuestView> {

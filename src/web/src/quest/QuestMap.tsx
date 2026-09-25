@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Background, ControlButton, Controls, MiniMap, ReactFlow, ReactFlowProvider, useNodesState, useReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Ban, Check, Crown, ExternalLink, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, Crown, ExternalLink, Gem, Hourglass, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { Item, QuestModel, QuestState, Status } from './model'
 import { ArchivedChip, Hero, Key, Label, Npc, Pill, QuestStateChip, Working, medal, sideMedal, stateColour, words } from './look'
@@ -18,6 +18,7 @@ import {
   type Placed,
   type QuestNode,
 } from './graph'
+import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
 
 // ---- side panel ------------------------------------------------------------
@@ -110,7 +111,7 @@ function Legend() {
       <li className="flex items-center gap-2">{dot(sideMedal, <Gem size={14} />)} Side quest: optional, earns an achievement</li>
       <li className="flex items-center gap-2">{dot(medal.available, <Crown size={14} />)} Crowning deed: fulfil it and the quest is fulfilled</li>
       <li className="flex items-center gap-2">
-        <Npc /> just for fun, nothing reads it
+        <Npc /> a red deed: an NPC; right-click a deed to mark or unmark it
       </li>
       <li className="flex items-center gap-2">{line(stroke.done)} Powered: a fulfilled deed opening one you can do now</li>
       <li className="flex items-center gap-2">{line(stroke.held)} Powered, but its deed still waits on others</li>
@@ -267,12 +268,158 @@ function Details({ m, item, onPick, onClose }: { m: QuestModel; item: Item; onPi
 
 // ---- page ------------------------------------------------------------------
 
+/** The quest's title, renamed in place: Enter or leaving the field saves, Esc puts it back. */
+function QuestTitle({ title, slug, onRetitle }: { title: string; slug?: string; onRetitle?: (title: string) => Promise<void> }) {
+  const [draft, setDraft] = useState<string | null>(null) // null: not editing
+  const [error, setError] = useState<string>()
+  const saving = useRef(false)
+  const save = async () => {
+    if (draft === null || saving.current) return
+    const t = draft.trim()
+    if (t === title) return setDraft(null)
+    if (!t) return setError('A quest needs a title')
+    saving.current = true
+    try {
+      await onRetitle!(t)
+      setDraft(null)
+      setError(undefined)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      saving.current = false
+    }
+  }
+  if (draft === null)
+    return (
+      <span className="group flex min-w-0 items-center gap-1">
+        <span className="truncate" title={title}>
+          {title}
+        </span>
+        {onRetitle && (
+          <button
+            onClick={() => {
+              setDraft(title)
+              setError(undefined)
+            }}
+            aria-label="Rename quest"
+            title={`Rename quest (its slug${slug ? `, ${slug},` : ''} and links stay)`}
+            className="shrink-0 rounded p-1 text-[var(--ink-faint)] opacity-0 group-hover:opacity-100 hover:text-[var(--ink)] focus:opacity-100"
+          >
+            <Pencil size={15} />
+          </button>
+        )}
+      </span>
+    )
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save()
+          if (e.key === 'Escape') {
+            setDraft(null)
+            setError(undefined)
+          }
+        }}
+        onBlur={() => void save()}
+        aria-label="Quest title"
+        aria-invalid={!!error}
+        className="quest-display w-[min(40rem,100%)] min-w-0 rounded border-2 border-[var(--avail)] bg-[var(--plate)] px-2 py-0.5 text-xl font-semibold outline-none"
+      />
+      {error && <span className="shrink-0 font-sans text-[13px] font-normal text-[#e11d48]">{error}</span>}
+    </span>
+  )
+}
+
 export type QuestMapProps = {
   model: QuestModel
   state?: QuestState // from the API; the mock has none
   archived?: boolean
+  slug?: string // the live chart's slug: turns on search (the mock has none)
+  onRetitle?: (title: string) => Promise<void> // renames the quest; its slug stays. The mock has none
+  onSetNpc?: (item: Item, npc: boolean) => Promise<void> // turns on the deed's right-click menu. The mock has none
   boardHref: string
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
+}
+
+/**
+ * A deed's right-click menu, at the cursor and kept on screen. Esc, a click elsewhere or moving the
+ * chart closes it; a failed save stays open with the reason.
+ */
+function DeedMenu({
+  item,
+  x,
+  y,
+  onSetNpc,
+  onClose,
+}: {
+  item: Item
+  x: number
+  y: number
+  onSetNpc: (item: Item, npc: boolean) => Promise<void>
+  onClose: () => void
+}) {
+  const box = useRef<HTMLDivElement>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string>()
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    const margin = 8
+    el.style.left = `${Math.max(margin, Math.min(x, innerWidth - el.offsetWidth - margin))}px`
+    el.style.top = `${Math.max(margin, Math.min(y, innerHeight - el.offsetHeight - margin))}px`
+  }, [x, y, error])
+  useEffect(() => {
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', close)
+    addEventListener('resize', onClose)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', close)
+      removeEventListener('resize', onClose)
+    }
+  }, [onClose])
+  const toggle = async () => {
+    setSaving(true)
+    try {
+      await onSetNpc(item, !item.npc)
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setSaving(false)
+    }
+  }
+  return (
+    <div
+      ref={box}
+      role="menu"
+      aria-label={`Deed ${item.key ?? ''}`}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ left: x, top: y }}
+      className="fixed z-40 w-52 rounded-lg border border-[var(--panel-border)] bg-[var(--panel)] p-1 shadow-lg"
+    >
+      <div className="truncate px-3 pt-1 pb-1.5 text-[12px] text-[var(--ink-faint)]" title={item.title}>
+        {item.key && <span className="font-mono font-semibold">{item.key}</span>} {item.title}
+      </div>
+      <button
+        autoFocus
+        role="menuitem"
+        disabled={saving}
+        onClick={() => void toggle()}
+        className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[14px] text-[var(--ink)] hover:bg-[var(--chip)] disabled:opacity-60"
+      >
+        <span className={`size-2.5 shrink-0 rounded-full ${item.npc ? 'border-2 border-[var(--npc)]' : 'bg-[var(--npc)]'}`} />
+        {saving ? 'Saving…' : item.npc ? 'No longer an NPC' : 'Mark as NPC'}
+      </button>
+      {error && <div className="px-3 py-1 text-[13px] text-[#e11d48]">{error}</div>}
+    </div>
+  )
 }
 
 // The side panel lives outside <ReactFlow>, so the provider wraps the whole page
@@ -349,7 +496,7 @@ function cardFromUrl(m: QuestModel): string | null {
   return [...m.items, ...m.sideQuests].find((i) => i.key?.toLowerCase() === `m${n}`)?.id ?? null
 }
 
-function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMapProps) {
+function QuestMapInner({ model: m, state, archived, slug, onRetitle, onSetNpc, boardHref, banner }: QuestMapProps) {
   const { goal, items, sideQuests, log } = m
   const [theme, setTheme] = useTheme()
   // `?deed=M142` (as `mikado open M142` links) opens the chart with that deed selected.
@@ -468,6 +615,10 @@ function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMa
     if (left < margin || top < margin || right > box.width - margin || bottom > box.height - margin) centre(id)
   }
   const dark = theme === 'midnight'
+  // The deed right-clicked on the chart, and where; drawn from the current model so it follows saves.
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const menuItem = menu ? m.byId.get(menu.id) : undefined
+  const closeMenu = useCallback(() => setMenu(null), [])
 
   return (
     <div data-theme={theme} className="quest-theme flex h-screen flex-col">
@@ -481,9 +632,7 @@ function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMa
               ← Quest Board
             </a>
             <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
-              <span className="truncate" title={goal.title}>
-                {goal.title}
-              </span>
+              <QuestTitle title={goal.title} slug={slug} onRetitle={onRetitle} />
               <QuestStateChip state={state} />
               {archived && <ArchivedChip />}
             </h1>
@@ -515,6 +664,17 @@ function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMa
           {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" />}
           <Pill n={heroless} label="no hero" colour="#e11d48" />
           <span className="ml-2" />
+          {slug && (
+            <Search
+              here={slug}
+              select={(key) => {
+                const id = `c${key.slice(1)}`
+                if (!m.byId.has(id)) return false
+                focus(id)
+                return true
+              }}
+            />
+          )}
           <ThemeMenu theme={theme} onChange={setTheme} />
           <button
             onClick={() => setPanelOpen((o) => !o)}
@@ -550,6 +710,16 @@ function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMa
               onNodeDoubleClick={(_, n) => (n.id === 'goal' ? centre('goal', 1) : focus(n.id))}
               zoomOnDoubleClick={false}
               onPaneClick={() => setSelected(null)}
+              // Without onSetNpc (the mock) a right-click is the browser's own.
+              onNodeContextMenu={
+                onSetNpc &&
+                ((e, n) => {
+                  if (n.type !== 'card') return
+                  e.preventDefault()
+                  setMenu({ id: n.id, x: e.clientX, y: e.clientY })
+                })
+              }
+              onMoveStart={closeMenu}
               nodesDraggable={false}
               nodesConnectable={false}
               minZoom={0.2}
@@ -581,6 +751,7 @@ function QuestMapInner({ model: m, state, archived, boardHref, banner }: QuestMa
               )}
             </ReactFlow>
           </div>
+          {menuItem && onSetNpc && <DeedMenu key={menuItem.id} item={menuItem} x={menu!.x} y={menu!.y} onSetNpc={onSetNpc} onClose={closeMenu} />}
         </main>
 
         {panelOpen && (

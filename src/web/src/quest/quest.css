@@ -18,7 +18,9 @@
 
 /* Warm paper, dark ink: an RPG map. */
 .quest-theme[data-theme='parchment'] {
-  --npc: #4d7c0f;
+  --npc: #d42323;
+  --npc-ink: #ffffff;
+  --npc-plate: #fbe1dc;
   --bg: #efe6cf;
   --glow: rgba(200, 144, 28, 0.14);
   --panel: #f8f1df;
@@ -44,7 +46,9 @@
 
 /* Dark done right: deep navy, white text. */
 .quest-theme[data-theme='midnight'] {
-  --npc: #a3e635;
+  --npc: #f25555;
+  --npc-ink: #2a0707;
+  --npc-plate: #3e1519;
   --bg: #0f1522;
   --glow: rgba(56, 189, 248, 0.1);
   --panel: #161e2e;
@@ -70,7 +74,10 @@
 
 /* Vellum, ink, gold leaf and a crimson seal. */
 .quest-theme[data-theme='medieval'] {
-  --npc: #3f6212;
+  /* Brighter than the crimson of --await, so an NPC never reads as a petition. */
+  --npc: #d0161b;
+  --npc-ink: #fff6dc;
+  --npc-plate: #f6cdbf;
   --font-body: 'EB Garamond', Georgia, serif;
   --font-display: 'Cinzel', 'EB Garamond', serif;
   --bg: #e6d6ad;
@@ -158,6 +165,12 @@
 .react-flow__minimap-node.mm-side {
   fill: var(--side);
   opacity: 0.6;
+}
+.react-flow__minimap-node.mm-npc {
+  fill: var(--npc);
+}
+.react-flow__minimap-node.mm-npc-done {
+  fill: color-mix(in srgb, var(--npc) 50%, var(--panel));
 }
 .react-flow__minimap-node.mm-goal {
   fill: var(--gold);

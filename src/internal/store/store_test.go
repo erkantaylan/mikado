@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -943,5 +944,64 @@ func TestArchive(t *testing.T) {
 	}
 	if strings.Join(texts, "; ") != "quest archived; quest brought back from the archive" {
 		t.Errorf("chronicle: %q", texts)
+	}
+}
+
+func TestSearch(t *testing.T) {
+	f := setup(t)
+	f.gh.put("studio/saves#88", "Old saves crash the loader", "OPEN")
+	final := f.errand("Ship the winter update")
+	f.quest("winter", final)
+	issue := f.issue("studio/saves#88", NewCard{NeededBy: []int64{final.ID}})
+	notes := f.errand("old notes")
+	f.patch(notes.ID, CardPatch{Done: ptr(true)})
+	f.need(final.ID, notes.ID)
+	tr := f.errand("İzin ekranı")
+	calls := f.gh.calls
+
+	search := func(q string) *SearchResult {
+		t.Helper()
+		r, err := f.s.Search(f.ctx, q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	keys := func(cs []Card) string {
+		var out []string
+		for _, c := range cs {
+			out = append(out, c.Key)
+		}
+		return strings.Join(out, " ")
+	}
+
+	if r := search("OLD"); keys(r.Deeds) != issue.Key+" "+notes.Key {
+		t.Errorf("OLD: %s, want the open issue before the fulfilled errand", keys(r.Deeds))
+	}
+	if r := search("saves loader"); keys(r.Deeds) != issue.Key || len(r.Deeds[0].AlsoIn) != 1 || r.Deeds[0].AlsoIn[0].Slug != "winter" {
+		t.Errorf("saves loader: %+v", r.Deeds)
+	}
+	if r := search("izin"); keys(r.Deeds) != tr.Key {
+		t.Errorf("izin: %s, want the dotted İ to match", keys(r.Deeds))
+	}
+	for _, q := range []string{issue.Key, "m-" + strconv.FormatInt(issue.ID, 10), "studio/saves#88"} {
+		if r := search(q); r.Exact == nil || r.Exact.ID != issue.ID || r.Deeds[0].ID != issue.ID {
+			t.Errorf("%s: exact %+v", q, r.Exact)
+		}
+	}
+	if r := search("winter"); len(r.Quests) != 1 || r.Quests[0].Slug != "winter" || keys(r.Deeds) != final.Key || !r.Deeds[0].Final {
+		t.Errorf("winter: quests %+v deeds %s", r.Quests, keys(r.Deeds))
+	}
+	if _, err := f.s.UpdateQuest(f.ctx, "winter", QuestPatch{Archived: ptr(true)}); err != nil {
+		t.Fatal(err)
+	}
+	if r := search(""); len(r.Quests) != 0 || len(r.Deeds) != 0 {
+		t.Errorf("empty query lists archived quests or deeds: %+v", r)
+	}
+	if r := search("winter"); len(r.Quests) != 1 {
+		t.Errorf("a query still finds an archived quest: %+v", r.Quests)
+	}
+	if f.gh.calls != calls {
+		t.Errorf("search called GitHub %d times; it reads the cache only", f.gh.calls-calls)
 	}
 }

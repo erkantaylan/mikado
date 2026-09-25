@@ -3,6 +3,7 @@ import { Ban, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { QuestState } from './model'
 import { QuestStateChip } from './look'
+import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
 
 // One quest on the Quest Board, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
@@ -167,9 +168,10 @@ export type QuestBoardProps = {
   noMap?: string // what a quest without a chart says about it
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
   empty?: ReactNode // shown instead of the shelves when there are no quests at all
+  search?: boolean // the live board searches the API; the mock has none
 }
 
-export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, empty }: QuestBoardProps) {
+export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, empty, search }: QuestBoardProps) {
   const [theme, setTheme] = useTheme()
   const shelved = quests.filter((q) => !q.archivedAt)
   const archived = quests.filter((q) => q.archivedAt)
@@ -187,7 +189,10 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
           <div className="text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
           <h1 className="quest-display text-2xl font-semibold">Quest Board</h1>
         </div>
-        <ThemeMenu theme={theme} onChange={setTheme} />
+        <div className="flex gap-2">
+          {search && <Search />}
+          <ThemeMenu theme={theme} onChange={setTheme} />
+        </div>
         <div className="ml-auto flex gap-2 text-center">
           {(
             [

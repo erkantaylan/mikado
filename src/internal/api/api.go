@@ -46,6 +46,7 @@ func Handler(s *store.Store, hosts ...string) http.Handler {
 	mux.HandleFunc("POST /api/quests/{slug}/needs", h.inQuest(h.addNeed))
 	mux.HandleFunc("DELETE /api/quests/{slug}/needs", h.inQuest(h.removeNeed))
 
+	mux.HandleFunc("GET /api/search", h.search)
 	mux.HandleFunc("GET /api/repos/{owner}/{repo}/assignees", h.repoAssignees)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
@@ -328,6 +329,15 @@ func (h *handler) removeNeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) search(w http.ResponseWriter, r *http.Request) {
+	res, err := h.s.Search(r.Context(), r.URL.Query().Get("q"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
 }
 
 func (h *handler) repoAssignees(w http.ResponseWriter, r *http.Request) {

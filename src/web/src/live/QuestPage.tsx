@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { fetchQuest } from '../api'
+import { fetchQuest, retitleQuest, setNpc } from '../api'
 import QuestMap from '../quest/QuestMap'
 import { questModel } from '../quest/model'
 import { Banner, NoticePage } from '../quest/Notice'
@@ -10,7 +10,7 @@ import { usePoll } from './usePoll'
 /** `/quest/:slug`: one quest's chart, refreshed every 15 s without moving the view. */
 export default function QuestPage({ slug }: { slug: string }) {
   const load = useCallback(() => fetchQuest(slug), [slug])
-  const { data, error } = usePoll(load)
+  const { data, error, refresh } = usePoll(load)
   const model = useMemo(() => (data ? questModel(toQuestData(data)) : undefined), [data])
 
   if (error?.status === 404)
@@ -27,6 +27,15 @@ export default function QuestPage({ slug }: { slug: string }) {
       model={model}
       state={data.quest.state}
       archived={!!data.quest.archivedAt}
+      slug={data.quest.slug}
+      onRetitle={async (title) => {
+        await retitleQuest(data.quest.slug, title)
+        await refresh()
+      }}
+      onSetNpc={async (item, npc) => {
+        await setNpc(Number(item.id.slice(1)), npc) // node ids are c<card id> (adapt.ts)
+        await refresh()
+      }}
       boardHref="/"
       banner={
         <>

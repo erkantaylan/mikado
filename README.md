@@ -62,7 +62,9 @@ One global graph of deeds and requirements; each quest is a view onto it, drawn 
   relation. Requirements are global and acyclic across the whole graph.
   A deed hung on another with `--side-of` is a **side quest**: optional, never blocks and never
   requires or opens anything; it earns an **achievement**. A deed **unearthed** on the way records
-  where (`--unearthed-on`) and why (`--reason`); an **NPC** badge is decoration.
+  where (`--unearthed-on`) and why (`--reason`). An **NPC** deed changes nothing but its looks: it
+  shows in red on the chart. Right-click a deed there to mark or unmark it (CLI: `--npc`,
+  `set D --npc=true|false`).
 - A **quest** has a slug, a title and a **crowning deed**. Its deeds are computed, never stored:
   the crowning deed, everything it transitively requires (the **main quest**), and the side quests
   of any of them (recursively). A deed joins a quest by being linked in (`--opens`, `require`,
@@ -184,6 +186,7 @@ fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "fro
 | `GET /api/quests/{slug}` | `{quest, cards, needs, log, github?}`: its deeds, requirements and chronicle; each deed has `key` and `alsoIn` |
 | `PATCH /api/quests/{slug}` `{slug?, title?, final?, archived?}` | rename, retitle, crown, archive (`true`) or bring back (`false`); an archived quest has `archivedAt` |
 | `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a deed (201). An issue that is already a deed gives 200 with that deed, and the links are applied to it |
+| `GET /api/search?q=` | `{quests, deeds, exact?}`: quests by slug and title, deeds by id, issue and title (every word, any case; issue titles from the cache). `exact` is the deed the query names by id or issue. Deeds still to do come first |
 | `GET /api/cards/{ref}` | `{card, quests, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` |
 | `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a deed: fulfil, hero, NPC, title, abandon, take up / set down |
 | `DELETE /api/cards/{id}` `{reason}` | strike a deed and its side quests |

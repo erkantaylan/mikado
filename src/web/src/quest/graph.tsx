@@ -100,6 +100,21 @@ export function AlsoIn({ quests, label = true }: { quests: QuestRef[]; label?: b
   )
 }
 
+/**
+ * An NPC deed's plate: red frame and tint over whatever its status says, so NPCs stand out at a
+ * glance while the medal and label still tell the status. A fulfilled or abandoned NPC is a quieter
+ * red, without the glow, like any finished deed.
+ */
+function npcPlate(status: Status): CSSProperties {
+  if (status === 'done' || status === 'cancelled')
+    return {
+      background: 'color-mix(in srgb, var(--npc-plate) 55%, var(--panel))',
+      borderColor: 'color-mix(in srgb, var(--npc) 55%, var(--panel))',
+      opacity: plate[status].opacity,
+    }
+  return { background: 'var(--npc-plate)', borderColor: 'var(--npc)', boxShadow: glow('--npc', 16, 40) }
+}
+
 function CardView({ data }: NodeProps<CardNode>) {
   const { item, tag, status, openBefore, days, dim, selected } = data
   const side = !!item.sideOf
@@ -122,7 +137,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         </span>
       )}
       <div
-        style={side ? sidePlate : plate[status]}
+        style={item.npc ? npcPlate(status) : side ? sidePlate : plate[status]}
         className={`quest-plate relative flex flex-col gap-1.5 rounded-lg py-2 pr-3 pl-5 ${side ? 'border' : 'border-2'} ${
           item.foundWhile ? 'quest-discovered !border-dashed' : ''
         } ${selected ? 'quest-lit' : ''}`}
@@ -285,6 +300,7 @@ export function buildGraph(m: QuestModel, selected: string | null, state?: Quest
 export const miniClass = (n: Node) => {
   if (n.type === 'goal') return 'mm-goal'
   const d = n.data as CardData
+  if (d.item.npc) return d.status === 'done' || d.status === 'cancelled' ? 'mm-npc-done' : 'mm-npc'
   return d.item.sideOf && !d.item.done ? 'mm-side' : `mm-${d.status}`
 }
 

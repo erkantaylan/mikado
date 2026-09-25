@@ -536,7 +536,7 @@ func addCmd(name, kind string, args []string) error {
 	reason := cmd.fs.String("reason", "", "why it was added")
 	sideOf := cmd.fs.String("side-of", "", "make it a side quest on deed D (optional, never blocks)")
 	crowns := cmd.fs.String("crowns", "", "make it the crowning deed of quest SLUG")
-	npc := cmd.fs.Bool("npc", false, "mark it as an NPC (decoration only)")
+	npc := cmd.fs.Bool("npc", false, "mark it as an NPC (drawn red on the chart)")
 	hero := cmd.fs.String("hero", "", "who is responsible for it (free text)")
 	cmd.alias("needs", "requires")
 	cmd.alias("needed-by", "opens")

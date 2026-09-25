@@ -62,12 +62,12 @@ export function Hero({ name }: { name?: string }) {
   )
 }
 
-// NPC is decoration only: any deed may wear it and nothing reads it.
+// NPC changes nothing about a deed's status; it only makes the deed red on the chart.
 export function Npc() {
   return (
     <span
-      className="shrink-0 rounded border border-[var(--npc)] bg-[color-mix(in_srgb,var(--npc)_15%,transparent)] px-1 text-[11px] font-bold tracking-wider text-[var(--npc)]"
-      title="NPC — just for fun"
+      className="shrink-0 rounded border border-[var(--npc)] bg-[var(--npc)] px-1 text-[11px] font-bold tracking-wider text-[var(--npc-ink)]"
+      title="NPC (right-click the deed on the chart to change)"
     >
       NPC
     </span>

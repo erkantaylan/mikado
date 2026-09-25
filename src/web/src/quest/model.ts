@@ -27,7 +27,7 @@ export type Item = {
   final?: boolean // the item whose completion means the goal is reached
   foundWhile?: string // id of the item this one was discovered from
   sideOf?: string // a side quest: optional polish on this card; never blocks it
-  npc?: boolean // a purely visual badge — a joke, it changes nothing
+  npc?: boolean // only looks: an NPC deed is drawn red; its status is unchanged
   cancelled?: boolean // won't be done: stays on the map, blocks nothing, counts for nothing
   cancelReason?: string
   working?: boolean // someone is on it right now
