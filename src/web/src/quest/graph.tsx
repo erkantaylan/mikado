@@ -243,19 +243,20 @@ export const stroke: Record<Flow, CSSProperties> = {
   bridge: { stroke: 'var(--ink-faint)', strokeWidth: '2px', strokeDasharray: '10 4 2 4', opacity: 0.8 },
 }
 
-// On the war table a line starts and ends a little under the cards, so it comes out from under the paper
-// rather than stopping short of the card's edge; the cards are opaque there, so the extra length is hidden.
-// Lines always leave a card's right side and enter the next card's left side. From an abandoned card the
-// line tucks deeper, past the torn strip, so it does not stop in the tear.
+// A line starts and ends a little under the cards, so it comes out from under the card rather than
+// stopping at its edge, and card and line read as separate things; the cards are opaque there, so the
+// extra length is hidden. Lines always leave a card's right side and enter the next card's left side.
+// From an abandoned card on the war table the line tucks deeper, past the torn strip, so it does not
+// stop in the tear.
 const TUCK = 12
 const TORN_TUCK = 32
 
-/** The curve a line follows, with the war table's tuck under the cards. Shared with the mock's trial line designs. */
+/** The curve a line follows, tucked under the cards. Shared with the mock's trial line designs. */
 export function questEdgePath(
   { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>,
   wt: boolean,
 ) {
-  const tuck = wt ? TUCK : 0
+  const tuck = TUCK
   const [path, labelX, labelY] = getBezierPath({
     sourceX: sourceX - (wt && data!.torn ? TORN_TUCK : tuck),
     sourceY,
