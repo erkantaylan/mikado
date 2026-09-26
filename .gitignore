@@ -7,6 +7,9 @@ src/internal/web/dist/*
 src/web/node_modules/.tmp/
 *.tsbuildinfo
 
+# demo data (make demo, make screenshots)
+/.demo/
+
 # built binary
 /bin/
 /src/mikado

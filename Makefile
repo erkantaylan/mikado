@@ -10,7 +10,7 @@ PREFIX  ?= $(HOME)/.local
 UNIT    := $(HOME)/.config/systemd/user/mikado.service
 
 .DEFAULT_GOAL := help
-.PHONY: help tools deps dev-web build-web build run check test clean \
+.PHONY: help tools deps dev-web build-web build run demo screenshots check test clean \
 	install update uninstall install-service uninstall-service \
 	start stop restart status logs
 
@@ -86,6 +86,29 @@ $(WEB)/node_modules: $(WEB)/package.json $(WEB)/bun.lock
 
 run: build ## build and serve from the checkout (ADDR=host:port), without installing
 	./$(BIN) serve --addr $(ADDR)
+
+# The demo journeys (src/demo/seed.sh) on their own port and data directory,
+# fresh on every run, so the real server and its data are never touched.
+DEMO_ADDR ?= 127.0.0.1:47295
+DEMO_DATA := .demo
+# Starts the demo server in the background of the recipe's shell and seeds it;
+# the recipe kills it when it ends.
+define demo_server
+rm -rf $(DEMO_DATA); \
+./$(BIN) serve --addr $(DEMO_ADDR) --data $(DEMO_DATA) & pid=$$!; \
+trap 'kill $$pid 2>/dev/null' EXIT; \
+for i in $$(seq 50); do curl -sf http://$(DEMO_ADDR)/api/health >/dev/null && break; sleep 0.1; done; \
+MIKADO_SERVER=http://$(DEMO_ADDR) src/demo/seed.sh ./$(BIN) >/dev/null
+endef
+
+demo: build ## serve the demo journeys on DEMO_ADDR (fresh each run; Ctrl-C stops it)
+	@$(demo_server); \
+	echo "demo journeys at http://$(DEMO_ADDR) (data in $(DEMO_DATA)/, wiped next run) — Ctrl-C to stop"; \
+	wait $$pid
+
+screenshots: build ## retake docs/screenshots from the demo journeys (needs Chrome)
+	@$(demo_server); \
+	cd $(WEB) && $(BUN) scripts/screenshots.mjs http://$(DEMO_ADDR) $(CURDIR)/docs/screenshots
 
 # Vite dev server; proxies /api to the Go server at $(ADDR) (run `make run` alongside).
 dev-web: deps ## Vite dev server with HMR (run `make run` alongside)

@@ -242,6 +242,20 @@ make dev-web    # in a second terminal: Vite dev server with HMR, /api proxied t
 
 Override the address with `make run ADDR=127.0.0.1:9000` (and the same `ADDR` for `dev-web`).
 
+### Demo journeys
+
+```bash
+make demo         # serve the demo journeys on http://127.0.0.1:47295, fresh on every run
+make screenshots  # retake docs/screenshots from them (needs Chrome, or $CHROME)
+```
+
+`src/demo/seed.sh` fills an empty server with five journeys, with and without code: an omelette
+(found quests, side quests on side quests, a petition), a brunch that waits on the whole omelette
+journey, a finished home-office move, a typing goal with an achievement left, and a mikado journey
+with a real GitHub issue (skipped without `gh`). The data lives in `.demo/` and never touches your
+real database. To work on the frontend against it: `make demo`, then `make dev-web
+ADDR=127.0.0.1:47295`; for the CLI, `MIKADO_SERVER=http://127.0.0.1:47295 ./bin/mikado …`.
+
 ## Build and check
 
 ```bash
