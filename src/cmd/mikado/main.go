@@ -1,5 +1,6 @@
-// Command mikado groups GitHub issues from several repos under small goals
-// (journeys) and tracks the side issues found along the way. `mikado serve`
+// Command mikado is a task map for any goal: journeys, the quests toward
+// them (GitHub issues, errands or petitions) and the side issues found along
+// the way. `mikado serve`
 // runs the local server (JSON API + dashboard); every other command is a thin
 // client of that API.
 package main

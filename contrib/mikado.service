@@ -1,5 +1,5 @@
 [Unit]
-Description=mikado - journeys over GitHub issues (API and dashboard on 127.0.0.1:47291)
+Description=mikado - a task map for any goal (API and dashboard on 127.0.0.1:47291)
 After=network-online.target
 Wants=network-online.target
 

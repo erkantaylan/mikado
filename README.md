@@ -1,17 +1,22 @@
 # <img src="docs/icon.png" width="40" align="top" alt=""> mikado
 
-A local tool for grouping GitHub issues (across repos) under small goals — **journeys** — and
-tracking the side issues found along the way. One static Go binary: `mikado serve` runs a JSON API
-and a web dashboard that draws each journey as a chart; every other command is a thin client of
-that API (Claude Code fills journeys through it).
+A task map for any goal. A **journey** is the goal; **quests** are the steps toward it, each with
+what it requires and why it was added, and anything found along the way. A journey can span ten
+repos or none: shipping a release, learning a language, or cooking an omelette. A quest is a
+GitHub issue, an **errand** (a step that lives only in mikado) or a **petition** (waiting on
+someone's reply).
+
+One static Go binary: `mikado serve` runs a JSON API and a web dashboard that draws each journey
+as a chart; every other command is a thin client of that API (AI agents like Claude Code fill
+journeys through it).
 
 Local-first: the server listens on loopback only and has no authentication yet. All data goes
-through the API, so auth can be added there later. GitHub is reached through the `gh` CLI, which
-holds the token; mikado stores no credentials.
+through the API, so auth can be added there later. GitHub is optional: when a quest is an issue,
+it is reached through the `gh` CLI, which holds the token; mikado stores no credentials.
 
 The name comes from the [Mikado Method](https://mikadomethod.info/): put the goal at the top,
 try to reach it, and record every prerequisite you run into on the way. mikado keeps that graph
-across repos and people, so the end goal stays in view while side issues pile up.
+across projects, people and plain life, so the end goal stays in view while side issues pile up.
 
 ![A journey's chart: quests lead left to right into the crowning quest; the selected quest shows what it opens and why it was found](docs/screenshots/chart.png)
 
