@@ -1,20 +1,20 @@
 import type { CSSProperties } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { Ban, Check, ExternalLink, Flag, Layers } from 'lucide-react'
-import type { Item, QuestCard, Status } from './model'
+import type { Item, JourneyCard, Status } from './model'
 import { Gate, Key, Kinds, Working, glow, medal, plate, spentText, stateColour, words } from './look'
 import { useWarTable } from './theme'
 
-// A quest card: a deed on this chart that crowns another quest, drawn as one card standing for
-// that whole quest, its own deeds folded behind it. It counts as one deed here.
+// A journey card: a quest on this chart that crowns another journey, drawn as one card standing for
+// that whole journey, its own quests folded behind it. It counts as one quest here.
 
-const CARD_WIDTH = 310 // as graph.tsx's deeds
+const CARD_WIDTH = 310 // as graph.tsx's quests
 const STACK = 5 // how far each folded plate peeks out behind the card
 const hidden = '!opacity-0'
 
-export const questHref = (slug: string) => `/quest/${encodeURIComponent(slug)}`
+export const journeyHref = (key: string) => `/journey/${encodeURIComponent(key)}`
 
-/** The folded plates behind a quest card: its own deeds, stacked. They step back like a fulfilled deed. */
+/** The folded plates behind a journey card: its own quests, stacked. They step back like a fulfilled quest. */
 function behind(status: Status, depth: number): CSSProperties {
   const base = plate[status]
   const done = status === 'done' || status === 'cancelled'
@@ -26,8 +26,8 @@ function behind(status: Status, depth: number): CSSProperties {
   }
 }
 
-/** The other quest's main-quest progress, as the Quest Board counts it. */
-export function QuestProgress({ q, done }: { q: QuestCard; done: boolean }) {
+/** The other journey's main-quest progress, as the Atlas counts it. */
+export function JourneyProgress({ q, done }: { q: JourneyCard; done: boolean }) {
   const pct = q.total ? Math.round((q.done / q.total) * 100) : 0
   return (
     <div className="flex items-center gap-2">
@@ -44,33 +44,33 @@ export function QuestProgress({ q, done }: { q: QuestCard; done: boolean }) {
   )
 }
 
-/** The status word a quest card shows: the quest's own when it is over, else its crowning deed's. */
-export function questCardWord(q: QuestCard, status: Status): string {
-  if (status === 'done') return 'Quest fulfilled'
-  if (status === 'cancelled') return 'Quest abandoned'
+/** The status word a journey card shows: the journey's own when it is over, else its crowning quest's. */
+export function journeyCardWord(q: JourneyCard, status: Status): string {
+  if (status === 'done') return 'Journey fulfilled'
+  if (status === 'cancelled') return 'Journey abandoned'
   if (status === 'locked') return `${words.locked} · ${q.total - q.done} to go`
   return words[status]
 }
 
-type Props = { item: Item; q: QuestCard; status: Status; dim: boolean; selected: boolean }
+type Props = { item: Item; q: JourneyCard; status: Status; dim: boolean; selected: boolean }
 
-/** The quest card node. */
-export function QuestCardView({ item, q, status, dim, selected }: Props) {
+/** The journey card node. */
+export function JourneyCardView({ item, q, status, dim, selected }: Props) {
   const wt = useWarTable()
   const done = status === 'done'
   const over = done || status === 'cancelled'
   const underway = q.underway > 0 && !over
-  const working = <Working by={`${q.underway} ${q.underway === 1 ? 'deed' : 'deeds'} in ${q.slug}`} />
+  const working = <Working by={`${q.underway} ${q.underway === 1 ? 'quest' : 'quests'} in ${q.key}`} />
   const front: CSSProperties = { ...plate[status], ...(status === 'available' ? { boxShadow: glow('--avail', 18, 45) } : {}) }
   return (
     <div
       style={{ width: CARD_WIDTH + STACK * 2, paddingRight: STACK * 2, paddingBottom: STACK * 2 }}
       data-status={status}
       data-dim={dim || undefined}
-      className={`quest-deed quest-stack relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
+      className={`quest-item quest-stack relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
-      {/* The quest's own deeds, folded behind it. */}
+      {/* The journey's own quests, folded behind it. */}
       {[2, 1].map((depth) => (
         <div
           key={depth}
@@ -80,7 +80,7 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
         />
       ))}
       {wt ? (
-        // The war table's gate: can it be started? A seal counts the quest's deeds still to go, as its label does.
+        // The war table's gate: can it be started? A seal counts the journey's quests still to go, as its label does.
         <Gate status={status} count={q.total - q.done} />
       ) : (
         <span
@@ -99,15 +99,15 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
             className="flex shrink-0 items-center gap-1 text-[12px] font-bold tracking-[0.2em] uppercase"
             style={{ color: over ? spentText : stateColour.done }}
           >
-            <Layers size={13} /> Quest
+            <Layers size={13} /> Journey
           </span>
-          <span className="min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={q.slug}>
-            {q.slug}
+          <span className="min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={q.key}>
+            {q.key}
           </span>
           {q.archived && (
             <span className="shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase">archived</span>
           )}
-          {wt && <Kinds kinds={['quest']}>{underway && working}</Kinds>}
+          {wt && <Kinds kinds={['journey']}>{underway && working}</Kinds>}
         </div>
         <span
           className={`quest-display quest-title leading-snug ${
@@ -116,15 +116,15 @@ export function QuestCardView({ item, q, status, dim, selected }: Props) {
         >
           {q.title}
         </span>
-        <QuestProgress q={q} done={over} />
+        <JourneyProgress q={q} done={over} />
         <div className="flex items-center justify-between">
           <span className="text-[12px] font-bold tracking-wider uppercase" style={{ color: done ? spentText : stateColour[status] }}>
-            {questCardWord(q, status)}
+            {journeyCardWord(q, status)}
           </span>
           <a
-            href={questHref(q.slug)}
+            href={journeyHref(q.key)}
             onClick={(e) => e.stopPropagation()}
-            title={`Open quest ${q.slug}`}
+            title={`Open journey ${q.key}`}
             className="flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] hover:underline"
           >
             open <ExternalLink size={12} />

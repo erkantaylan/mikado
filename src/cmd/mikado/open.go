@@ -5,19 +5,18 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
-	"strings"
 
-	"mikado/internal/github"
 	"mikado/internal/store"
 )
 
-// openCmd opens the dashboard in the browser: the Quest Board, a quest's chart,
-// or the chart of a quest holding a deed, with that deed selected.
+// openCmd opens the dashboard in the browser: the atlas, a journey's war
+// table, or the war table of a journey holding a quest, with that quest
+// selected.
 func openCmd(args []string) error {
 	cmd := newCommand("open")
-	quest := cmd.fs.String("quest", "", "for a deed in several quests: which quest's chart to open")
+	journey := cmd.fs.String("journey", "", "for a quest in several journeys: which journey's war table to open")
 	printOnly := cmd.fs.Bool("print", false, "print the URL instead of opening a browser")
-	pos, err := cmd.parse(args, 0, 1, "[SLUG | D] [--quest SLUG] [--print]")
+	pos, err := cmd.parse(args, 0, 1, "[J | Q] [--journey J] [--print]")
 	if err != nil {
 		return err
 	}
@@ -29,7 +28,7 @@ func openCmd(args []string) error {
 
 	page := "/"
 	if len(pos) == 1 {
-		if page, err = openTarget(cl, pos[0], *quest); err != nil {
+		if page, err = openTarget(cl, pos[0], *journey); err != nil {
 			return err
 		}
 	}
@@ -45,17 +44,14 @@ func openCmd(args []string) error {
 	return nil
 }
 
-// openTarget turns a quest slug or a deed reference into a dashboard path.
-func openTarget(cl *client, target, quest string) (string, error) {
-	_, isCard := store.ParseCardID(target)
-	if _, err := github.ParseRef(target); err == nil {
-		isCard = true
-	}
-	if !isCard {
-		if _, err := cl.do("GET", questPath(target), nil, nil); err != nil {
+// openTarget turns a journey key or a quest reference into a dashboard path.
+func openTarget(cl *client, target, journey string) (string, error) {
+	if id, ok := store.ParseJourneyID(target); ok {
+		key := store.JourneyKey(id)
+		if _, err := cl.do("GET", journeyPath(key), nil, nil); err != nil {
 			return "", err
 		}
-		return "/quest/" + url.PathEscape(strings.ToLower(target)), nil
+		return "/journey/" + key, nil
 	}
 
 	id, err := resolve(cl, target)
@@ -66,22 +62,26 @@ func openTarget(cl *client, target, quest string) (string, error) {
 	if _, err := cl.do("GET", cardPath(id), nil, &v); err != nil {
 		return "", err
 	}
-	if len(v.Quests) == 0 {
-		return "", fmt.Errorf("%s is in no quest yet, so there is no chart to show it on", v.Card.Key)
+	if len(v.Journeys) == 0 {
+		return "", fmt.Errorf("%s is in no journey yet, so there is no war table to show it on", v.Card.Key)
 	}
-	slug := v.Quests[0].Slug
-	if quest != "" {
-		slug = ""
-		for _, q := range v.Quests {
-			if strings.EqualFold(q.Slug, quest) {
-				slug = q.Slug
+	key := v.Journeys[0].Key
+	if journey != "" {
+		want, ok := store.ParseJourneyID(journey)
+		if !ok {
+			return "", usageError{fmt.Sprintf("--journey %q is not a journey (want J7)", journey)}
+		}
+		key = ""
+		for _, j := range v.Journeys {
+			if j.Key == store.JourneyKey(want) {
+				key = j.Key
 			}
 		}
-		if slug == "" {
-			return "", fmt.Errorf("%s is not in quest %q", v.Card.Key, quest)
+		if key == "" {
+			return "", fmt.Errorf("%s is not in journey %s", v.Card.Key, journey)
 		}
 	}
-	return "/quest/" + url.PathEscape(slug) + "?deed=" + url.QueryEscape(v.Card.Key), nil
+	return "/journey/" + url.PathEscape(key) + "?quest=" + url.QueryEscape(v.Card.Key), nil
 }
 
 // browse hands a URL to the desktop's browser without waiting for it.

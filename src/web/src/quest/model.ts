@@ -1,5 +1,5 @@
-// A quest as the map and board draw it, whether it comes from the mock data or
-// from the API. Pages build a QuestModel from QuestData once per version of
+// A journey as the war table and the atlas draw it, whether it comes from the mock data or
+// from the API. Pages build a JourneyModel from JourneyData once per version of
 // the data; everything that used to read module-level mock state reads the model.
 
 // An item is either a GitHub issue or a card that lives only in mikado:
@@ -13,8 +13,8 @@ export type Kind = 'issue' | 'wait' | 'task'
 export type Status = 'done' | 'available' | 'locked' | 'awaiting' | 'cancelled'
 
 export type Item = {
-  id: string // the node id: mock issues use owner/repo#n, mock cards card:<slug>, API cards c<id>
-  key?: string // the id people use for the card (M142)
+  id: string // the node id: mock issues use owner/repo#n, mock cards card:<name>, API cards c<id>
+  key?: string // the key people use for the quest (Q142)
   kind: Kind
   title: string
   done: boolean
@@ -27,33 +27,33 @@ export type Item = {
   final?: boolean // the item whose completion means the goal is reached
   foundWhile?: string // id of the item this one was discovered from
   sideOf?: string // a side quest: optional polish on this card; never blocks it
-  npc?: boolean // only looks: an NPC deed is drawn red; its status is unchanged
+  npc?: boolean // only looks: an NPC quest is drawn red; its status is unchanged
   cancelled?: boolean // won't be done: stays on the map, blocks nothing, counts for nothing
   cancelReason?: string
   working?: boolean // someone is on it right now
   workingBy?: string
   reason?: string // why it was added along the way
-  alsoIn?: QuestRef[] // other quests the same card belongs to
+  alsoIn?: JourneyRef[] // other journeys the same card belongs to
   status?: Status // computed by the server; computed here when absent (mock data)
   openBefore?: number // likewise: how many cards it needs are still open
-  crowns?: QuestCard // it crowns another quest: drawn as that quest's card, standing for all of it
+  crowns?: JourneyCard // it crowns another journey: drawn as that journey's card, standing for all of it
 }
 
-export type QuestRef = { slug: string; title: string }
+export type JourneyRef = { key: string; title: string }
 
-/** Another quest, as its card on this chart shows it: its state, its progress and what is left in it. */
-export type QuestCard = {
-  slug: string
+/** Another journey, as its card on this chart shows it: its state, its progress and what is left in it. */
+export type JourneyCard = {
+  key: string // J7
   title: string
-  state: QuestState
+  state: JourneyState
   archived: boolean
   done: number
   total: number
-  underway: number // deeds underway in it
-  open: { key: string; title: string; status: Status; working: boolean }[] // its main-quest deeds still to do
+  underway: number // quests underway in it
+  open: { key: string; title: string; status: Status; working: boolean }[] // its main quests still to do
 }
 
-/** How a deed is titled: a quest card by its quest's title, any other deed by its own. */
+/** How a quest is titled: a journey card by its journey's title, any other quest by its own. */
 export const titleOf = (i: Item) => i.crowns?.title ?? i.title
 
 // `from` needs `to` before it can be done.
@@ -62,24 +62,24 @@ export type Need = { from: string; to: string }
 export type LogEntry = {
   at: string // as shown ("Sep 24")
   text: string
-  id?: string // the item it is about, which may no longer be on the quest
+  id?: string // the item it is about, which may no longer be on the journey
   kind: string // create, add, remove, assign, done, cancel, … — unknown kinds get a plain bullet
 }
 
 export type Goal = {
   title: string
-  doneWhen: string // id of the final item; empty while the quest has none
+  doneWhen: string // id of the final item; empty while the journey has none
 }
 
-export type QuestState = 'active' | 'complete' | 'cancelled'
+export type JourneyState = 'active' | 'complete' | 'cancelled'
 
-export type QuestData = { goal: Goal; items: Item[]; sideQuests: Item[]; needs: Need[]; log: LogEntry[] }
+export type JourneyData = { goal: Goal; items: Item[]; sideQuests: Item[]; needs: Need[]; log: LogEntry[] }
 
-export type QuestModel = QuestData & {
+export type JourneyModel = JourneyData & {
   byId: Map<string, Item>
   statusOf: (i: Item) => Status
   openBefore: (i: Item) => number
-  /** Everything on the way from `id` to the quest: the cards that (transitively) need it. */
+  /** Everything on the way from `id` to the goal: the cards that (transitively) need it. */
   pathToGoal: (id: string) => Set<string>
   /** How an item is named in running text: repo#n for issues, the title for cards. */
   short: (id: string) => string
@@ -93,7 +93,7 @@ export type QuestModel = QuestData & {
 
 const afterOwner = (ref: string) => ref.slice(ref.indexOf('/') + 1)
 
-export function questModel(data: QuestData): QuestModel {
+export function journeyModel(data: JourneyData): JourneyModel {
   const { items, sideQuests, needs } = data
   const byId = new Map([...items, ...sideQuests].map((i) => [i.id, i]))
 

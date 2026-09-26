@@ -16,9 +16,9 @@ import (
 )
 
 // commands are the client commands; each is a thin wrapper over the API.
-// Deeds are global, so deed commands take no quest.
+// Quests are global, so quest commands take no journey.
 var commands = map[string]func([]string) error{
-	"quest":    questCmd,
+	"journey":  journeyCmd,
 	"add":      func(a []string) error { return addCmd("add", store.KindIssue, a) },
 	"errand":   func(a []string) error { return addCmd("errand", store.KindErrand, a) },
 	"petition": func(a []string) error { return addCmd("petition", store.KindAwaiting, a) },
@@ -68,15 +68,15 @@ var aliases = map[string]string{
 
 func ptr[T any](v T) *T { return &v }
 
-func questPath(slug string) string { return "/api/quests/" + url.PathEscape(slug) }
+func journeyPath(key string) string { return "/api/journeys/" + url.PathEscape(key) }
 
 func cardPath(id int64, rest ...string) string {
 	return "/api/cards/" + strings.Join(append([]string{strconv.FormatInt(id, 10)}, rest...), "/")
 }
 
-// resolve turns a deed reference into an id: M142, M-142, m142, c142 and 142
-// locally; an issue ref, a github.com URL or a quest slug (that quest's
-// crowning deed) by asking the server, which tries the deed forms first.
+// resolve turns a quest reference into an id: Q142, Q-142, q142 and 142
+// locally; an issue ref, a github.com URL or a journey key (that journey's
+// crowning quest) by asking the server.
 func resolve(c *client, ref string) (int64, error) {
 	if id, ok := store.ParseCardID(ref); ok {
 		return id, nil
@@ -85,7 +85,7 @@ func resolve(c *client, ref string) (int64, error) {
 	if r, err := github.ParseRef(ref); err == nil {
 		path = "/api/cards/" + url.PathEscape(r.Owner) + "/" + url.PathEscape(r.Repo) + "%23" + strconv.Itoa(r.Number)
 	} else if strings.TrimSpace(ref) == "" || strings.ContainsAny(ref, "/#?") {
-		return 0, usageError{fmt.Sprintf("%q is not a deed (want M142, owner/repo#n or a quest slug)", ref)}
+		return 0, usageError{fmt.Sprintf("%q is not a quest (want Q142, owner/repo#n or a journey key like J7)", ref)}
 	}
 	var v store.CardView
 	if _, err := c.do("GET", path, nil, &v); err != nil {
@@ -132,44 +132,39 @@ func statusWord(c *store.Card) string {
 	return c.Status
 }
 
-func questStateWord(state string) string {
+func journeyStateWord(state string) string {
 	switch state {
-	case store.QuestComplete:
+	case store.JourneyComplete:
 		return "fulfilled"
-	case store.QuestCancelled:
+	case store.JourneyCancelled:
 		return "abandoned"
 	}
 	return state
 }
 
-// questWord is the quest's state, marked when it is archived.
-func questWord(state, archivedAt string) string {
+// journeyWord is the journey's state, marked when it is archived.
+func journeyWord(state, archivedAt string) string {
 	if archivedAt != "" {
-		return questStateWord(state) + ", archived"
+		return journeyStateWord(state) + ", archived"
 	}
-	return questStateWord(state)
+	return journeyStateWord(state)
 }
 
-func questCmd(args []string) error {
+func journeyCmd(args []string) error {
 	if len(args) == 0 {
-		return usageError{"usage: mikado quest new|list|show|crown|rename|set|archive|unarchive"}
+		return usageError{"usage: mikado journey new|list|show|crown|set|archive|unarchive"}
 	}
 	sub, args := args[0], args[1:]
-	if sub == "final" { // the earlier name
-		sub = "crown"
-	}
 	switch sub {
 	case "new":
-		cmd := newCommand("quest new")
-		slug := cmd.fs.String("slug", "", "slug (default: derived from the title)")
-		crown := cmd.fs.String("crown", "", "its crowning deed D")
-		cmd.alias("final", "crown")
-		pos, err := cmd.parse(args, 1, 1, `"title" [--slug S] [--crown D]`)
+		cmd := newCommand("journey new")
+		crown := cmd.fs.String("crown", "", "its crowning quest Q")
+		pos, err := cmd.parse(args, 1, 1, `"title" [--crown Q]`)
 		if err != nil {
 			return err
 		}
 		cl := cmd.client()
-		body := map[string]any{"title": pos[0], "slug": *slug}
+		body := map[string]any{"title": pos[0]}
 		if *crown != "" {
 			id, err := resolve(cl, *crown)
 			if err != nil {
@@ -177,49 +172,49 @@ func questCmd(args []string) error {
 			}
 			body["final"] = id
 		}
-		var q store.QuestSummary
-		if _, err := cl.do("POST", "/api/quests", body, &q); err != nil {
+		var j store.JourneySummary
+		if _, err := cl.do("POST", "/api/journeys", body, &j); err != nil {
 			return err
 		}
 		if *cmd.json {
-			return printJSON(q)
+			return printJSON(j)
 		}
-		fmt.Printf("quest %s created: %s\n", q.Slug, q.Title)
+		fmt.Printf("journey %s created: %s\n", j.Key, j.Title)
 		if *crown == "" {
-			fmt.Fprintf(os.Stderr, "it has no crowning deed yet — crown one with `mikado quest crown %s D` or `mikado add … --crowns %s`\n", q.Slug, q.Slug)
+			fmt.Fprintf(os.Stderr, "it has no crowning quest yet — crown one with `mikado journey crown %s Q` or `mikado add … --crowns %s`\n", j.Key, j.Key)
 		}
 		return nil
 	case "list", "ls":
-		cmd := newCommand("quest list")
-		all := cmd.fs.Bool("all", false, "include archived quests")
+		cmd := newCommand("journey list")
+		all := cmd.fs.Bool("all", false, "include archived journeys")
 		if _, err := cmd.parse(args, 0, 0, "[--all] [--json]"); err != nil {
 			return err
 		}
-		var every []store.QuestSummary
-		rep, err := cmd.client().do("GET", "/api/quests", nil, &every)
+		var every []store.JourneySummary
+		rep, err := cmd.client().do("GET", "/api/journeys", nil, &every)
 		if err != nil {
 			return err
 		}
 		qs := every
 		if !*all {
-			qs = slices.DeleteFunc(slices.Clone(every), func(q store.QuestSummary) bool { return q.ArchivedAt != "" })
+			qs = slices.DeleteFunc(slices.Clone(every), func(j store.JourneySummary) bool { return j.ArchivedAt != "" })
 		}
 		if *cmd.json {
 			return printJSON(qs)
 		}
 		if hidden := len(every) - len(qs); hidden > 0 {
-			defer fmt.Fprintf(os.Stderr, "%d archived quest(s) not shown (--all to include them)\n", hidden)
+			defer fmt.Fprintf(os.Stderr, "%d archived journey(s) not shown (--all to include them)\n", hidden)
 		}
 		if len(qs) == 0 {
 			if len(every) == 0 {
-				fmt.Println(`no quests yet — start one with: mikado quest new "title"`)
+				fmt.Println(`no journeys yet — start one with: mikado journey new "title"`)
 			}
 			return nil
 		}
 		tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "SLUG\tSTATE\tMAIN QUEST\tACHIEVEMENTS\tOPEN\tAWAITING REPLY\tUNDERWAY\tABANDONED\tHEROES\tTITLE")
+		fmt.Fprintln(tw, "KEY\tSTATE\tMAIN QUEST\tACHIEVEMENTS\tOPEN\tAWAITING REPLY\tUNDERWAY\tABANDONED\tHEROES\tTITLE")
 		for _, q := range qs {
-			fmt.Fprintf(tw, "%s\t%s\t%d/%d\t%d/%d\t%d\t%d\t%d\t%d\t%s\t%s\n", q.Slug, questWord(q.State, q.ArchivedAt), q.Main.Done, q.Main.Total,
+			fmt.Fprintf(tw, "%s\t%s\t%d/%d\t%d/%d\t%d\t%d\t%d\t%d\t%s\t%s\n", q.Key, journeyWord(q.State, q.ArchivedAt), q.Main.Done, q.Main.Total,
 				q.Achievements.Done, q.Achievements.Total, q.Available, q.Awaiting, q.InProgress, q.Cancelled,
 				strings.Join(q.Heroes, ","), q.Title)
 		}
@@ -229,23 +224,23 @@ func questCmd(args []string) error {
 		}
 		return nil
 	case "show":
-		cmd := newCommand("quest show")
-		pos, err := cmd.parse(args, 1, 1, "SLUG [--json]")
+		cmd := newCommand("journey show")
+		pos, err := cmd.parse(args, 1, 1, "J [--json]")
 		if err != nil {
 			return err
 		}
-		var v store.QuestView
-		if _, err := cmd.client().do("GET", questPath(pos[0]), nil, &v); err != nil {
+		var v store.JourneyView
+		if _, err := cmd.client().do("GET", journeyPath(pos[0]), nil, &v); err != nil {
 			return err
 		}
 		if *cmd.json {
 			return printJSON(v)
 		}
-		showQuest(&v)
+		showJourney(&v)
 		return nil
 	case "crown":
-		cmd := newCommand("quest crown")
-		pos, err := cmd.parse(args, 2, 2, "SLUG D")
+		cmd := newCommand("journey crown")
+		pos, err := cmd.parse(args, 2, 2, "J Q")
 		if err != nil {
 			return err
 		}
@@ -254,35 +249,23 @@ func questCmd(args []string) error {
 		if err != nil {
 			return err
 		}
-		return patchQuest(cmd, pos[0], map[string]any{"final": id})
+		return patchJourney(cmd, pos[0], map[string]any{"final": id})
 	case "archive", "unarchive":
-		cmd := newCommand("quest " + sub)
-		pos, err := cmd.parse(args, 1, 1, "SLUG")
+		cmd := newCommand("journey " + sub)
+		pos, err := cmd.parse(args, 1, 1, "J")
 		if err != nil {
 			return err
 		}
-		return patchQuest(cmd, pos[0], map[string]any{"archived": sub == "archive"})
-	case "rename":
-		cmd := newCommand("quest rename")
-		pos, err := cmd.parse(args, 2, 2, "SLUG NEW-SLUG")
-		if err != nil {
-			return err
-		}
-		return patchQuest(cmd, pos[0], map[string]any{"slug": pos[1]})
+		return patchJourney(cmd, pos[0], map[string]any{"archived": sub == "archive"})
 	case "set":
-		cmd := newCommand("quest set")
-		slug := cmd.fs.String("slug", "", "new slug")
+		cmd := newCommand("journey set")
 		title := cmd.fs.String("title", "", "new title")
-		crown := cmd.fs.String("crown", "", "its crowning deed D")
-		cmd.alias("final", "crown")
-		pos, err := cmd.parse(args, 1, 1, "SLUG [--slug S] [--title T] [--crown D]")
+		crown := cmd.fs.String("crown", "", "its crowning quest Q")
+		pos, err := cmd.parse(args, 1, 1, "J [--title T] [--crown Q]")
 		if err != nil {
 			return err
 		}
 		body := map[string]any{}
-		if *slug != "" {
-			body["slug"] = *slug
-		}
 		if *title != "" {
 			body["title"] = *title
 		}
@@ -294,30 +277,30 @@ func questCmd(args []string) error {
 			body["final"] = id
 		}
 		if len(body) == 0 {
-			return usageError{"nothing to set: pass --slug, --title or --crown"}
+			return usageError{"nothing to set: pass --title or --crown"}
 		}
-		return patchQuest(cmd, pos[0], body)
+		return patchJourney(cmd, pos[0], body)
 	default:
-		return usageError{fmt.Sprintf("unknown quest command %q (new, list, show, crown, rename, set, archive, unarchive)", sub)}
+		return usageError{fmt.Sprintf("unknown journey command %q (new, list, show, crown, set, archive, unarchive)", sub)}
 	}
 }
 
-func patchQuest(cmd *command, slug string, body map[string]any) error {
-	var q store.QuestSummary
-	if _, err := cmd.client().do("PATCH", questPath(slug), body, &q); err != nil {
+func patchJourney(cmd *command, key string, body map[string]any) error {
+	var j store.JourneySummary
+	if _, err := cmd.client().do("PATCH", journeyPath(key), body, &j); err != nil {
 		return err
 	}
 	if *cmd.json {
-		return printJSON(q)
+		return printJSON(j)
 	}
-	fmt.Printf("quest %s: %s [%s]\n", q.Slug, q.Title, questWord(q.State, q.ArchivedAt))
+	fmt.Printf("journey %s: %s [%s]\n", j.Key, j.Title, journeyWord(j.State, j.ArchivedAt))
 	return nil
 }
 
-// showQuest prints a quest as text: the crowning deed, then the main quest,
-// then side quests, each with status, people, what it requires and other
-// quests, then the recent chronicle.
-func showQuest(v *store.QuestView) {
+// showJourney prints a journey as text: the crowning quest, then the main
+// quest line, then side quests, each with status, people, what it requires
+// and other journeys, then the recent chronicle.
+func showJourney(v *store.JourneyView) {
 	var main, side, mainDone, sideDone, cancelled int
 	for _, c := range v.Cards {
 		switch {
@@ -335,17 +318,17 @@ func showQuest(v *store.QuestView) {
 			}
 		}
 	}
-	fmt.Printf("%s — %s [%s]\n", v.Quest.Slug, v.Quest.Title, questWord(v.Quest.State, v.Quest.ArchivedAt))
+	fmt.Printf("%s — %s [%s]\n", v.Journey.Key, v.Journey.Title, journeyWord(v.Journey.State, v.Journey.ArchivedAt))
 	byID := map[int64]*store.Card{}
 	for i := range v.Cards {
 		byID[v.Cards[i].ID] = &v.Cards[i]
 	}
-	if v.Quest.FinalCardID == nil {
-		fmt.Printf("crowning deed: none yet — crown one with `mikado quest crown %s D`\n", v.Quest.Slug)
+	if v.Journey.FinalCardID == nil {
+		fmt.Printf("crowning quest: none yet — crown one with `mikado journey crown %s Q`\n", v.Journey.Key)
 	} else {
 		fmt.Printf("main quest %d/%d fulfilled · achievements %d/%d · %d abandoned\n", mainDone, main, sideDone, side, cancelled)
-		c := byID[*v.Quest.FinalCardID]
-		fmt.Printf("crowning deed: %s %s [%s]\n", c.Key, cardName(c), statusWord(c))
+		c := byID[*v.Journey.FinalCardID]
+		fmt.Printf("crowning quest: %s %s [%s]\n", c.Key, cardName(c), statusWord(c))
 	}
 	requires := map[int64][]string{}
 	for _, n := range v.Needs {
@@ -362,16 +345,16 @@ func showQuest(v *store.QuestView) {
 			extra = append(extra, "requires "+strings.Join(rs, " "))
 		}
 		if len(c.AlsoIn) > 0 {
-			var slugs []string
-			for _, q := range c.AlsoIn {
-				slugs = append(slugs, q.Slug)
+			var keys []string
+			for _, j := range c.AlsoIn {
+				keys = append(keys, j.Key)
 			}
-			extra = append(extra, "also in "+strings.Join(slugs, ", "))
+			extra = append(extra, "also in "+strings.Join(keys, ", "))
 		}
 		name := nameWithWork(c)
 		if q := c.Crowns; q != nil {
-			// Another quest, folded into this one: one line, with its progress.
-			name = fmt.Sprintf("quest %s  %d/%d  %s", q.Slug, q.Done, q.Total, q.Title)
+			// Another journey, folded into this one: one line, with its progress.
+			name = fmt.Sprintf("journey %s  %d/%d  %s", q.Key, q.Done, q.Total, q.Title)
 			extra = extra[:0]
 			if q.Working > 0 {
 				extra = append(extra, fmt.Sprintf("%d underway", q.Working))
@@ -423,7 +406,7 @@ func hasSide(cards []store.Card) bool {
 	return false
 }
 
-// cardDetails lists what is worth saying about a deed besides its name.
+// cardDetails lists what is worth saying about a quest besides its name.
 func cardDetails(c *store.Card) []string {
 	var extra []string
 	if c.Cancelled {
@@ -451,7 +434,7 @@ func cardDetails(c *store.Card) []string {
 		extra = append(extra, "side quest on "+store.Key(*c.SideOf))
 	}
 	if c.FoundWhile != nil {
-		extra = append(extra, "unearthed while on "+store.Key(*c.FoundWhile))
+		extra = append(extra, "found on "+store.Key(*c.FoundWhile))
 	}
 	if c.NPC {
 		extra = append(extra, "NPC")
@@ -491,7 +474,7 @@ func printCard(c *store.Card, verb string) {
 
 func showCmd(args []string) error {
 	cmd := newCommand("show")
-	pos, err := cmd.parse(args, 1, 1, "D [--json]")
+	pos, err := cmd.parse(args, 1, 1, "Q [--json]")
 	if err != nil {
 		return err
 	}
@@ -519,16 +502,16 @@ func showCmd(args []string) error {
 		fmt.Println("  why: " + c.Reason)
 	}
 	if q := c.Crowns; q != nil {
-		fmt.Printf("  crowns quest %s (%s): %d/%d fulfilled, %s\n", q.Slug, q.Title, q.Done, q.Total, questWord(q.State, q.ArchivedAt))
+		fmt.Printf("  crowns journey %s (%s): %d/%d fulfilled, %s\n", q.Key, q.Title, q.Done, q.Total, journeyWord(q.State, q.ArchivedAt))
 	}
-	var quests []string
-	for _, q := range v.Quests {
-		quests = append(quests, q.Slug+" ("+q.Title+")")
+	var journeys []string
+	for _, j := range v.Journeys {
+		journeys = append(journeys, j.Key+" ("+j.Title+")")
 	}
-	if len(quests) == 0 {
-		fmt.Println("  in no quest — link it with `mikado require` or `mikado quest crown`")
+	if len(journeys) == 0 {
+		fmt.Println("  in no journey — link it with `mikado require` or `mikado journey crown`")
 	} else {
-		fmt.Println("  in: " + strings.Join(quests, ", "))
+		fmt.Println("  in: " + strings.Join(journeys, ", "))
 	}
 	for _, group := range []struct {
 		title string
@@ -552,17 +535,17 @@ func showCmd(args []string) error {
 func addCmd(name, kind string, args []string) error {
 	cmd := newCommand(name)
 	var requires, opens listFlag
-	cmd.fs.Var(&requires, "requires", "the new deed requires deed D fulfilled first (repeatable)")
-	cmd.fs.Var(&opens, "opens", "the new deed opens deed D: D requires it (repeatable)")
-	unearthedOn := cmd.fs.String("unearthed-on", "", "deed D this was unearthed while on")
+	cmd.fs.Var(&requires, "requires", "the new quest requires quest Q fulfilled first (repeatable)")
+	cmd.fs.Var(&opens, "opens", "the new quest opens quest Q: Q requires it (repeatable)")
+	foundOn := cmd.fs.String("found-on", "", "quest Q this was found on")
 	reason := cmd.fs.String("reason", "", "why it was added")
-	sideOf := cmd.fs.String("side-of", "", "make it a side quest on deed D (optional, never blocks)")
-	crowns := cmd.fs.String("crowns", "", "make it the crowning deed of quest SLUG")
+	sideOf := cmd.fs.String("side-of", "", "make it a side quest on quest Q (optional, never blocks)")
+	crowns := cmd.fs.String("crowns", "", "make it the crowning quest of journey J")
 	npc := cmd.fs.Bool("npc", false, "mark it as an NPC (drawn red on the chart)")
 	hero := cmd.fs.String("hero", "", "who is responsible for it (free text)")
 	cmd.alias("needs", "requires")
 	cmd.alias("needed-by", "opens")
-	cmd.alias("found-while", "unearthed-on")
+	cmd.alias("found-while", "found-on")
 	cmd.alias("final-of", "crowns")
 	cmd.alias("owner", "hero")
 	var on *string
@@ -601,7 +584,7 @@ func addCmd(name, kind string, args []string) error {
 	if in.NeededBy, err = resolveAll(cl, opens); err != nil {
 		return err
 	}
-	if in.FoundWhile, err = resolveOptional(cl, *unearthedOn); err != nil {
+	if in.FoundWhile, err = resolveOptional(cl, *foundOn); err != nil {
 		return err
 	}
 	if in.SideOf, err = resolveOptional(cl, *sideOf); err != nil {
@@ -617,7 +600,7 @@ func addCmd(name, kind string, args []string) error {
 	}
 	verb := "added"
 	if in.FoundWhile != nil {
-		verb = "unearthed while on " + store.Key(*in.FoundWhile)
+		verb = "found on " + store.Key(*in.FoundWhile)
 	}
 	if rep.status == http.StatusOK {
 		verb = "already on the chart"
@@ -627,13 +610,13 @@ func addCmd(name, kind string, args []string) error {
 	}
 	printCard(&c, verb)
 	if len(c.AlsoIn) == 0 {
-		fmt.Fprintf(os.Stderr, "%s is in no quest yet — link it with --opens or `mikado require`\n", c.Key)
+		fmt.Fprintf(os.Stderr, "%s is in no journey yet — link it with --opens or `mikado require`\n", c.Key)
 	} else {
-		var slugs []string
-		for _, q := range c.AlsoIn {
-			slugs = append(slugs, q.Slug)
+		var keys []string
+		for _, j := range c.AlsoIn {
+			keys = append(keys, j.Key)
 		}
-		fmt.Printf("  in: %s\n", strings.Join(slugs, ", "))
+		fmt.Printf("  in: %s\n", strings.Join(keys, ", "))
 	}
 	return nil
 }
@@ -641,7 +624,7 @@ func addCmd(name, kind string, args []string) error {
 func strikeCmd(args []string) error {
 	cmd := newCommand("strike")
 	reason := cmd.fs.String("reason", "", "why it is struck (required)")
-	pos, err := cmd.parse(args, 1, 1, `D --reason "why"`)
+	pos, err := cmd.parse(args, 1, 1, `Q --reason "why"`)
 	if err != nil {
 		return err
 	}
@@ -665,7 +648,7 @@ func strikeCmd(args []string) error {
 
 func requireCmd(name string, args []string) error {
 	cmd := newCommand(name)
-	pos, err := cmd.parse(args, 2, 2, "D PREREQ")
+	pos, err := cmd.parse(args, 2, 2, "Q PREREQ")
 	if err != nil {
 		return err
 	}
@@ -710,10 +693,10 @@ func patch(cmd *command, ref string, p store.CardPatch, verb string) error {
 	return nil
 }
 
-// flagCmd is a deed command that takes only D and sets one field.
+// flagCmd is a quest command that takes only Q and sets one field.
 func flagCmd(name, verb string, args []string, set func(*store.CardPatch)) error {
 	cmd := newCommand(name)
-	pos, err := cmd.parse(args, 1, 1, "D")
+	pos, err := cmd.parse(args, 1, 1, "Q")
 	if err != nil {
 		return err
 	}
@@ -725,7 +708,7 @@ func flagCmd(name, verb string, args []string, set func(*store.CardPatch)) error
 func abandonCmd(args []string) error {
 	cmd := newCommand("abandon")
 	reason := cmd.fs.String("reason", "", "why it won't be done (required)")
-	pos, err := cmd.parse(args, 1, 1, `D --reason "why"`)
+	pos, err := cmd.parse(args, 1, 1, `Q --reason "why"`)
 	if err != nil {
 		return err
 	}
@@ -738,7 +721,7 @@ func abandonCmd(args []string) error {
 func takeUpCmd(args []string) error {
 	cmd := newCommand("take-up")
 	by := cmd.fs.String("by", "", "who takes it up (free text)")
-	pos, err := cmd.parse(args, 1, 1, "D [--by WHO]")
+	pos, err := cmd.parse(args, 1, 1, "Q [--by WHO]")
 	if err != nil {
 		return err
 	}
@@ -757,7 +740,7 @@ func setCmd(args []string) error {
 	title := cmd.fs.String("title", "", "new title (errands and petitions)")
 	npc := cmd.fs.String("npc", "", "true or false")
 	cmd.alias("owner", "hero")
-	pos, err := cmd.parse(args, 1, 1, "D [--hero WHO] [--title T] [--npc=true|false]")
+	pos, err := cmd.parse(args, 1, 1, "Q [--hero WHO] [--title T] [--npc=true|false]")
 	if err != nil {
 		return err
 	}
@@ -782,7 +765,7 @@ func setCmd(args []string) error {
 		p.NPC = &b
 	}
 	if !set["hero"] && !set["title"] && !set["npc"] {
-		return usageError{"nothing to set: pass --hero, --title or --npc (a quest's crowning deed: mikado quest crown)"}
+		return usageError{"nothing to set: pass --hero, --title or --npc (a journey's crowning quest: mikado journey crown)"}
 	}
 	return patch(cmd, pos[0], p, "updated")
 }
@@ -790,7 +773,7 @@ func setCmd(args []string) error {
 func assignCmd(args []string) error {
 	cmd := newCommand("assign")
 	remove := cmd.fs.Bool("remove", false, "unassign the logins instead")
-	pos, err := cmd.parse(args, 2, -1, "D LOGIN... [--remove]")
+	pos, err := cmd.parse(args, 2, -1, "Q LOGIN... [--remove]")
 	if err != nil {
 		return err
 	}

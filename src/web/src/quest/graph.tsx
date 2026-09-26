@@ -13,10 +13,10 @@ import {
   type ReactFlowState,
 } from '@xyflow/react'
 import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-react'
-import type { Item, QuestModel, QuestRef, QuestState, Status } from './model'
+import type { Item, JourneyModel, JourneyRef, JourneyState, Status } from './model'
 import { Achievements, Gate, Hero, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
 import { useWarTable } from './theme'
-import { QuestCardView } from './QuestCard'
+import { JourneyCardView } from './JourneyCard'
 import { RailwayLine } from './railway'
 
 // ---- nodes -----------------------------------------------------------------
@@ -27,8 +27,8 @@ const GOAL_WIDTH = 290
 const CARD_WIDTH = 310
 const SIDE_WIDTH = 290
 
-// Node data carries everything a node draws, so node components read no quest state of their own.
-type GoalData = { title: string; state?: QuestState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
+// Node data carries everything a node draws, so node components read no journey state of their own.
+type GoalData = { title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
 export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; dim: boolean; selected: boolean }
 type GoalNode = Node<GoalData, 'goal'>
 type CardNode = Node<CardData, 'card'>
@@ -47,7 +47,7 @@ function MedalIcon({ item, status, openBefore }: { item: Item; status: Status; o
   return <Sparkles size={size} />
 }
 
-const questWord: Record<QuestState, string> = { active: 'Quest', complete: 'Quest fulfilled', cancelled: 'Quest abandoned' }
+const journeyWord: Record<JourneyState, string> = { active: 'Journey', complete: 'Journey fulfilled', cancelled: 'Journey abandoned' }
 
 function GoalView({ data }: NodeProps<GoalNode>) {
   const pct = data.total ? Math.round((data.done / data.total) * 100) : 0
@@ -69,7 +69,7 @@ function GoalView({ data }: NodeProps<GoalNode>) {
         className="text-[12px] font-bold tracking-[0.25em] uppercase"
         style={{ color: data.state === 'cancelled' ? stateColour.cancelled : stateColour.done }}
       >
-        {questWord[data.state ?? 'active']}
+        {journeyWord[data.state ?? 'active']}
       </span>
       <span className="quest-display quest-goal-title text-[15px] leading-tight font-semibold">{data.title}</span>
       <div className="w-full">
@@ -85,15 +85,15 @@ function GoalView({ data }: NodeProps<GoalNode>) {
   )
 }
 
-/** The other quests a deed also belongs to, each a link to its chart. */
-export function AlsoIn({ quests, label = true }: { quests: QuestRef[]; label?: boolean }) {
+/** The other journeys a quest also belongs to, each a link to its chart. */
+export function AlsoIn({ journeys, label = true }: { journeys: JourneyRef[]; label?: boolean }) {
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-1 text-[11px] font-semibold text-[var(--ink-faint)]">
       {label && <span className="tracking-wider uppercase">also in:</span>}
-      {quests.map((q) => (
+      {journeys.map((q) => (
         <a
-          key={q.slug}
-          href={`/quest/${encodeURIComponent(q.slug)}`}
+          key={q.key}
+          href={`/journey/${encodeURIComponent(q.key)}`}
           onClick={(e) => e.stopPropagation()}
           className="max-w-full truncate rounded border border-[var(--panel-border)] bg-[var(--chip)] px-1 text-[var(--ink-soft)] hover:text-[var(--ink)] hover:underline"
           title={q.title}
@@ -106,9 +106,9 @@ export function AlsoIn({ quests, label = true }: { quests: QuestRef[]; label?: b
 }
 
 /**
- * An NPC deed's plate: red frame and tint over whatever its status says, so NPCs stand out at a
+ * An NPC quest's plate: red frame and tint over whatever its status says, so NPCs stand out at a
  * glance while the medal and label still tell the status. A fulfilled or abandoned NPC is a quieter
- * red, without the glow, like any finished deed.
+ * red, without the glow, like any finished quest.
  */
 function npcPlate(status: Status): CSSProperties {
   if (status === 'done' || status === 'cancelled')
@@ -123,15 +123,15 @@ function npcPlate(status: Status): CSSProperties {
 function CardView({ data }: NodeProps<CardNode>) {
   const { item, tag, status, openBefore, days, dim, selected } = data
   const wt = useWarTable()
-  // A deed that crowns another quest stands for that whole quest here.
-  if (item.crowns) return <QuestCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} />
+  // A quest that crowns another journey stands for that whole journey here.
+  if (item.crowns) return <JourneyCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   const underway = item.working && !item.done
   // War table: what sort of card it is, told by small marks on the top-right instead of words.
   const kinds: Kind[] = []
   if (side) kinds.push('side')
-  if (item.foundWhile) kinds.push('unearthed')
+  if (item.foundWhile) kinds.push('found')
   if (item.npc) kinds.push('npc')
   return (
     <div
@@ -141,14 +141,14 @@ function CardView({ data }: NodeProps<CardNode>) {
       data-side={side || undefined}
       data-npc={item.npc || undefined}
       data-dim={dim || undefined}
-      className={`quest-deed relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
+      className={`quest-item relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
       {wt ? (
         // The war table's gate: can it be started?
         <Gate status={status} count={openBefore} small={side} />
       ) : (
-        /* The state badge sits on the deed's corner. */
+        /* The state badge sits on the quest's corner. */
         <span
           style={side && status !== 'done' ? sideMedal : medal[status]}
           data-mark={side && status !== 'done' ? 'side' : status}
@@ -175,7 +175,7 @@ function CardView({ data }: NodeProps<CardNode>) {
           <Label item={item} tag={tag} />
           {item.final && (
             <span className="shrink-0 text-[12px] font-bold tracking-wider whitespace-nowrap uppercase" style={{ color: stateColour.done }}>
-              · Crowning deed
+              · Crowning quest
             </span>
           )}
           {wt ? (
@@ -190,7 +190,7 @@ function CardView({ data }: NodeProps<CardNode>) {
               {item.npc && <Npc />}
               {item.foundWhile && (
                 <span className="ml-auto shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase" title={item.reason}>
-                  unearthed
+                  found
                 </span>
               )}
             </>
@@ -203,7 +203,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         >
           {item.title.replace(/^Polish: /, '')}
         </span>
-        {!!item.alsoIn?.length && <AlsoIn quests={item.alsoIn} />}
+        {!!item.alsoIn?.length && <AlsoIn journeys={item.alsoIn} />}
         <div className="flex items-center justify-between">
           <span
             className="quest-status text-[12px] font-bold tracking-wider uppercase"
@@ -224,12 +224,12 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 
 // ---- edges -----------------------------------------------------------------
 
-// From a fulfilled deed: done opens a deed you can do now (bright, and it flows); held feeds one that still
-// waits on others; spent joins two fulfilled deeds, so it steps back.
-// A bridge stands in for a chain that runs through hidden deeds.
+// From a fulfilled quest: done opens a quest you can do now (bright, and it flows); held feeds one that still
+// waits on others; spent joins two fulfilled quests, so it steps back.
+// A bridge stands in for a chain that runs through hidden quests.
 export type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
-// torn: the line comes from an abandoned deed, whose paper the war table draws with a strip torn off its right side.
-// powered: the deed the line comes from is fulfilled (for a side quest's line: the side quest is).
+// torn: the line comes from an abandoned quest, whose paper the war table draws with a strip torn off its right side.
+// powered: the quest the line comes from is fulfilled (for a side quest's line: the side quest is).
 export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean; powered: boolean }, 'quest'>
 
 // How each kind of line is drawn in the parchment and midnight themes, from the theme's own palette.
@@ -267,7 +267,7 @@ export function questEdgePath(
   return { path, labelX, labelY }
 }
 
-/** A line between deeds in the parchment and midnight themes. */
+/** A line between quests in the parchment and midnight themes. */
 export function QuestEdgeView(props: EdgeProps<QuestEdge>) {
   const { data } = props
   const { path } = questEdgePath(props, false)
@@ -291,14 +291,14 @@ export const edgeTypes = { quest: QuestLine }
 
 // ---- graph -----------------------------------------------------------------
 
-/** Which deeds can be left off the chart: fulfilled ones, abandoned ones, or both. */
+/** Which quests can be left off the chart: fulfilled ones, abandoned ones, or both. */
 export type Hide = { done: boolean; cancelled: boolean }
 
 /**
- * The deeds `hide` leaves off the chart. The crowning deed always stays; a side quest goes with
- * the deed it hangs on, as it would float on its own.
+ * The quests `hide` leaves off the chart. The crowning quest always stays; a side quest goes with
+ * the quest it hangs on, as it would float on its own.
  */
-export function hiddenDeeds(m: QuestModel, hide: Hide): Set<string> {
+export function hiddenQuests(m: JourneyModel, hide: Hide): Set<string> {
   const off = (i: Item) => {
     if (i.final || i.id === m.goal.doneWhen) return false
     const s = m.statusOf(i)
@@ -310,11 +310,11 @@ export function hiddenDeeds(m: QuestModel, hide: Hide): Set<string> {
 }
 
 /**
- * Where a shown deed requires a shown one only through hidden deeds, a bridge joins the two, so
+ * Where a shown quest requires a shown one only through hidden quests, a bridge joins the two, so
  * the chain still reads left to right. None where shown edges or other bridges already join them.
  * Each is [required, requiring], like a need's [to, from].
  */
-function bridges(m: QuestModel, hidden: Set<string>): [string, string][] {
+function bridges(m: JourneyModel, hidden: Set<string>): [string, string][] {
   const requires = new Map<string, string[]>()
   for (const n of m.needs) requires.set(n.from, [...(requires.get(n.from) ?? []), n.to])
   const shown = (id: string) => m.byId.has(id) && !hidden.has(id)
@@ -364,11 +364,11 @@ function bridges(m: QuestModel, hidden: Set<string>): [string, string][] {
   return kept
 }
 
-/** The chart's nodes and edges; deeds in `hidden` are left off, bridged where they joined others. */
+/** The chart's nodes and edges; quests in `hidden` are left off, bridged where they joined others. */
 export function buildGraph(
-  m: QuestModel,
+  m: JourneyModel,
   selected: string | null,
-  state?: QuestState,
+  state?: JourneyState,
   hidden: Set<string> = new Set(),
 ): { nodes: QuestNode[]; edges: QuestEdge[] } {
   const { goal, items, sideQuests, needs, byId } = m
@@ -416,7 +416,7 @@ export function buildGraph(
     const i = byId.get(id)
     return !!i && m.statusOf(i) === 'cancelled'
   }
-  // An edge carries power once the deed it comes from is fulfilled; it flows while it feeds an unfulfilled deed.
+  // An edge carries power once the quest it comes from is fulfilled; it flows while it feeds an unfulfilled quest.
   const edge = (source: string, target: string, side = false): QuestEdge => {
     const powered = !!byId.get(source)?.done
     const to = byId.get(target)
@@ -433,7 +433,7 @@ export function buildGraph(
             : !powered
               ? 'locked'
               : !to || m.statusOf(to) === 'available'
-                ? 'done' // into an open deed, or the crowning deed into the quest
+                ? 'done' // into an open quest, or the crowning quest into the journey's goal
                 : to.done
                   ? 'spent'
                   : 'held',
@@ -445,7 +445,7 @@ export function buildGraph(
     }
   }
 
-  // Only edges between deeds that are on the chart: a link to anything else would be drawn to nowhere.
+  // Only edges between quests that are on the chart: a link to anything else would be drawn to nowhere.
   const known = (id: string) => id === 'goal' || (byId.has(id) && !hidden.has(id))
   const bridge = ([source, target]: [string, string]): QuestEdge => ({
     id: `bridge:${source}->${target}`,

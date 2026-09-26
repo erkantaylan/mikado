@@ -6,26 +6,27 @@ import (
 	"strings"
 )
 
-// SearchResult is what the dashboard's search finds: quests, then deeds.
+// SearchResult is what the dashboard's search finds: journeys, then quests.
 type SearchResult struct {
-	Quests []QuestInfo `json:"quests"`
-	Deeds  []Card      `json:"deeds"`
-	// Exact is set when the query names one deed by id or issue (M142,
-	// owner/repo#n, an issue URL): that deed, also first in Deeds.
+	Journeys []JourneyInfo `json:"journeys"`
+	Quests   []Card        `json:"quests"`
+	// Exact is set when the query names one quest by key or issue (Q142,
+	// owner/repo#n, an issue URL): that quest, also first in Quests.
 	Exact *Card `json:"exact,omitempty"`
 }
 
 // Search limits.
 const (
-	searchQuests = 8
-	searchDeeds  = 20
+	searchJourneys = 8
+	searchQuests   = 20
 )
 
-// Search finds quests (by slug and title) and live deeds (by id, issue and
-// title) whose text holds every word of q, ignoring case. It runs on every
-// keystroke, so issue titles come from the GitHub cache only, never live.
-// Deeds still to do come before finished ones; each deed's AlsoIn lists
-// every quest it is in. An empty q lists the quests that are not archived.
+// Search finds journeys (by key and title) and live quests (by key, issue
+// and title) whose text holds every word of q, ignoring case. It runs on
+// every keystroke, so issue titles come from the GitHub cache only, never
+// live. Quests still to do come before finished ones; each quest's AlsoIn
+// lists every journey it is in. An empty q lists the journeys that are not
+// archived.
 func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 	g, err := loadGraph(ctx, s.db)
 	if err != nil {
@@ -51,7 +52,7 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 		cards[c.ID] = c
 	}
 	in := g.membership()
-	withQuests := func(c Card) Card {
+	withJourneys := func(c Card) Card {
 		c.Final = g.isFinal(c.ID)
 		c.AlsoIn = alsoIn(in[c.ID], nil)
 		return c
@@ -68,47 +69,47 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 		return true
 	}
 
-	out := &SearchResult{Quests: []QuestInfo{}, Deeds: []Card{}}
-	for _, qr := range g.quests {
-		if len(words) == 0 && qr.ArchivedAt != "" {
+	out := &SearchResult{Journeys: []JourneyInfo{}, Quests: []Card{}}
+	for _, jr := range g.journeys {
+		if len(words) == 0 && jr.ArchivedAt != "" {
 			continue
 		}
-		if !has(qr.Slug + " " + qr.Title) {
+		if !has(jr.Key() + " " + jr.Title) {
 			continue
 		}
-		info := QuestInfo{Slug: qr.Slug, Title: qr.Title, FinalCardID: qr.Final, State: QuestActive, ArchivedAt: qr.ArchivedAt}
-		if qr.Final != nil {
-			if c, ok := cards[*qr.Final]; ok {
-				info.State = questState(&c)
+		info := JourneyInfo{Key: jr.Key(), Title: jr.Title, FinalCardID: jr.Final, State: JourneyActive, ArchivedAt: jr.ArchivedAt}
+		if jr.Final != nil {
+			if c, ok := cards[*jr.Final]; ok {
+				info.State = journeyState(&c)
 			}
 		}
-		out.Quests = append(out.Quests, info)
+		out.Journeys = append(out.Journeys, info)
 	}
-	// Active quests first, archived ones last, newest first within each.
-	rank := func(q QuestInfo) int {
+	// Active journeys first, archived ones last, newest first within each.
+	rank := func(j JourneyInfo) int {
 		switch {
-		case q.ArchivedAt != "":
+		case j.ArchivedAt != "":
 			return 2
-		case q.State != QuestActive:
+		case j.State != JourneyActive:
 			return 1
 		}
 		return 0
 	}
-	sort.SliceStable(out.Quests, func(i, j int) bool { return rank(out.Quests[i]) < rank(out.Quests[j]) })
-	if len(out.Quests) > searchQuests {
-		out.Quests = out.Quests[:searchQuests]
+	sort.SliceStable(out.Journeys, func(i, j int) bool { return rank(out.Journeys[i]) < rank(out.Journeys[j]) })
+	if len(out.Journeys) > searchJourneys {
+		out.Journeys = out.Journeys[:searchJourneys]
 	}
 	if len(words) == 0 {
 		return out, nil
 	}
 
 	var exact int64
-	if id, err := s.resolveDeed(ctx, strings.TrimSpace(q)); err == nil {
+	if id, err := s.resolveQuest(ctx, strings.TrimSpace(q)); err == nil {
 		if c, ok := cards[id]; ok {
 			exact = id
-			ec := withQuests(c)
+			ec := withJourneys(c)
 			out.Exact = &ec
-			out.Deeds = append(out.Deeds, ec)
+			out.Quests = append(out.Quests, ec)
 		}
 	}
 	var found []Card
@@ -125,10 +126,10 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 		return found[i].ID > found[j].ID
 	})
 	for _, c := range found {
-		if len(out.Deeds) == searchDeeds {
+		if len(out.Quests) == searchQuests {
 			break
 		}
-		out.Deeds = append(out.Deeds, withQuests(c))
+		out.Quests = append(out.Quests, withJourneys(c))
 	}
 	return out, nil
 }

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -82,11 +83,16 @@ type fixture struct {
 	gh  *fakeGitHub
 	now time.Time
 	ctx context.Context
+	// keys maps the short names tests give journeys to their keys (J3), and
+	// names back.
+	keys  map[string]string
+	names map[string]string
 }
 
 func setup(t *testing.T) *fixture {
 	t.Helper()
-	f := &fixture{t: t, gh: newFake(), now: time.Date(2026, 9, 24, 10, 0, 0, 0, time.UTC), ctx: context.Background()}
+	f := &fixture{t: t, gh: newFake(), now: time.Date(2026, 9, 24, 10, 0, 0, 0, time.UTC), ctx: context.Background(),
+		keys: map[string]string{}, names: map[string]string{}}
 	s, err := Open(filepath.Join(t.TempDir(), "mikado.db"), f.gh)
 	if err != nil {
 		t.Fatal(err)
@@ -97,15 +103,28 @@ func setup(t *testing.T) *fixture {
 	return f
 }
 
-func (f *fixture) quest(slug string, final *Card) {
+// journey creates a journey titled "Journey name", known to the test as name.
+func (f *fixture) journey(name string, final *Card) {
 	f.t.Helper()
 	var id *int64
 	if final != nil {
 		id = &final.ID
 	}
-	if _, err := f.s.CreateQuest(f.ctx, "Quest "+slug, slug, id); err != nil {
+	j, err := f.s.CreateJourney(f.ctx, "Journey "+name, id)
+	if err != nil {
 		f.t.Fatal(err)
 	}
+	f.keys[name], f.names[j.Key] = j.Key, name
+}
+
+// key is the key of the journey the test calls name.
+func (f *fixture) key(name string) string {
+	f.t.Helper()
+	k, ok := f.keys[name]
+	if !ok {
+		f.t.Fatalf("no journey %q in this test", name)
+	}
+	return k
 }
 
 func (f *fixture) add(in NewCard) *Card {
@@ -136,37 +155,37 @@ func (f *fixture) card(id int64) Card {
 	return v.Card
 }
 
-func (f *fixture) view(slug string) *QuestView {
+func (f *fixture) view(name string) *JourneyView {
 	f.t.Helper()
-	v, err := f.s.Quest(f.ctx, slug)
+	v, err := f.s.Journey(f.ctx, f.key(name))
 	if err != nil {
 		f.t.Fatal(err)
 	}
 	return v
 }
 
-// members returns the quest's card ids.
-func (f *fixture) members(slug string) []int64 {
+// members returns the journey's card ids.
+func (f *fixture) members(name string) []int64 {
 	var ids []int64
-	for _, c := range f.view(slug).Cards {
+	for _, c := range f.view(name).Cards {
 		ids = append(ids, c.ID)
 	}
 	return ids
 }
 
-func (f *fixture) summary(slug string) QuestSummary {
+func (f *fixture) summary(name string) JourneySummary {
 	f.t.Helper()
-	qs, _, err := f.s.Quests(f.ctx)
+	js, _, err := f.s.Journeys(f.ctx)
 	if err != nil {
 		f.t.Fatal(err)
 	}
-	for _, q := range qs {
-		if q.Slug == slug {
-			return q
+	for _, j := range js {
+		if j.Key == f.key(name) {
+			return j
 		}
 	}
-	f.t.Fatalf("quest %s missing from summaries", slug)
-	return QuestSummary{}
+	f.t.Fatalf("journey %s missing from summaries", name)
+	return JourneySummary{}
 }
 
 func (f *fixture) patch(id int64, p CardPatch) *Card {
@@ -191,27 +210,44 @@ func (f *fixture) need(from, to int64) {
 
 func ptr[T any](v T) *T { return &v }
 
-func slugsOf(rs []QuestRef) string {
+// namesOf lists the test's names for the journeys rs refers to.
+func (f *fixture) namesOf(rs []JourneyRef) string {
 	var out []string
 	for _, r := range rs {
-		out = append(out, r.Slug)
+		out = append(out, f.names[r.Key])
 	}
 	return strings.Join(out, ",")
 }
 
 func TestParseCardID(t *testing.T) {
-	for _, in := range []string{"M142", "M-142", "m142", "m-142", "c142", "C142", " 142 "} {
+	for _, in := range []string{"Q142", "Q-142", "q142", "q-142", " 142 "} {
 		if id, ok := ParseCardID(in); !ok || id != 142 {
 			t.Errorf("ParseCardID(%q) = %d, %v", in, id, ok)
 		}
 	}
-	for _, in := range []string{"", "M", "M0", "x142", "studio/game#142", "M14a", "--142"} {
+	for _, in := range []string{"", "Q", "Q0", "M142", "c142", "J142", "x142", "studio/game#142", "Q14a", "--142"} {
 		if id, ok := ParseCardID(in); ok {
 			t.Errorf("ParseCardID(%q) accepted as %d", in, id)
 		}
 	}
-	if Key(142) != "M142" {
+	if Key(142) != "Q142" {
 		t.Errorf("Key = %s", Key(142))
+	}
+}
+
+func TestParseJourneyID(t *testing.T) {
+	for _, in := range []string{"J7", "J-7", "j7", "j-7", " J7 "} {
+		if id, ok := ParseJourneyID(in); !ok || id != 7 {
+			t.Errorf("ParseJourneyID(%q) = %d, %v", in, id, ok)
+		}
+	}
+	for _, in := range []string{"", "J", "J0", "7", "Q7", "M7", "J7a", "winter-update"} {
+		if id, ok := ParseJourneyID(in); ok {
+			t.Errorf("ParseJourneyID(%q) accepted as %d", in, id)
+		}
+	}
+	if JourneyKey(7) != "J7" {
+		t.Errorf("JourneyKey = %s", JourneyKey(7))
 	}
 }
 
@@ -219,7 +255,7 @@ func TestResolve(t *testing.T) {
 	f := setup(t)
 	f.gh.put("Studio/Game#7", "t", "open")
 	c := f.issue("studio/game#7", NewCard{})
-	for _, ref := range []string{Key(c.ID), fmt.Sprintf("m-%d", c.ID), "STUDIO/game#7", "https://github.com/studio/game/issues/7"} {
+	for _, ref := range []string{Key(c.ID), fmt.Sprintf("q-%d", c.ID), "STUDIO/game#7", "https://github.com/studio/game/issues/7"} {
 		if id, err := f.s.Resolve(f.ctx, ref); err != nil || id != c.ID {
 			t.Errorf("Resolve(%q) = %d, %v", ref, id, err)
 		}
@@ -227,60 +263,39 @@ func TestResolve(t *testing.T) {
 	if _, err := f.s.Resolve(f.ctx, "studio/game#8"); KindOf(err) != ErrNotFound {
 		t.Errorf("unknown issue: %v", err)
 	}
-	if _, err := f.s.Resolve(f.ctx, "M999"); KindOf(err) != ErrNotFound {
+	if _, err := f.s.Resolve(f.ctx, "Q999"); KindOf(err) != ErrNotFound {
 		t.Errorf("unknown id: %v", err)
 	}
 }
 
-func TestSlugs(t *testing.T) {
+func TestJourneys(t *testing.T) {
 	f := setup(t)
-	cases := map[string]string{
-		"The winter update ships to every player":             "winter-update-ships-every",
-		"Split-screen co-op for the winter update":            "split-screen-co-op-winter-update",
-		"The level editor goes public for everyone":           "level-editor-goes-public",
-		"Controller support on every platform":                "controller-support-every",
-		"Supercalifragilistic expialidocious extraordinarily": "supercalifragilistic",
-		"The": "",
+	j, err := f.s.CreateJourney(f.ctx, "  The winter update  ", nil)
+	if err != nil || j.Key != "J1" || j.Title != "The winter update" || j.State != JourneyActive {
+		t.Fatalf("create: %+v %v", j, err)
 	}
-	for title, want := range cases {
-		if got := Slugify(title); got != want || len(got) > maxSlug {
-			t.Errorf("Slugify(%q) = %q, want %q", title, got, want)
+	if _, err := f.s.CreateJourney(f.ctx, " ", nil); KindOf(err) != ErrInvalid {
+		t.Errorf("no title: %v", err)
+	}
+	if v, err := f.s.Journey(f.ctx, "j-1"); err != nil || v.Journey.Key != "J1" {
+		t.Errorf("lookup by j-1: %+v %v", v, err)
+	}
+	for _, key := range []string{"J2", "winter-update"} {
+		if _, err := f.s.Journey(f.ctx, key); KindOf(err) == 0 {
+			t.Errorf("Journey(%q): %v", key, err)
 		}
 	}
-	q, err := f.s.CreateQuest(f.ctx, "The winter update ships to every player", "", nil)
-	if err != nil || q.Slug != "winter-update-ships-every" || q.State != QuestActive {
-		t.Fatalf("create: %+v %v", q, err)
+	r, err := f.s.UpdateJourney(f.ctx, "J1", JourneyPatch{Title: ptr("Winter update")})
+	if err != nil || r.Key != "J1" || r.Title != "Winter update" {
+		t.Fatalf("retitle: %+v %v", r, err)
 	}
-	if q2, _ := f.s.CreateQuest(f.ctx, "The winter update ships to every player", "", nil); q2.Slug != q.Slug+"-2" {
-		t.Errorf("clash suffix: %s", q2.Slug)
+	if _, err := f.s.UpdateJourney(f.ctx, "J1", JourneyPatch{Title: ptr("")}); KindOf(err) != ErrInvalid {
+		t.Errorf("retitle to nothing: %v", err)
 	}
-	if _, err := f.s.CreateQuest(f.ctx, "x", q.Slug, nil); KindOf(err) != ErrConflict {
-		t.Errorf("explicit taken slug: %v", err)
-	}
-	if _, err := f.s.CreateQuest(f.ctx, "x", "Bad Slug", nil); KindOf(err) != ErrInvalid {
-		t.Errorf("bad explicit slug: %v", err)
-	}
-	// Slugs are matched case-insensitively.
-	if v := f.view("WINTER-Update-Ships-Every"); v.Quest.Slug != q.Slug {
-		t.Errorf("case-insensitive lookup: %s", v.Quest.Slug)
-	}
-	// Rename.
-	if _, err := f.s.UpdateQuest(f.ctx, q.Slug, QuestPatch{Slug: ptr("winter-update!")}); KindOf(err) != ErrInvalid {
-		t.Errorf("rename to bad slug: %v", err)
-	}
-	if _, err := f.s.UpdateQuest(f.ctx, q.Slug, QuestPatch{Slug: ptr(q.Slug + "-2")}); KindOf(err) != ErrConflict {
-		t.Errorf("rename onto a taken slug: %v", err)
-	}
-	r, err := f.s.UpdateQuest(f.ctx, q.Slug, QuestPatch{Slug: ptr("Winter-Update"), Title: ptr("Winter update")})
-	if err != nil || r.Slug != "winter-update" || r.Title != "Winter update" {
-		t.Fatalf("rename: %+v %v", r, err)
-	}
-	log := f.view("winter-update").Log
-	if log[1].Text != "quest renamed from winter-update-ships-every" || !strings.HasPrefix(log[2].Text, "quest retitled from") {
-		t.Errorf("rename events: %+v", log)
-	}
-	if _, err := f.s.Quest(f.ctx, q.Slug); KindOf(err) != ErrNotFound {
-		t.Errorf("old slug still resolves: %v", err)
+	f.keys["w"], f.names["J1"] = "J1", "w"
+	log := f.view("w").Log
+	if len(log) != 2 || log[0].Text != "journey created" || log[1].Text != "journey retitled from “The winter update”" {
+		t.Errorf("events: %+v", log)
 	}
 }
 
@@ -294,7 +309,7 @@ func TestStatus(t *testing.T) {
 	token := f.add(NewCard{Kind: KindAwaiting, Title: "Final key art", WaitingOn: "freelance artist", Owner: "ada"})
 	release := f.errand("Book feature slot")
 	final := f.errand("Ship it", migration.ID, token.ID, release.ID)
-	f.quest("winter", final)
+	f.journey("winter", final)
 
 	want := map[int64]string{adapter.ID: StatusDone, migration.ID: StatusAvailable, token.ID: StatusAwaiting,
 		release.ID: StatusAvailable, final.ID: StatusLocked}
@@ -316,8 +331,8 @@ func TestStatus(t *testing.T) {
 	if c := f.card(migration.ID); c.Title != "Save migration" || c.State != "open" || len(c.Assignees) != 1 {
 		t.Errorf("issue data not filled from GitHub: %+v", c)
 	}
-	if v.Quest.FinalCardID == nil || *v.Quest.FinalCardID != final.ID {
-		t.Errorf("finalCardId = %v", v.Quest.FinalCardID)
+	if v.Journey.FinalCardID == nil || *v.Journey.FinalCardID != final.ID {
+		t.Errorf("finalCardId = %v", v.Journey.FinalCardID)
 	}
 	f.patch(token.ID, CardPatch{Done: ptr(true)})
 	f.patch(release.ID, CardPatch{Done: ptr(true)})
@@ -331,46 +346,46 @@ func TestStatus(t *testing.T) {
 	}
 }
 
-func TestSharedIssueOneCardTwoQuests(t *testing.T) {
+func TestSharedIssueOneCardTwoJourneys(t *testing.T) {
 	f := setup(t)
 	f.gh.put("studio/saves#88", "Save migration", "open")
 	shared := f.issue("studio/saves#88", NewCard{})
 	a := f.errand("ship A", shared.ID)
 	b := f.errand("ship B", shared.ID)
-	f.quest("qa", a)
-	f.quest("qb", b)
-	for slug, other := range map[string]string{"qa": "qb", "qb": "qa"} {
+	f.journey("qa", a)
+	f.journey("qb", b)
+	for name, other := range map[string]string{"qa": "qb", "qb": "qa"} {
 		var found *Card
-		for _, c := range f.view(slug).Cards {
+		for _, c := range f.view(name).Cards {
 			if c.ID == shared.ID {
 				found = &c
 			}
 		}
 		if found == nil {
-			t.Fatalf("%s: shared issue is not a member", slug)
+			t.Fatalf("%s: shared issue is not a member", name)
 		}
-		if slugsOf(found.AlsoIn) != other {
-			t.Errorf("%s: alsoIn = %v, want %s", slug, found.AlsoIn, other)
+		if f.namesOf(found.AlsoIn) != other {
+			t.Errorf("%s: alsoIn = %v, want %s", name, found.AlsoIn, other)
 		}
 	}
 	cv, _ := f.s.CardView(f.ctx, shared.ID)
-	if slugsOf(cv.Quests) != "qa,qb" || slugsOf(cv.Card.AlsoIn) != "qa,qb" || len(cv.NeededBy) != 2 {
-		t.Errorf("card view: quests %v alsoIn %v neededBy %d", cv.Quests, cv.Card.AlsoIn, len(cv.NeededBy))
+	if f.namesOf(cv.Journeys) != "qa,qb" || f.namesOf(cv.Card.AlsoIn) != "qa,qb" || len(cv.NeededBy) != 2 {
+		t.Errorf("card view: journeys %v alsoIn %v neededBy %d", cv.Journeys, cv.Card.AlsoIn, len(cv.NeededBy))
 	}
 	// Closing it on GitHub completes it in both.
 	f.gh.put("studio/saves#88", "Save migration", "closed")
 	f.now = f.now.Add(CacheTTL)
-	for _, slug := range []string{"qa", "qb"} {
-		for _, c := range f.view(slug).Cards {
+	for _, name := range []string{"qa", "qb"} {
+		for _, c := range f.view(name).Cards {
 			if c.ID == shared.ID && c.Status != StatusDone {
-				t.Errorf("%s: shared status %s", slug, c.Status)
+				t.Errorf("%s: shared status %s", name, c.Status)
 			}
 			if c.Final && c.Status != StatusAvailable {
-				t.Errorf("%s: final not unlocked: %s", slug, c.Status)
+				t.Errorf("%s: final not unlocked: %s", name, c.Status)
 			}
 		}
-		if s := f.summary(slug); s.Main != (Progress{1, 2}) {
-			t.Errorf("%s: main %+v", slug, s.Main)
+		if s := f.summary(name); s.Main != (Progress{1, 2}) {
+			t.Errorf("%s: main %+v", name, s.Main)
 		}
 	}
 }
@@ -382,22 +397,22 @@ func TestIdempotentAddAppliesLinks(t *testing.T) {
 	if err != nil || !created || first.Ref != "Studio/Game#140" || len(first.AlsoIn) != 0 {
 		t.Fatalf("first add: %+v %v %v", first, created, err)
 	}
-	f.quest("qa", nil)
+	f.journey("qa", nil)
 	finalB := f.errand("ship B")
-	f.quest("qb", finalB)
+	f.journey("qb", finalB)
 	calls := f.gh.calls
-	again, created, err := f.s.AddCard(f.ctx, NewCard{Kind: KindIssue, Ref: "STUDIO/game#140", FinalOf: "QA", NeededBy: []int64{finalB.ID}}, "")
+	again, created, err := f.s.AddCard(f.ctx, NewCard{Kind: KindIssue, Ref: "STUDIO/game#140", FinalOf: strings.ToLower(f.key("qa")), NeededBy: []int64{finalB.ID}}, "")
 	if err != nil || created || again.ID != first.ID {
 		t.Fatalf("second add: created=%v card=%+v err=%v", created, again, err)
 	}
 	if f.gh.calls != calls {
 		t.Errorf("a duplicate add asked GitHub again")
 	}
-	if slugsOf(again.AlsoIn) != "qa,qb" || !again.Final {
+	if f.namesOf(again.AlsoIn) != "qa,qb" || !again.Final {
 		t.Errorf("links not applied: alsoIn %v final %v", again.AlsoIn, again.Final)
 	}
 	// Once more with the same links: nothing new.
-	if _, _, err := f.s.AddCard(f.ctx, NewCard{Kind: KindIssue, Ref: "studio/game#140", FinalOf: "qa", NeededBy: []int64{finalB.ID}}, ""); err != nil {
+	if _, _, err := f.s.AddCard(f.ctx, NewCard{Kind: KindIssue, Ref: "studio/game#140", FinalOf: f.key("qa"), NeededBy: []int64{finalB.ID}}, ""); err != nil {
 		t.Fatal(err)
 	}
 	var texts []string
@@ -407,8 +422,8 @@ func TestIdempotentAddAppliesLinks(t *testing.T) {
 	want := []string{
 		fmt.Sprintf("%s added", Key(first.ID)),
 		fmt.Sprintf("%s errand added", Key(finalB.ID)),
-		"quest created",
-		fmt.Sprintf("crowning deed set to %s", Key(finalB.ID)),
+		"journey created",
+		fmt.Sprintf("crowning quest set to %s", Key(finalB.ID)),
 		fmt.Sprintf("%s now requires %s", Key(finalB.ID), Key(first.ID)),
 	}
 	if strings.Join(texts, "\n") != strings.Join(want, "\n") {
@@ -428,21 +443,21 @@ func TestMembershipFollowsNeeds(t *testing.T) {
 	a := f.errand("final A", x.ID, up.ID)
 	b := f.errand("final B", up.ID)
 	loose := f.errand("loose")
-	f.quest("qa", a)
-	f.quest("qb", b)
+	f.journey("qa", a)
+	f.journey("qb", b)
 	if got := f.members("qa"); !slices.Equal(got, []int64{y.ID, x.ID, up.ID, a.ID}) {
 		t.Errorf("qa members %v", got)
 	}
 	if got := f.members("qb"); !slices.Equal(got, []int64{up.ID, b.ID}) {
 		t.Errorf("qb members %v", got)
 	}
-	if cv, _ := f.s.CardView(f.ctx, loose.ID); len(cv.Quests) != 0 {
-		t.Errorf("a card with no links is in %v", cv.Quests)
+	if cv, _ := f.s.CardView(f.ctx, loose.ID); len(cv.Journeys) != 0 {
+		t.Errorf("a card with no links is in %v", cv.Journeys)
 	}
 	// Cancelled cards stay members.
 	f.cancel(y.ID, "no")
 	if !slices.Contains(f.members("qa"), y.ID) {
-		t.Errorf("cancelled card left the quest")
+		t.Errorf("cancelled card left the journey")
 	}
 	// Cutting x→y drops y out of qa.
 	if err := f.s.RemoveNeed(f.ctx, x.ID, y.ID); err != nil {
@@ -451,10 +466,10 @@ func TestMembershipFollowsNeeds(t *testing.T) {
 	if slices.Contains(f.members("qa"), y.ID) {
 		t.Errorf("unneeded card still a member")
 	}
-	// A quest with no final has no members and still shows its log.
-	f.quest("empty", nil)
-	if v := f.view("empty"); len(v.Cards) != 0 || v.Quest.State != QuestActive || len(v.Log) != 1 {
-		t.Errorf("empty quest: %+v", v)
+	// A journey with no final has no members and still shows its log.
+	f.journey("empty", nil)
+	if v := f.view("empty"); len(v.Cards) != 0 || v.Journey.State != JourneyActive || len(v.Log) != 1 {
+		t.Errorf("empty journey: %+v", v)
 	}
 }
 
@@ -462,7 +477,7 @@ func TestSideQuestMembershipFollowsItsCard(t *testing.T) {
 	f := setup(t)
 	x := f.errand("x")
 	a := f.errand("final", x.ID)
-	f.quest("qa", a)
+	f.journey("qa", a)
 	side := f.add(NewCard{Kind: KindErrand, Title: "polish x", SideOf: &x.ID})
 	sideOfSide := f.add(NewCard{Kind: KindErrand, Title: "polish the polish", SideOf: &side.ID})
 	if got := f.members("qa"); !slices.Contains(got, side.ID) || !slices.Contains(got, sideOfSide.ID) {
@@ -479,13 +494,13 @@ func TestSideQuestMembershipFollowsItsCard(t *testing.T) {
 	}
 }
 
-func TestCycleRejectedAcrossQuests(t *testing.T) {
+func TestCycleRejectedAcrossJourneys(t *testing.T) {
 	f := setup(t)
 	shared := f.errand("shared")
 	a := f.errand("final A", shared.ID)
 	b := f.errand("final B", shared.ID)
-	f.quest("qa", a)
-	f.quest("qb", b)
+	f.journey("qa", a)
+	f.journey("qb", b)
 	f.need(a.ID, b.ID) // A needs B: fine
 	_, err := f.s.AddNeed(f.ctx, shared.ID, a.ID)
 	if KindOf(err) != ErrConflict || !strings.Contains(err.Error(), "cycle") {
@@ -521,20 +536,20 @@ func (s *Store) mustGraph(t *testing.T) *graph {
 	return g
 }
 
-func TestQuestLogShowsCurrentMembers(t *testing.T) {
+func TestJourneyLogShowsCurrentMembers(t *testing.T) {
 	f := setup(t)
 	f.gh.put("studio/saves#88", "Save migration", "open")
 	migration := f.issue("studio/saves#88", NewCard{})
 	a := f.errand("final A", migration.ID)
-	f.quest("qa", a)
+	f.journey("qa", a)
 	b := f.errand("final B")
-	f.quest("qb", b)
+	f.journey("qb", b)
 	found := f.add(NewCard{Kind: KindErrand, Title: "fix the old-save crash", FoundWhile: &migration.ID, Reason: "old saves crash the loader", NeededBy: []int64{migration.ID}})
 	f.patch(found.ID, CardPatch{Working: ptr(true), WorkingBy: ptr("cyd")})
 
-	texts := func(slug string) string {
+	texts := func(name string) string {
 		var out []string
-		for _, e := range f.view(slug).Log {
+		for _, e := range f.view(name).Log {
 			out = append(out, e.Text)
 		}
 		return strings.Join(out, "\n")
@@ -542,15 +557,15 @@ func TestQuestLogShowsCurrentMembers(t *testing.T) {
 	want := strings.Join([]string{
 		Key(migration.ID) + " added",
 		Key(a.ID) + " errand added — requires " + Key(migration.ID),
-		"quest created",
-		"crowning deed set to " + Key(a.ID),
-		Key(found.ID) + " errand unearthed while on " + Key(migration.ID) + ": old saves crash the loader — opens " + Key(migration.ID),
+		"journey created",
+		"crowning quest set to " + Key(a.ID),
+		Key(found.ID) + " errand found on " + Key(migration.ID) + ": old saves crash the loader — opens " + Key(migration.ID),
 		Key(found.ID) + " taken up by cyd",
 	}, "\n")
 	if got := texts("qa"); got != want {
 		t.Errorf("qa log:\n%s\nwant:\n%s", got, want)
 	}
-	if got := texts("qb"); got != Key(b.ID)+" errand added\nquest created\ncrowning deed set to "+Key(b.ID) {
+	if got := texts("qb"); got != Key(b.ID)+" errand added\njourney created\ncrowning quest set to "+Key(b.ID) {
 		t.Errorf("qb log:\n%s", got)
 	}
 	// Once the found card leaves qa, its events leave qa's log.
@@ -570,17 +585,18 @@ func TestAddValidation(t *testing.T) {
 		in   NewCard
 		kind ErrKind
 	}{
-		"missing issue":  {NewCard{Kind: KindIssue, Ref: "studio/game#999"}, ErrInvalid},
-		"pull request":   {NewCard{Kind: KindIssue, Ref: "studio/game#7"}, ErrInvalid},
-		"bad ref":        {NewCard{Kind: KindIssue, Ref: "game#7"}, ErrInvalid},
-		"no title":       {NewCard{Kind: KindErrand}, ErrInvalid},
-		"no waitingOn":   {NewCard{Kind: KindAwaiting, Title: "t"}, ErrInvalid},
-		"bad kind":       {NewCard{Kind: "task", Title: "t"}, ErrInvalid},
-		"unknown need":   {NewCard{Kind: KindErrand, Title: "t", Needs: []int64{999}}, ErrNotFound},
-		"unknown quest":  {NewCard{Kind: KindErrand, Title: "t", FinalOf: "nope"}, ErrNotFound},
-		"final globally": {NewCard{Kind: KindErrand, Title: "t", Final: true}, ErrInvalid},
-		"need a side":    {NewCard{Kind: KindErrand, Title: "t", Needs: []int64{side.ID}}, ErrInvalid},
-		"side with need": {NewCard{Kind: KindErrand, Title: "t", SideOf: &side.ID, Needs: []int64{side.ID}}, ErrInvalid},
+		"missing issue":   {NewCard{Kind: KindIssue, Ref: "studio/game#999"}, ErrInvalid},
+		"pull request":    {NewCard{Kind: KindIssue, Ref: "studio/game#7"}, ErrInvalid},
+		"bad ref":         {NewCard{Kind: KindIssue, Ref: "game#7"}, ErrInvalid},
+		"no title":        {NewCard{Kind: KindErrand}, ErrInvalid},
+		"no waitingOn":    {NewCard{Kind: KindAwaiting, Title: "t"}, ErrInvalid},
+		"bad kind":        {NewCard{Kind: "task", Title: "t"}, ErrInvalid},
+		"unknown need":    {NewCard{Kind: KindErrand, Title: "t", Needs: []int64{999}}, ErrNotFound},
+		"unknown journey": {NewCard{Kind: KindErrand, Title: "t", FinalOf: "J99"}, ErrNotFound},
+		"not a journey":   {NewCard{Kind: KindErrand, Title: "t", FinalOf: "nope"}, ErrInvalid},
+		"final globally":  {NewCard{Kind: KindErrand, Title: "t", Final: true}, ErrInvalid},
+		"need a side":     {NewCard{Kind: KindErrand, Title: "t", Needs: []int64{side.ID}}, ErrInvalid},
+		"side with need":  {NewCard{Kind: KindErrand, Title: "t", SideOf: &side.ID, Needs: []int64{side.ID}}, ErrInvalid},
 	}
 	for name, tc := range cases {
 		if _, _, err := f.s.AddCard(f.ctx, tc.in, ""); KindOf(err) != tc.kind {
@@ -599,7 +615,7 @@ func TestSoftRemoveCascades(t *testing.T) {
 	b := f.errand("b", a.ID)
 	side := f.add(NewCard{Kind: KindErrand, Title: "side of b", SideOf: &b.ID})
 	final := f.errand("final", b.ID)
-	f.quest("q", final)
+	f.journey("q", final)
 	if err := f.s.RemoveCard(f.ctx, b.ID, ""); KindOf(err) != ErrInvalid {
 		t.Fatalf("remove without reason: %v", err)
 	}
@@ -618,16 +634,16 @@ func TestSoftRemoveCascades(t *testing.T) {
 	if err := f.s.RemoveCard(f.ctx, b.ID, "again"); KindOf(err) != ErrNotFound {
 		t.Errorf("removing twice: %v", err)
 	}
-	// Removing a quest's final leaves the quest without one.
+	// Removing a journey's final leaves the journey without one.
 	if err := f.s.RemoveCard(f.ctx, final.ID, "whole thing dropped"); err != nil {
 		t.Fatal(err)
 	}
 	v := f.view("q")
-	if v.Quest.FinalCardID != nil || len(v.Cards) != 0 {
-		t.Errorf("quest after its final was removed: %+v", v.Quest)
+	if v.Journey.FinalCardID != nil || len(v.Cards) != 0 {
+		t.Errorf("journey after its final was removed: %+v", v.Journey)
 	}
-	if last := v.Log[len(v.Log)-1]; last.Text != "crowning deed "+Key(final.ID)+" struck: whole thing dropped" {
-		t.Errorf("last quest event: %+v", last)
+	if last := v.Log[len(v.Log)-1]; last.Text != "crowning quest "+Key(final.ID)+" struck: whole thing dropped" {
+		t.Errorf("last journey event: %+v", last)
 	}
 	// Remove events of b and its side quest stay in the database even though
 	// b is no longer anybody's member.
@@ -642,7 +658,7 @@ func TestSideQuestsNeverLock(t *testing.T) {
 	f := setup(t)
 	blocker := f.errand("blocker")
 	main := f.errand("main", blocker.ID)
-	f.quest("q", main)
+	f.journey("q", main)
 	side := f.add(NewCard{Kind: KindErrand, Title: "polish", SideOf: &main.ID})
 	if c := f.card(side.ID); c.Status != StatusAvailable {
 		t.Errorf("side quest of a locked card: %s", c.Status)
@@ -653,7 +669,7 @@ func TestSideQuestsNeverLock(t *testing.T) {
 	if _, err := f.s.AddNeed(f.ctx, side.ID, blocker.ID); KindOf(err) != ErrInvalid {
 		t.Errorf("side needs blocker: %v", err)
 	}
-	if _, err := f.s.UpdateQuest(f.ctx, "q", QuestPatch{Final: &side.ID}); KindOf(err) != ErrInvalid {
+	if _, err := f.s.UpdateJourney(f.ctx, f.key("q"), JourneyPatch{Final: &side.ID}); KindOf(err) != ErrInvalid {
 		t.Errorf("side quest made final: %v", err)
 	}
 	f.patch(blocker.ID, CardPatch{Done: ptr(true)})
@@ -669,30 +685,30 @@ func TestFinal(t *testing.T) {
 	f := setup(t)
 	a := f.errand("a")
 	b := f.errand("b")
-	f.quest("q", a)
-	if _, err := f.s.UpdateQuest(f.ctx, "q", QuestPatch{Final: &b.ID}); err != nil {
+	f.journey("q", a)
+	if _, err := f.s.UpdateJourney(f.ctx, f.key("q"), JourneyPatch{Final: &b.ID}); err != nil {
 		t.Fatal(err)
 	}
 	v := f.view("q")
-	if *v.Quest.FinalCardID != b.ID || v.Log[len(v.Log)-1].Text != fmt.Sprintf("crowning deed changed from %s to %s", Key(a.ID), Key(b.ID)) {
-		t.Errorf("final change: %v %+v", *v.Quest.FinalCardID, v.Log)
+	if *v.Journey.FinalCardID != b.ID || v.Log[len(v.Log)-1].Text != fmt.Sprintf("crowning quest changed from %s to %s", Key(a.ID), Key(b.ID)) {
+		t.Errorf("final change: %v %+v", *v.Journey.FinalCardID, v.Log)
 	}
-	// Quest-scoped patch sets the final of that quest; the global one refuses.
+	// Journey-scoped patch sets the final of that journey; the global one refuses.
 	if _, err := f.s.UpdateCard(f.ctx, a.ID, CardPatch{Final: ptr(true)}, ""); KindOf(err) != ErrInvalid {
 		t.Errorf("global final patch: %v", err)
 	}
-	c, err := f.s.UpdateCard(f.ctx, a.ID, CardPatch{Final: ptr(true)}, "q")
+	c, err := f.s.UpdateCard(f.ctx, a.ID, CardPatch{Final: ptr(true)}, f.key("q"))
 	if err != nil || !c.Final {
-		t.Fatalf("quest-scoped final: %+v %v", c, err)
+		t.Fatalf("journey-scoped final: %+v %v", c, err)
 	}
-	c, err = f.s.UpdateCard(f.ctx, a.ID, CardPatch{Final: ptr(false)}, "q")
-	if err != nil || c.Final || f.view("q").Quest.FinalCardID != nil {
+	c, err = f.s.UpdateCard(f.ctx, a.ID, CardPatch{Final: ptr(false)}, f.key("q"))
+	if err != nil || c.Final || f.view("q").Journey.FinalCardID != nil {
 		t.Fatalf("unset final: %+v %v", c, err)
 	}
-	// Quest-scoped add with final: true.
-	d, _, err := f.s.AddCard(f.ctx, NewCard{Kind: KindErrand, Title: "d", Final: true}, "q")
-	if err != nil || !d.Final || *f.view("q").Quest.FinalCardID != d.ID {
-		t.Fatalf("quest-scoped add final: %+v %v", d, err)
+	// Journey-scoped add with final: true.
+	d, _, err := f.s.AddCard(f.ctx, NewCard{Kind: KindErrand, Title: "d", Final: true}, f.key("q"))
+	if err != nil || !d.Final || *f.view("q").Journey.FinalCardID != d.ID {
+		t.Fatalf("journey-scoped add final: %+v %v", d, err)
 	}
 }
 
@@ -733,7 +749,7 @@ func TestCancelledExcludedFromTotals(t *testing.T) {
 	b := f.errand("b")
 	c := f.errand("c")
 	final := f.errand("final", a.ID, b.ID, c.ID)
-	f.quest("q", final)
+	f.journey("q", final)
 	sideA := f.add(NewCard{Kind: KindErrand, Title: "polish a", SideOf: &a.ID})
 	f.add(NewCard{Kind: KindErrand, Title: "polish b", SideOf: &b.ID})
 	f.patch(a.ID, CardPatch{Done: ptr(true)})
@@ -762,7 +778,7 @@ func TestCancelCascades(t *testing.T) {
 		t.Errorf("an unrelated side quest was cancelled")
 	}
 	var n int
-	f.s.db.QueryRow(`SELECT COUNT(*) FROM events WHERE kind = 'cancel' AND text LIKE '%abandoned with its deed ` + Key(main.ID) + `: out of scope'`).Scan(&n)
+	f.s.db.QueryRow(`SELECT COUNT(*) FROM events WHERE kind = 'cancel' AND text LIKE '%abandoned with its quest ` + Key(main.ID) + `: out of scope'`).Scan(&n)
 	if n != 2 {
 		t.Errorf("cascade cancel events: %d", n)
 	}
@@ -800,19 +816,19 @@ func TestLocalCancelOfOpenIssue(t *testing.T) {
 	}
 }
 
-func TestQuestState(t *testing.T) {
+func TestJourneyState(t *testing.T) {
 	f := setup(t)
 	final := f.errand("ship")
-	f.quest("q", final)
-	if f.view("q").Quest.State != QuestActive || f.summary("q").State != QuestActive {
-		t.Errorf("new quest not active")
+	f.journey("q", final)
+	if f.view("q").Journey.State != JourneyActive || f.summary("q").State != JourneyActive {
+		t.Errorf("new journey not active")
 	}
 	f.patch(final.ID, CardPatch{Done: ptr(true)})
-	if f.view("q").Quest.State != QuestComplete || f.summary("q").State != QuestComplete {
+	if f.view("q").Journey.State != JourneyComplete || f.summary("q").State != JourneyComplete {
 		t.Errorf("final done: not complete")
 	}
 	f.cancel(final.ID, "whole goal dropped")
-	if v, s := f.view("q").Quest.State, f.summary("q").State; v != QuestCancelled || s != QuestCancelled {
+	if v, s := f.view("q").Journey.State, f.summary("q").State; v != JourneyCancelled || s != JourneyCancelled {
 		t.Errorf("final cancelled: view %s summary %s", v, s)
 	}
 }
@@ -821,7 +837,7 @@ func TestWorking(t *testing.T) {
 	f := setup(t)
 	a := f.errand("a")
 	b := f.errand("b")
-	f.quest("q", f.errand("final", a.ID, b.ID))
+	f.journey("q", f.errand("final", a.ID, b.ID))
 	got := f.patch(a.ID, CardPatch{Working: ptr(true), WorkingBy: ptr("cyd")})
 	if !got.Working || got.WorkingBy != "cyd" || got.WorkingSince == "" {
 		t.Fatalf("start: %+v", got)
@@ -898,7 +914,7 @@ func TestGitHubDownServesCache(t *testing.T) {
 	f := setup(t)
 	f.gh.put("studio/game#1", "Cached title", "open")
 	c := f.issue("studio/game#1", NewCard{})
-	f.quest("q", c)
+	f.journey("q", c)
 	f.now = f.now.Add(2 * CacheTTL)
 	f.gh.fail = errors.New("gh: offline")
 	v := f.view("q")
@@ -917,23 +933,23 @@ func TestGitHubDownServesCache(t *testing.T) {
 func TestArchive(t *testing.T) {
 	f := setup(t)
 	final := f.errand("ship")
-	f.quest("q", final)
+	f.journey("q", final)
 	archive := func(on bool) {
 		t.Helper()
-		if _, err := f.s.UpdateQuest(f.ctx, "Q", QuestPatch{Archived: ptr(on)}); err != nil {
+		if _, err := f.s.UpdateJourney(f.ctx, strings.ToLower(f.key("q")), JourneyPatch{Archived: ptr(on)}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	archive(true)
 	archive(true) // already archived: no second event
-	if f.summary("q").ArchivedAt == "" || f.view("q").Quest.ArchivedAt == "" {
+	if f.summary("q").ArchivedAt == "" || f.view("q").Journey.ArchivedAt == "" {
 		t.Errorf("not archived")
 	}
 	if got := len(f.members("q")); got != 1 {
-		t.Errorf("archiving changed the quest's deeds: %d members", got)
+		t.Errorf("archiving changed the journey's quests: %d members", got)
 	}
 	archive(false)
-	if f.summary("q").ArchivedAt != "" || f.view("q").Quest.ArchivedAt != "" {
+	if f.summary("q").ArchivedAt != "" || f.view("q").Journey.ArchivedAt != "" {
 		t.Errorf("still archived")
 	}
 	var texts []string
@@ -942,7 +958,7 @@ func TestArchive(t *testing.T) {
 			texts = append(texts, e.Text)
 		}
 	}
-	if strings.Join(texts, "; ") != "quest archived; quest brought back from the archive" {
+	if strings.Join(texts, "; ") != "journey archived; journey brought back from the archive" {
 		t.Errorf("chronicle: %q", texts)
 	}
 }
@@ -951,7 +967,7 @@ func TestSearch(t *testing.T) {
 	f := setup(t)
 	f.gh.put("studio/saves#88", "Old saves crash the loader", "OPEN")
 	final := f.errand("Ship the winter update")
-	f.quest("winter", final)
+	f.journey("winter", final)
 	issue := f.issue("studio/saves#88", NewCard{NeededBy: []int64{final.ID}})
 	notes := f.errand("old notes")
 	f.patch(notes.ID, CardPatch{Done: ptr(true)})
@@ -975,31 +991,34 @@ func TestSearch(t *testing.T) {
 		return strings.Join(out, " ")
 	}
 
-	if r := search("OLD"); keys(r.Deeds) != issue.Key+" "+notes.Key {
-		t.Errorf("OLD: %s, want the open issue before the fulfilled errand", keys(r.Deeds))
+	if r := search("OLD"); keys(r.Quests) != issue.Key+" "+notes.Key {
+		t.Errorf("OLD: %s, want the open issue before the fulfilled errand", keys(r.Quests))
 	}
-	if r := search("saves loader"); keys(r.Deeds) != issue.Key || len(r.Deeds[0].AlsoIn) != 1 || r.Deeds[0].AlsoIn[0].Slug != "winter" {
-		t.Errorf("saves loader: %+v", r.Deeds)
+	if r := search("saves loader"); keys(r.Quests) != issue.Key || len(r.Quests[0].AlsoIn) != 1 || f.names[r.Quests[0].AlsoIn[0].Key] != "winter" {
+		t.Errorf("saves loader: %+v", r.Quests)
 	}
-	if r := search("izin"); keys(r.Deeds) != tr.Key {
-		t.Errorf("izin: %s, want the dotted İ to match", keys(r.Deeds))
+	if r := search("izin"); keys(r.Quests) != tr.Key {
+		t.Errorf("izin: %s, want the dotted İ to match", keys(r.Quests))
 	}
-	for _, q := range []string{issue.Key, "m-" + strconv.FormatInt(issue.ID, 10), "studio/saves#88"} {
-		if r := search(q); r.Exact == nil || r.Exact.ID != issue.ID || r.Deeds[0].ID != issue.ID {
+	for _, q := range []string{issue.Key, "q-" + strconv.FormatInt(issue.ID, 10), "studio/saves#88"} {
+		if r := search(q); r.Exact == nil || r.Exact.ID != issue.ID || r.Quests[0].ID != issue.ID {
 			t.Errorf("%s: exact %+v", q, r.Exact)
 		}
 	}
-	if r := search("winter"); len(r.Quests) != 1 || r.Quests[0].Slug != "winter" || keys(r.Deeds) != final.Key || !r.Deeds[0].Final {
-		t.Errorf("winter: quests %+v deeds %s", r.Quests, keys(r.Deeds))
+	if r := search("winter"); len(r.Journeys) != 1 || r.Journeys[0].Key != f.key("winter") || keys(r.Quests) != final.Key || !r.Quests[0].Final {
+		t.Errorf("winter: journeys %+v quests %s", r.Journeys, keys(r.Quests))
 	}
-	if _, err := f.s.UpdateQuest(f.ctx, "winter", QuestPatch{Archived: ptr(true)}); err != nil {
+	if r := search(f.key("winter")); len(r.Journeys) != 1 || r.Exact != nil {
+		t.Errorf("by journey key: journeys %+v exact %+v", r.Journeys, r.Exact)
+	}
+	if _, err := f.s.UpdateJourney(f.ctx, f.key("winter"), JourneyPatch{Archived: ptr(true)}); err != nil {
 		t.Fatal(err)
 	}
-	if r := search(""); len(r.Quests) != 0 || len(r.Deeds) != 0 {
-		t.Errorf("empty query lists archived quests or deeds: %+v", r)
+	if r := search(""); len(r.Journeys) != 0 || len(r.Quests) != 0 {
+		t.Errorf("empty query lists archived journeys or quests: %+v", r)
 	}
-	if r := search("winter"); len(r.Quests) != 1 {
-		t.Errorf("a query still finds an archived quest: %+v", r.Quests)
+	if r := search("winter"); len(r.Journeys) != 1 {
+		t.Errorf("a query still finds an archived journey: %+v", r.Journeys)
 	}
 	if f.gh.calls != calls {
 		t.Errorf("search called GitHub %d times; it reads the cache only", f.gh.calls-calls)
@@ -1052,41 +1071,41 @@ func TestHosts(t *testing.T) {
 	}
 }
 
-// crownsOf returns the Crowns of card id on quest slug's chart (nil if the
-// card is not there or stands for no other quest).
-func (f *fixture) crownsOf(slug string, id int64) *Crowns {
+// crownsOf returns the Crowns of card id on journey name's chart (nil if the
+// card is not there or stands for no other journey).
+func (f *fixture) crownsOf(name string, id int64) *Crowns {
 	f.t.Helper()
-	for _, c := range f.view(slug).Cards {
+	for _, c := range f.view(name).Cards {
 		if c.ID == id {
 			return c.Crowns
 		}
 	}
-	f.t.Fatalf("%s is not on %s's chart", Key(id), slug)
+	f.t.Fatalf("%s is not on %s's chart", Key(id), name)
 	return nil
 }
 
-func linkSlugs(ls []QuestLink) string {
+func (f *fixture) linkNames(ls []JourneyLink) string {
 	var out []string
 	for _, l := range ls {
-		out = append(out, l.Slug)
+		out = append(out, f.names[l.Key])
 	}
 	return strings.Join(out, ",")
 }
 
-func TestQuestFoldsIntoOneCard(t *testing.T) {
+func TestJourneyFoldsIntoOneCard(t *testing.T) {
 	f := setup(t)
 	// Quest qb: bFinal requires b1 and shared; a side quest hangs on bFinal.
 	b1 := f.errand("b1")
 	shared := f.errand("shared")
 	bFinal := f.errand("final B", b1.ID, shared.ID)
 	bSide := f.add(NewCard{Kind: KindErrand, Title: "polish B", SideOf: &bFinal.ID})
-	f.quest("qb", bFinal)
-	// Quest qa: aFinal requires x and shared directly; x requires the whole of qb.
+	f.journey("qb", bFinal)
+	// Journey qa: aFinal requires x and shared directly; x requires the whole of qb.
 	x := f.errand("x", bFinal.ID)
 	aFinal := f.errand("final A", x.ID, shared.ID)
-	f.quest("qa", aFinal)
+	f.journey("qa", aFinal)
 
-	// qb's own deeds stay out of qa, except shared, which qa reaches directly.
+	// qb's own quests stay out of qa, except shared, which qa reaches directly.
 	if got, want := f.members("qa"), []int64{shared.ID, bFinal.ID, x.ID, aFinal.ID}; !slices.Equal(got, want) {
 		t.Errorf("qa members %v, want %v", got, want)
 	}
@@ -1101,11 +1120,11 @@ func TestQuestFoldsIntoOneCard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := slugsOf(cv.Quests); got != c.want {
-			t.Errorf("%s quests %q, want %q", Key(c.id), got, c.want)
+		if got := f.namesOf(cv.Journeys); got != c.want {
+			t.Errorf("%s journeys %q, want %q", Key(c.id), got, c.want)
 		}
 	}
-	// The quest card counts as one deed, and is sealed while qb has work left.
+	// The journey card counts as one quest, and is sealed while qb has work left.
 	if s := f.summary("qa"); s.Main != (Progress{0, 4}) || s.Achievements != (Progress{0, 0}) {
 		t.Errorf("qa summary %+v %+v", s.Main, s.Achievements)
 	}
@@ -1114,11 +1133,11 @@ func TestQuestFoldsIntoOneCard(t *testing.T) {
 		switch c.ID {
 		case bFinal.ID:
 			if c.Status != StatusLocked || c.OpenBefore != 2 || c.Crowns == nil {
-				t.Errorf("quest card: %s %d %+v", c.Status, c.OpenBefore, c.Crowns)
+				t.Errorf("journey card: %s %d %+v", c.Status, c.OpenBefore, c.Crowns)
 			}
 		case aFinal.ID:
 			if c.Crowns != nil {
-				t.Errorf("own crowning deed has crowns %+v", c.Crowns)
+				t.Errorf("own crowning quest has crowns %+v", c.Crowns)
 			}
 		}
 	}
@@ -1127,7 +1146,7 @@ func TestQuestFoldsIntoOneCard(t *testing.T) {
 		t.Errorf("qa needs %v", v.Needs)
 	}
 	cr := f.crownsOf("qa", bFinal.ID)
-	if cr.Slug != "qb" || cr.Title != "Quest qb" || cr.State != QuestActive || cr.Done != 0 || cr.Total != 3 || len(cr.Open) != 3 {
+	if cr.Key != f.key("qb") || cr.Title != "Journey qb" || cr.State != JourneyActive || cr.Done != 0 || cr.Total != 3 || len(cr.Open) != 3 {
 		t.Errorf("crowns %+v", cr)
 	}
 
@@ -1139,8 +1158,8 @@ func TestQuestFoldsIntoOneCard(t *testing.T) {
 	}
 	f.patch(shared.ID, CardPatch{Done: ptr(true)})
 	f.patch(bFinal.ID, CardPatch{Done: ptr(true)})
-	if cr = f.crownsOf("qa", bFinal.ID); cr.State != QuestComplete || cr.Done != 3 || len(cr.Open) != 0 {
-		t.Errorf("fulfilled quest card %+v", cr)
+	if cr = f.crownsOf("qa", bFinal.ID); cr.State != JourneyComplete || cr.Done != 3 || len(cr.Open) != 0 {
+		t.Errorf("fulfilled journey card %+v", cr)
 	}
 	if s := f.summary("qa"); s.Main != (Progress{2, 4}) {
 		t.Errorf("qa summary after qb fulfilled %+v", s.Main)
@@ -1151,31 +1170,31 @@ func TestQuestFoldsIntoOneCard(t *testing.T) {
 			t.Errorf("qa log has b1's event %q", e.Text)
 		}
 	}
-	// Globally, the card names the quest it crowns.
-	if cv, _ := f.s.CardView(f.ctx, bFinal.ID); cv.Card.Crowns == nil || cv.Card.Crowns.Slug != "qb" {
+	// Globally, the card names the journey it crowns.
+	if cv, _ := f.s.CardView(f.ctx, bFinal.ID); cv.Card.Crowns == nil || cv.Card.Crowns.Key != f.key("qb") {
 		t.Errorf("card view crowns %+v", cv.Card.Crowns)
 	}
-	// Seen from qb itself (quest-scoped route), its own crowning deed stands for nothing.
-	if c, err := f.s.card(f.ctx, bFinal.ID, "qb"); err != nil || c.Crowns != nil {
-		t.Errorf("qb's crowning deed seen from qb: %+v %v", c.Crowns, err)
+	// Seen from qb itself (journey-scoped route), its own crowning quest stands for nothing.
+	if c, err := f.s.card(f.ctx, bFinal.ID, f.key("qb")); err != nil || c.Crowns != nil {
+		t.Errorf("qb's crowning quest seen from qb: %+v %v", c.Crowns, err)
 	}
-	// The board: qa is blocked by qb, and qb blocks qa.
-	if a, b := f.summary("qa"), f.summary("qb"); linkSlugs(a.BlockedBy) != "qb" || len(a.Blocks) != 0 ||
-		linkSlugs(b.Blocks) != "qa" || len(b.BlockedBy) != 0 || a.BlockedBy[0].State != QuestComplete {
-		t.Errorf("board links: qa %+v %+v, qb %+v %+v", a.BlockedBy, a.Blocks, b.BlockedBy, b.Blocks)
+	// The atlas: qa is blocked by qb, and qb blocks qa.
+	if a, b := f.summary("qa"), f.summary("qb"); f.linkNames(a.BlockedBy) != "qb" || len(a.Blocks) != 0 ||
+		f.linkNames(b.Blocks) != "qa" || len(b.BlockedBy) != 0 || a.BlockedBy[0].State != JourneyComplete {
+		t.Errorf("atlas links: qa %+v %+v, qb %+v %+v", a.BlockedBy, a.Blocks, b.BlockedBy, b.Blocks)
 	}
 }
 
-func TestNestedQuestsFoldOneLevel(t *testing.T) {
+func TestNestedJourneysFoldOneLevel(t *testing.T) {
 	f := setup(t)
 	c1 := f.errand("c1")
 	cFinal := f.errand("final C", c1.ID)
-	f.quest("qc", cFinal)
+	f.journey("qc", cFinal)
 	b1 := f.errand("b1")
 	bFinal := f.errand("final B", b1.ID, cFinal.ID)
-	f.quest("qb", bFinal)
+	f.journey("qb", bFinal)
 	aFinal := f.errand("final A", bFinal.ID)
-	f.quest("qa", aFinal)
+	f.journey("qa", aFinal)
 
 	if got, want := f.members("qa"), []int64{bFinal.ID, aFinal.ID}; !slices.Equal(got, want) {
 		t.Errorf("qa members %v, want %v", got, want)
@@ -1183,88 +1202,143 @@ func TestNestedQuestsFoldOneLevel(t *testing.T) {
 	if got, want := f.members("qb"), []int64{cFinal.ID, b1.ID, bFinal.ID}; !slices.Equal(got, want) {
 		t.Errorf("qb members %v, want %v", got, want)
 	}
-	// qc counts as one deed inside qb, so qb's card on qa says 0/3.
+	// qc counts as one quest inside qb, so qb's card on qa says 0/3.
 	if cr := f.crownsOf("qa", bFinal.ID); cr.Total != 3 || cr.Done != 0 {
 		t.Errorf("qb on qa: %+v", cr)
 	}
-	if cr := f.crownsOf("qb", cFinal.ID); cr.Slug != "qc" || cr.Total != 2 {
+	if cr := f.crownsOf("qb", cFinal.ID); cr.Key != f.key("qc") || cr.Total != 2 {
 		t.Errorf("qc on qb: %+v", cr)
 	}
-	if cv, _ := f.s.CardView(f.ctx, c1.ID); slugsOf(cv.Quests) != "qc" {
-		t.Errorf("c1 quests %q", slugsOf(cv.Quests))
+	if cv, _ := f.s.CardView(f.ctx, c1.ID); f.namesOf(cv.Journeys) != "qc" {
+		t.Errorf("c1 journeys %q", f.namesOf(cv.Journeys))
 	}
 	a, b, c := f.summary("qa"), f.summary("qb"), f.summary("qc")
-	if linkSlugs(a.BlockedBy) != "qb" || linkSlugs(b.BlockedBy) != "qc" || linkSlugs(b.Blocks) != "qa" ||
-		linkSlugs(c.Blocks) != "qb" || len(c.BlockedBy) != 0 || len(a.Blocks) != 0 {
-		t.Errorf("board links: qa %v/%v qb %v/%v qc %v/%v", a.BlockedBy, a.Blocks, b.BlockedBy, b.Blocks, c.BlockedBy, c.Blocks)
+	if f.linkNames(a.BlockedBy) != "qb" || f.linkNames(b.BlockedBy) != "qc" || f.linkNames(b.Blocks) != "qa" ||
+		f.linkNames(c.Blocks) != "qb" || len(c.BlockedBy) != 0 || len(a.Blocks) != 0 {
+		t.Errorf("atlas links: qa %v/%v qb %v/%v qc %v/%v", a.BlockedBy, a.Blocks, b.BlockedBy, b.Blocks, c.BlockedBy, c.Blocks)
 	}
 	if a.Main != (Progress{0, 2}) || b.Main != (Progress{0, 3}) {
 		t.Errorf("totals qa %+v qb %+v", a.Main, b.Main)
 	}
 }
 
-func TestSharedCrowningDeedIsNotFolded(t *testing.T) {
+func TestSharedCrowningQuestIsNotFolded(t *testing.T) {
 	f := setup(t)
 	x := f.errand("x")
 	final := f.errand("final", x.ID)
-	f.quest("qa", final)
-	f.quest("qd", final)
-	for _, slug := range []string{"qa", "qd"} {
-		if got := f.members(slug); !slices.Equal(got, []int64{x.ID, final.ID}) {
-			t.Errorf("%s members %v", slug, got)
+	f.journey("qa", final)
+	f.journey("qd", final)
+	for _, name := range []string{"qa", "qd"} {
+		if got := f.members(name); !slices.Equal(got, []int64{x.ID, final.ID}) {
+			t.Errorf("%s members %v", name, got)
 		}
-		if cr := f.crownsOf(slug, final.ID); cr != nil {
-			t.Errorf("%s: own crowning deed shown as quest %+v", slug, cr)
+		if cr := f.crownsOf(name, final.ID); cr != nil {
+			t.Errorf("%s: own crowning quest shown as journey %+v", name, cr)
 		}
-		if s := f.summary(slug); len(s.BlockedBy)+len(s.Blocks) != 0 {
-			t.Errorf("%s board links %+v %+v", slug, s.BlockedBy, s.Blocks)
+		if s := f.summary(name); len(s.BlockedBy)+len(s.Blocks) != 0 {
+			t.Errorf("%s atlas links %+v %+v", name, s.BlockedBy, s.Blocks)
 		}
 	}
-	// A third quest requiring that deed folds it, naming the first quest it crowns.
+	// A third journey requiring that quest folds it, naming the first journey it crowns.
 	top := f.errand("top", final.ID)
-	f.quest("qe", top)
+	f.journey("qe", top)
 	if got := f.members("qe"); !slices.Equal(got, []int64{final.ID, top.ID}) {
 		t.Errorf("qe members %v", got)
 	}
-	if cr := f.crownsOf("qe", final.ID); cr == nil || cr.Slug != "qa" || cr.Total != 2 {
-		t.Errorf("qe's quest card %+v", cr)
+	if cr := f.crownsOf("qe", final.ID); cr == nil || cr.Key != f.key("qa") || cr.Total != 2 {
+		t.Errorf("qe's journey card %+v", cr)
 	}
-	if s := f.summary("qe"); linkSlugs(s.BlockedBy) != "qa,qd" {
+	if s := f.summary("qe"); f.linkNames(s.BlockedBy) != "qa,qd" {
 		t.Errorf("qe blocked by %v", s.BlockedBy)
 	}
 }
 
-func TestResolveQuestSlug(t *testing.T) {
+func TestResolveJourneyKey(t *testing.T) {
 	f := setup(t)
-	a := f.errand("a")         // M1
-	final := f.errand("final") // M2
-	f.quest("controller-support", final)
-	f.quest("no-crown", nil)
-	f.quest("m1", f.errand("m1's own final"))
-	for _, ref := range []string{"controller-support", "Controller-Support", " controller-support "} {
+	final := f.errand("final")
+	f.journey("controller-support", final)
+	f.journey("no-crown", nil)
+	key := f.key("controller-support")
+	for _, ref := range []string{key, strings.ToLower(key), " " + key + " "} {
 		if id, err := f.s.Resolve(f.ctx, ref); err != nil || id != final.ID {
 			t.Errorf("Resolve(%q) = %d, %v", ref, id, err)
 		}
 	}
-	// The deed forms win over a slug that looks like one.
-	if id, err := f.s.Resolve(f.ctx, "m1"); err != nil || id != a.ID {
-		t.Errorf("Resolve(m1) = %d, %v; want the deed M1", id, err)
+	if _, err := f.s.Resolve(f.ctx, f.key("no-crown")); KindOf(err) != ErrInvalid || !strings.Contains(err.Error(), "no crowning quest") {
+		t.Errorf("journey without a crowning quest: %v", err)
 	}
-	if _, err := f.s.Resolve(f.ctx, "no-crown"); KindOf(err) != ErrInvalid || !strings.Contains(err.Error(), "no crowning deed") {
-		t.Errorf("quest without a crowning deed: %v", err)
+	if _, err := f.s.Resolve(f.ctx, "J99"); KindOf(err) != ErrNotFound {
+		t.Errorf("unknown journey: %v", err)
 	}
-	if _, err := f.s.Resolve(f.ctx, "nothing-here"); KindOf(err) != ErrNotFound {
-		t.Errorf("unknown slug: %v", err)
+	for _, ref := range []string{"controller-support", "not a key!"} {
+		if _, err := f.s.Resolve(f.ctx, ref); KindOf(err) != ErrInvalid {
+			t.Errorf("Resolve(%q): %v", ref, err)
+		}
 	}
-	if _, err := f.s.Resolve(f.ctx, "not a slug!"); KindOf(err) != ErrInvalid {
-		t.Errorf("garbage: %v", err)
-	}
-	// Search names deeds exactly by id or issue only; the quest itself is found as a quest.
-	res, err := f.s.Search(f.ctx, "controller-support")
+	// Search names quests exactly by key or issue only; the journey itself is found as a journey.
+	res, err := f.s.Search(f.ctx, key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Exact != nil || len(res.Quests) != 1 {
-		t.Errorf("search by slug: exact %+v, quests %+v", res.Exact, res.Quests)
+	if res.Exact != nil || len(res.Journeys) != 1 {
+		t.Errorf("search by journey key: exact %+v, journeys %+v", res.Exact, res.Journeys)
+	}
+}
+
+// A database made before journeys (schema 3: quests with slugs) keeps its
+// quests as journeys, same ids, and its chronicle.
+func TestMigrateQuestsToJourneys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mikado.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"001_init.sql", "002_archive.sql", "003_hosts.sql"} {
+		body, err := migrations.ReadFile("migrations/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(string(body)); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	for _, q := range []string{
+		`CREATE TABLE schema_version (version INTEGER NOT NULL)`,
+		`INSERT INTO schema_version VALUES (3)`,
+		`INSERT INTO cards (id, kind, title, created_at) VALUES (1, 'errand', 'ship it', '2026-01-01T00:00:00Z')`,
+		`INSERT INTO quests (id, slug, title, final_card, created_at, archived_at) VALUES
+			(4, 'winter', 'Winter update', 1, '2026-01-01T00:00:00Z', NULL),
+			(9, 'old', 'Old goal', NULL, '2026-01-02T00:00:00Z', '2026-02-01T00:00:00Z')`,
+		`INSERT INTO events (quest_id, card_id, at, kind, text) VALUES
+			(4, NULL, '2026-01-01T00:00:00Z', 'create', 'quest created'),
+			(NULL, 1, '2026-01-01T00:00:01Z', 'add', 'M1 errand added'),
+			(4, 1, '2026-01-01T00:00:02Z', 'final', 'crowning deed set to M1')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	db.Close()
+
+	s, err := Open(path, newFake())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	v, err := s.Journey(context.Background(), "J4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Journey.Title != "Winter update" || v.Journey.FinalCardID == nil || *v.Journey.FinalCardID != 1 || len(v.Cards) != 1 || len(v.Log) != 3 {
+		t.Errorf("migrated journey: %+v, %d cards, log %+v", v.Journey, len(v.Cards), v.Log)
+	}
+	js, _, err := s.Journeys(context.Background())
+	if err != nil || len(js) != 2 || js[1].Key != "J9" || js[1].ArchivedAt == "" {
+		t.Errorf("migrated atlas: %+v %v", js, err)
+	}
+	// New journeys and events go on from there.
+	j, err := s.CreateJourney(context.Background(), "Next", nil)
+	if err != nil || j.Key != "J10" {
+		t.Errorf("journey after migration: %+v %v", j, err)
 	}
 }

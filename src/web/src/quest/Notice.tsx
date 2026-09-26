@@ -3,7 +3,7 @@ import { TriangleAlert } from 'lucide-react'
 import './quest.css'
 import { useTheme } from './theme'
 
-/** A whole page with one thing to say: nothing here, the API is down, no such quest. */
+/** A whole page with one thing to say: nothing here, the API is down, no such journey. */
 export function NoticePage({ title, children, back }: { title: string; children: ReactNode; back?: { href: string; label: string } }) {
   const [theme] = useTheme()
   return (

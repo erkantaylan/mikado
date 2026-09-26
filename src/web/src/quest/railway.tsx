@@ -4,25 +4,25 @@ import { questEdgePath, type Flow, type QuestEdge } from './graph'
 import { useWarTable } from './theme'
 import './railway.css'
 
-// The war table's lines between deeds: narrow-gauge track (the "Supply Railway" design from /mock/quest/all-lines).
+// The war table's lines between quests: narrow-gauge track (the "Supply Railway" design from /mock/quest/all-lines).
 //
 // Every line is a length of narrow-gauge track laid along the edge's curve.
-// A line from a finished deed is laid track (sleepers and two rails), the same build whatever the kind;
+// A line from a finished quest is laid track (sleepers and two rails), the same build whatever the kind;
 // only its colours tell the kind:
-//   done      red lacquered sleepers, brass rails; power arriving at a deed you can do now
+//   done      red lacquered sleepers, brass rails; power arriving at a quest you can do now
 //   held      bare timber sleepers, iron rails; built, waiting on the junction
-//   spent     weathered grey sleepers, pewter rails; old track between two finished deeds
+//   spent     weathered grey sleepers, pewter rails; old track between two finished quests
 //   side      green sleepers, green-brass rails, from a finished side quest
-// A line from an unfinished deed is planned track: sleepers along a surveyor's line, no rails yet:
+// A line from an unfinished quest is planned track: sleepers along a surveyor's line, no rails yet:
 //   locked    dark ink sleepers
 //   side      green sleepers, from a side quest not yet done
 // Two kinds are neither:
 //   cancelled torn-up track: a few scattered sleepers and a rail stub where the work stopped
-//   bridge    track in a tunnel: two pale rails in a dashed dark casing, through the hidden deeds
+//   bridge    track in a tunnel: two pale rails in a dashed dark casing, through the hidden quests
 // The sleepers are one wide stroke with a sparse butt-capped dasharray, so they stay square to the curve.
 // The two rails are true offsets of the curve (sampled to a polyline), so the sleepers show between them.
 // No arrows. The track itself is static SVG strokes. Small carts roll along two kinds of track: a cart loaded
-// with gold ore where power is arriving (done), an empty one on old track between two finished deeds (spent).
+// with gold ore where power is arriving (done), an empty one on old track between two finished quests (spent).
 // A cart moves by transform alone, which the compositor runs without repainting.
 
 type Pt = [number, number]
@@ -132,7 +132,7 @@ function Track({ path, flow, powered, dim, torn, seed = 0, carts = true }: {
   }, [path])
   if (!geo) return <path d={path} />
 
-  // Laid: from a finished deed, main or side. Planned: from one still to do.
+  // Laid: from a finished quest, main or side. Planned: from one still to do.
   const laid = powered && flow !== 'cancelled' && flow !== 'bridge'
   const planned = !powered && (flow === 'locked' || flow === 'side')
   return (
@@ -165,7 +165,7 @@ function Track({ path, flow, powered, dim, torn, seed = 0, carts = true }: {
   )
 }
 
-/** A line between deeds on the war table. */
+/** A line between quests on the war table. */
 export function RailwayLine(props: EdgeProps<QuestEdge>) {
   const { data } = props
   const { path } = questEdgePath(props, useWarTable())

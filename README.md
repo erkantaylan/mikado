@@ -1,9 +1,9 @@
 # <img src="docs/icon.png" width="40" align="top" alt=""> mikado
 
-A local tool for grouping GitHub issues (across repos) under small goals — **quests** — and tracking
-the side issues unearthed along the way. One static Go binary: `mikado serve` runs a JSON API and a
-web dashboard that draws each quest as a chart; every other command is a thin client of that API
-(Claude Code fills quests through it).
+A local tool for grouping GitHub issues (across repos) under small goals — **journeys** — and
+tracking the side issues found along the way. One static Go binary: `mikado serve` runs a JSON API
+and a web dashboard that draws each journey as a chart; every other command is a thin client of
+that API (Claude Code fills journeys through it).
 
 Local-first: the server listens on loopback only and has no authentication yet. All data goes
 through the API, so auth can be added there later. GitHub is reached through the `gh` CLI, which
@@ -13,16 +13,16 @@ The name comes from the [Mikado Method](https://mikadomethod.info/): put the goa
 try to reach it, and record every prerequisite you run into on the way. mikado keeps that graph
 across repos and people, so the end goal stays in view while side issues pile up.
 
-![A quest's chart: deeds lead left to right into the crowning deed; the selected deed shows what it opens and why it was unearthed](docs/screenshots/chart.png)
+![A journey's chart: quests lead left to right into the crowning quest; the selected quest shows what it opens and why it was found](docs/screenshots/chart.png)
 
-| The Quest Board | Glossary tab |
+| The Atlas | Glossary tab |
 |---|---|
-| ![Quest Board](docs/screenshots/board.png) | ![Glossary](docs/screenshots/glossary.png) |
+| ![Atlas](docs/screenshots/board.png) | ![Glossary](docs/screenshots/glossary.png) |
 | **Midnight theme** | **War table theme** <!-- screenshot to retake: war table --> |
 | ![Midnight theme](docs/screenshots/midnight.png) | ![War table theme](docs/screenshots/medieval.png) |
 
-**The words** — quest, chart, deed (or task), crowning deed, requires/opens, petition, sealed,
-abandoned, struck, underway, hero, chronicle and the rest — are defined once, in the glossary in
+**The words** — journey, atlas, chart, quest (or task), crowning quest, requires/opens, petition,
+sealed, abandoned, struck, underway, hero, chronicle and the rest — are defined once, in the glossary in
 [`src/internal/skill/SKILL.md`](src/internal/skill/SKILL.md#glossary). The dashboard shows the same
 list in its Glossary tab.
 
@@ -47,61 +47,59 @@ TypeScript app at `src/web`.
 
 ## The model
 
-One global graph of deeds and requirements; each quest is a view onto it, drawn as a chart.
+One global graph of quests and requirements; each journey is a view onto it, drawn as a chart.
 
-- A **deed** (or task) exists once and has a global id, shown as **`M142`**. It is one of:
-  - an **issue**: a GitHub issue `owner/repo#n`. There is at most one live deed per issue. Its
+- A **quest** (or task) exists once and has a global id, shown as **`Q142`**. It is one of:
+  - an **issue**: a GitHub issue `owner/repo#n`. There is at most one live quest per issue. Its
     title, state and assignees come from GitHub, cached ~60 s.
   - an **errand**: a step not worth an issue, with a local title, fulfilled flag and hero.
   - a **petition**: waiting on someone, with a local title, fulfilled flag, whom it awaits a reply
     from, since when, and a hero.
 
-  Wherever a deed is expected, it can be given as `M142`, `M-142`, `m142`, `c142`, `142`,
-  `owner/repo#n` or an issue URL, or as a quest's slug, which names that quest's crowning deed.
-  The deed forms come first: a slug that reads as one of them (`m5`) names the deed.
-- **Requires** ("M5 requires M3": M3 must be fulfilled first; M3 opens M5) is the only blocking
+  Wherever a quest is expected, it can be given as `Q142`, `Q-142`, `q142`, `142`, `owner/repo#n`
+  or an issue URL, or as a journey's id (`J7`), which names that journey's crowning quest.
+- **Requires** ("Q5 requires Q3": Q3 must be fulfilled first; Q3 opens Q5) is the only blocking
   relation. Requirements are global and acyclic across the whole graph.
-  A deed hung on another with `--side-of` is a **side quest**: optional, never blocks and never
-  requires or opens anything; it earns an **achievement**. A deed **unearthed** on the way records
-  where (`--unearthed-on`) and why (`--reason`). An **NPC** deed changes nothing but its looks: it
-  shows in red on the chart. Right-click a deed there to mark or unmark it (CLI: `--npc`,
-  `set D --npc=true|false`).
-- A **quest** has a slug, a title and a **crowning deed**. Its deeds are computed, never stored:
-  the crowning deed, everything it transitively requires (the **main quest**), and the side quests
-  of any of them (recursively). A deed joins a quest by being linked in (`--opens`, `require`,
-  `--side-of`, `--crowns`) and leaves when the link is cut (`unrequire`). One deed can be in several
-  quests. A deed with no links is in no quest. A quest without a crowning deed has no deeds yet.
-- **A quest can wait on another quest.** A deed that requires another quest's crowning deed
-  (`mikado require M5 controller-support`) waits on that whole quest. On the chart, that crowning
-  deed is drawn as one card for the other quest: its title, its progress, what is still to do in
-  it, and a link to its own chart. It counts as one deed, in the progress and on the Quest Board.
-  The other quest's deeds stay on their own chart: they are not this quest's deeds, so they are
-  left out of its counts, its chronicle and `quest show`, unless this quest reaches them some other
-  way. A quest's own crowning deed is always its own, even when another quest shares it. The Quest
-  Board says which quests are blocked by which. This is not a side quest: a side quest is optional,
-  while the other quest here blocks the deed that requires it.
-- **Slugs** are short handles (the first few significant words of the title, suffixed `-2` on a
-  clash). They are matched ignoring case and can be renamed.
-- **Archiving** a quest puts it away. It leaves the Quest Board's shelves for a closed "Archived"
-  shelf at the bottom, and it leaves `quest list` unless you pass `--all`. Nothing else changes: its
-  deeds, chart and chronicle stay, and so does its URL. `quest unarchive` brings it back.
-- **Two ways to take a deed out**, like GitHub:
-  - **Strike** means gone for good. The deed leaves the graph (it stays in the chronicle), and so
-    do its side quests. A quest whose crowning deed is struck has none.
-  - **Abandon** means won't do. The deed stays on the chart, blocks nothing and counts in no
+  A quest hung on another with `--side-of` is a **side quest**: optional, never blocks and never
+  requires or opens anything; it earns an **achievement**. A quest **found** on the way records
+  where (`--found-on`) and why (`--reason`). An **NPC** quest changes nothing but its looks: it
+  shows in red on the chart. Right-click a quest there to mark or unmark it (CLI: `--npc`,
+  `set Q --npc=true|false`).
+- A **journey** has an id (`J7`), a title and a **crowning quest**. The id never changes; the
+  title can. Its quests are computed, never stored: the crowning quest, everything it
+  transitively requires (the **main quest**), and the side quests of any of them (recursively). A
+  quest joins a journey by being linked in (`--opens`, `require`, `--side-of`, `--crowns`) and
+  leaves when the link is cut (`unrequire`). One quest can be in several journeys. A quest with no
+  links is in no journey. A journey without a crowning quest has no quests yet.
+- **A journey can wait on another journey.** A quest that requires another journey's crowning
+  quest (`mikado require Q5 J2`) waits on that whole journey. On the chart, that crowning quest is
+  drawn as one card for the other journey: its title, its progress, what is still to do in it,
+  and a link to its own chart. It counts as one quest, in the progress and on the Atlas. The other
+  journey's quests stay on their own chart: they are not this journey's quests, so they are left
+  out of its counts, its chronicle and `journey show`, unless this journey reaches them some other
+  way. A journey's own crowning quest is always its own, even when another journey shares it. The
+  Atlas says which journeys are blocked by which. This is not a side quest: a side quest is
+  optional, while the other journey here blocks the quest that requires it.
+- **Archiving** a journey puts it away. It leaves the Atlas's shelves for a closed "Archived"
+  shelf at the bottom, and it leaves `journey list` unless you pass `--all`. Nothing else changes:
+  its quests, chart and chronicle stay, and so does its URL. `journey unarchive` brings it back.
+- **Two ways to take a quest out**, like GitHub:
+  - **Strike** means gone for good. The quest leaves the graph (it stays in the chronicle), and so
+    do its side quests. A journey whose crowning quest is struck has none.
+  - **Abandon** means won't do. The quest stays on the chart, blocks nothing and counts in no
     progress total. Its side quests are abandoned with it. An issue closed on GitHub as
-    `NOT_PLANNED` or `DUPLICATE` reads as abandoned. Any deed, including an open issue, can also be
-    abandoned locally.
+    `NOT_PLANNED` or `DUPLICATE` reads as abandoned. Any quest, including an open issue, can also
+    be abandoned locally.
 - **Status is computed**, never stored: **abandoned**, else **fulfilled** (issue closed / flag
   set), else **sealed** while anything it requires is neither fulfilled nor abandoned, else
-  **awaiting reply** for petitions and **open** for the rest. A quest is fulfilled when its
-  crowning deed is, abandoned when its crowning deed is, and active otherwise.
+  **awaiting reply** for petitions and **open** for the rest. A journey is fulfilled when its
+  crowning quest is, abandoned when its crowning quest is, and active otherwise.
 - **Underway** (someone is on it, optionally by name) is set explicitly with `take-up` and
-  `set-down`, apart from status. It is cleared when the deed is fulfilled or abandoned.
-- **The chronicle**: every change is an event, written as a sentence. A quest's chronicle is its
-  own events (created, renamed, crowned) plus the events of the deeds on its chart. Sentences
+  `set-down`, apart from status. It is cleared when the quest is fulfilled or abandoned.
+- **The chronicle**: every change is an event, written as a sentence. A journey's chronicle is its
+  own events (created, retitled, crowned) plus the events of the quests on its chart. Sentences
   written before the vocabulary changed keep their old words.
-- **Heroes**: a deed's hero is its GitHub assignee, else the hero set with `--hero`.
+- **Heroes**: a quest's hero is its GitHub assignee, else the hero set with `--hero`.
 
 The API and the database keep plain, older names (`cards`, `needs`, `done`, `locked`, `final`,
 `owner`, `working`, `log`); the dashboard and the CLI's text show the words above. SKILL.md maps
@@ -116,29 +114,29 @@ else `$MIKADO_DATA`, else `$XDG_DATA_HOME/mikado`, else `~/.local/share/mikado`.
 
 ```bash
 mikado serve &                                   # http://127.0.0.1:47291
-mikado quest new "The winter update ships to every player"   # -> winter-update-ships-every
-mikado quest rename winter-update-ships-every winter-update
-mikado quest archive old-spike                   # off the board and `quest list` (--all shows it)
-mikado add studio/game#140 --crowns winter-update             # M1, the crowning deed
-mikado add studio/saves#88 --opens M1                         # M2: M1 requires it
-mikado add studio/saves#91 --opens M2 --unearthed-on M2 --reason "old saves crash the loader"
-mikado errand "Book the store-page feature slot" --hero ada --opens M1
+mikado journey new "The winter update ships to every player"   # -> journey J1
+mikado journey set J1 --title "Winter update"    # retitle; J1 stays J1
+mikado journey archive J4                        # off the Atlas and `journey list` (--all shows it)
+mikado add studio/game#140 --crowns J1           # Q1, the crowning quest
+mikado add studio/saves#88 --opens Q1            # Q2: Q1 requires it
+mikado add studio/saves#91 --opens Q2 --found-on Q2 --reason "old saves crash the loader"
+mikado errand "Book the store-page feature slot" --hero ada --opens Q1
 mikado petition "Final key art" --on "freelance artist" --opens studio/game#140
-mikado add studio/saves#88 --opens M9           # same deed M2, now also in M9's quest
-mikado require M1 controller-support             # M1 waits on that whole quest: one card on the chart
-mikado errand "Controller glyphs in the trailer" --opens controller-support   # a slug names its crowning deed
-mikado take-up M2 --by cyd
-mikado abandon M5 --reason "split-screen co-op is cut from this update"
-mikado show M2                                   # requires, opens, side quests, quests
-mikado quest show winter-update                  # the chart as text, or --json
-mikado open M2                                   # the chart in the browser, M2 selected
+mikado add studio/saves#88 --opens Q9            # same quest Q2, now also in Q9's journey
+mikado require Q1 J2                             # Q1 waits on that whole journey: one card on the chart
+mikado errand "Controller glyphs in the trailer" --opens J2   # a journey id names its crowning quest
+mikado take-up Q2 --by cyd
+mikado abandon Q5 --reason "split-screen co-op is cut from this update"
+mikado show Q2                                   # requires, opens, side quests, journeys
+mikado journey show J1                           # the chart as text, or --json
+mikado open Q2                                   # the chart in the browser, Q2 selected
 mikado help                                      # every command
 ```
 
 Client commands reach the server at `--server URL` / `$MIKADO_SERVER` (default
 `http://127.0.0.1:47291`), take `--json`, and exit non-zero with the API's error message on failure.
 Earlier command and flag names (`done`, `cancel`, `remove`, `start`, `need`, `await`,
-`quest final`, `--needed-by`, `--found-while`, `--owner`, …) still work but are no longer listed.
+`--needed-by`, `--owner`, …) still work but are no longer listed.
 
 ### Reaching it under another name
 
@@ -184,8 +182,8 @@ The dashboard shows the running server's version in small print (its commit link
 
 ## For AI agents
 
-The guide an agent needs to use mikado well — the model, the `M` ids, the glossary, when to record
-an unearthed deed, abandon versus strike — is `src/internal/skill/SKILL.md`, embedded in the binary
+The guide an agent needs to use mikado well — the model, the `Q` and `J` ids, the glossary, when to
+record a found quest, abandon versus strike — is `src/internal/skill/SKILL.md`, embedded in the binary
 so it always matches the installed version:
 
 ```bash
@@ -201,21 +199,22 @@ is left alone unless you pass `--force`. `mikado help` points agents at `mikado 
 
 JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502. Bodies must be sent as
 `Content-Type: application/json`, and requests must be addressed to localhost, `*.localhost` or an
-accepted host (`mikado hosts`); a refused host gets 403. The routes and fields keep the machine names: a *card* is a deed, a *need* `{from, to}` is "from requires to",
-*final* is the crowning deed, *owner* the hero. A `{id}` in a path takes any deed id form (`142`,
-`M142`, …) or a quest slug (that quest's crowning deed); so do `final` and `{ref}`.
+accepted host (`mikado hosts`); a refused host gets 403. The routes and fields keep the machine names: a *card* is a quest, a *need* `{from, to}` is "from requires to",
+*final* is the crowning quest, *owner* the hero. A `{id}` in a path takes any quest id form (`142`,
+`Q142`, …) or a journey id (`J7`: that journey's crowning quest); so do `final` and `{ref}`. A
+`{key}` is a journey id.
 
 | | |
 |---|---|
-| `GET /api/quests` | Quest Board summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header). `blockedBy` lists the quests `[{slug, title, state, archivedAt?}]` whose crowning deeds are on this quest's chart as quest cards; `blocks` the quests with this one's on theirs |
-| `POST /api/quests` `{title, slug?, final?}` | create a quest; `final` (its crowning deed) is a deed id or reference string |
-| `GET /api/quests/{slug}` | `{quest, cards, needs, log, github?}`: its deeds, requirements and chronicle; each deed has `key` and `alsoIn`. A deed that crowns another quest has `crowns: {slug, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that quest, its main-quest progress counted as the board counts it, how many of its deeds are underway, and its deeds still to do. Its own deeds are not in `cards` |
-| `PATCH /api/quests/{slug}` `{slug?, title?, final?, archived?}` | rename, retitle, crown, archive (`true`) or bring back (`false`); an archived quest has `archivedAt` |
-| `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a deed (201). An issue that is already a deed gives 200 with that deed, and the links are applied to it |
-| `GET /api/search?q=` | `{quests, deeds, exact?}`: quests by slug and title, deeds by id, issue and title (every word, any case; issue titles from the cache). `exact` is the deed the query names by id or issue. Deeds still to do come first |
-| `GET /api/cards/{ref}` | `{card, quests, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` or a quest slug. A crowning deed's `card.crowns` names the quest it crowns, as above |
-| `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a deed: fulfil, hero, NPC, title, abandon, take up / set down |
-| `DELETE /api/cards/{id}` `{reason}` | strike a deed and its side quests |
+| `GET /api/journeys` | the Atlas: journey summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header). `blockedBy` lists the journeys `[{key, title, state, archivedAt?}]` whose crowning quests are on this journey's chart as journey cards; `blocks` the journeys with this one's on theirs |
+| `POST /api/journeys` `{title, final?}` | create a journey; `final` (its crowning quest) is a quest id or reference string |
+| `GET /api/journeys/{key}` | `{journey, cards, needs, log, github?}`: its quests, requirements and chronicle; each quest has `key` and `alsoIn`. A quest that crowns another journey has `crowns: {key, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that journey, its main-quest progress counted as the Atlas counts it, how many of its quests are underway, and its quests still to do. Its own quests are not in `cards` |
+| `PATCH /api/journeys/{key}` `{title?, final?, archived?}` | retitle, crown, archive (`true`) or bring back (`false`); an archived journey has `archivedAt` |
+| `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a quest (201); `finalOf` is a journey id. An issue that is already a quest gives 200 with that quest, and the links are applied to it |
+| `GET /api/search?q=` | `{journeys, quests, exact?}`: journeys by id and title, quests by id, issue and title (every word, any case; issue titles from the cache). `exact` is the quest the query names by id or issue. Quests still to do come first |
+| `GET /api/cards/{ref}` | `{card, journeys, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` or a journey id. A crowning quest's `card.crowns` names the journey it crowns, as above |
+| `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a quest: fulfil, hero, NPC, title, abandon, take up / set down |
+| `DELETE /api/cards/{id}` `{reason}` | strike a quest and its side quests |
 | `POST`/`DELETE /api/needs` `{from, to}` | add / drop a requirement (`from` requires `to`) |
 | `POST /api/cards/{id}/assignees` `{add, remove}` | assign on GitHub (issues) |
 | `GET /api/repos/{owner}/{repo}/assignees` | assignable logins |
@@ -223,11 +222,11 @@ accepted host (`mikado hosts`); a refused host gets 403. The routes and fields k
 | `POST /api/hosts` `{name}` | accept a host from the next request on (201; 200 if already accepted). Only through localhost or a loopback IP (else 403) |
 | `DELETE /api/hosts/{name}` | stop accepting a stored host (204); 409 for a `flag` one. Only through localhost or a loopback IP (else 403) |
 
-The quest-scoped routes `POST /api/quests/{slug}/cards`, `PATCH`/`DELETE
-/api/quests/{slug}/cards/{id}`, `POST /api/quests/{slug}/cards/{id}/assignees` and
-`POST`/`DELETE /api/quests/{slug}/needs` remain as aliases. They check the quest exists; there,
-`final: true` means "crowning deed of this quest", and the returned deed's `alsoIn` leaves that
-quest out.
+The journey-scoped routes `POST /api/journeys/{key}/cards`, `PATCH`/`DELETE
+/api/journeys/{key}/cards/{id}`, `POST /api/journeys/{key}/cards/{id}/assignees` and
+`POST`/`DELETE /api/journeys/{key}/needs` are aliases. They check the journey exists; there,
+`final: true` means "crowning quest of this journey", and the returned quest's `alsoIn` leaves
+that journey out.
 
 ## Develop
 

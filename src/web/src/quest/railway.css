@@ -1,4 +1,4 @@
-/* The war table's lines between deeds: narrow-gauge track (railway.tsx). Static strokes, and carts moved by transform. */
+/* The war table's lines between quests: narrow-gauge track (railway.tsx). Static strokes, and carts moved by transform. */
 .quest-theme[data-theme='wartable'] .wt-rail {
   --wt-rail-halo: rgba(251, 244, 224, 0.78);
   --wt-rail-ink: #2a1a0c;
@@ -29,7 +29,7 @@
   stroke-width: 1.6px;
   stroke-linecap: butt;
 }
-/* Laid track: every line from a finished deed, main or side, is built the same; the kind only picks the colours. */
+/* Laid track: every line from a finished quest, main or side, is built the same; the kind only picks the colours. */
 .quest-theme[data-theme='wartable'] .wt-rail[data-track='laid'] .wt-rail-ties {
   stroke: var(--wt-rail-tie);
   stroke-width: 13px;
@@ -48,7 +48,7 @@
   --wt-rail-tie: #8a6436;
   --wt-rail-steel: #c2a266;
 }
-/* spent: old track between two finished deeds. Weathered grey sleepers, pewter rails. */
+/* spent: old track between two finished quests. Weathered grey sleepers, pewter rails. */
 .quest-theme[data-theme='wartable'] .wt-rail[data-flow='spent'] {
   --wt-rail-tie: #6f6557;
   --wt-rail-steel: #b3aca0;
@@ -59,7 +59,7 @@
   --wt-rail-steel: #b9cf73;
 }
 
-/* Planned track: from a deed still to do. Sleepers on a surveyor's line, no rails yet. */
+/* Planned track: from a quest still to do. Sleepers on a surveyor's line, no rails yet. */
 .quest-theme[data-theme='wartable'] .wt-rail[data-track='planned'] .wt-rail-ties {
   stroke: var(--wt-rail-plan);
   stroke-width: 11px;
@@ -95,7 +95,7 @@
   stroke-dasharray: 0 22 22 100000;
 }
 
-/* bridge: through the hidden deeds the track runs in a tunnel, drawn as pale rails in a dashed dark casing. */
+/* bridge: through the hidden quests the track runs in a tunnel, drawn as pale rails in a dashed dark casing. */
 .quest-theme[data-theme='wartable'] .wt-rail[data-flow='bridge'] .wt-rail-halo {
   stroke: #2c1f12;
   stroke-width: 12px;
@@ -111,7 +111,7 @@
   stroke-width: 1.3px;
 }
 
-/* From an abandoned deed the rails were pulled up first: they begin a little way out from the card. */
+/* From an abandoned quest the rails were pulled up first: they begin a little way out from the card. */
 .quest-theme[data-theme='wartable'] .wt-rail[data-torn] .wt-rail-rail,
 .quest-theme[data-theme='wartable'] .wt-rail[data-torn] .wt-rail-rail-under {
   stroke-dasharray: 0 26 100000;

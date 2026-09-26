@@ -1,4 +1,4 @@
-import type { BoardQuest } from '../quest/QuestBoard'
+import type { AtlasJourney } from '../quest/Atlas'
 // A made-up goal used to agree on the workflow before any real data exists.
 // Repos, people and numbers are fictional.
 
@@ -379,7 +379,7 @@ const summarise = (slug: string, heroes: string[], repos: string[]): QuestSummar
   const byId = new Map([...q.items, ...q.sideQuests].map((i) => [i.id, i]))
   const open = (i: Item) => q.needs.some((n) => n.from === i.id && !byId.get(n.to)?.done && !byId.get(n.to)?.cancelled)
   return {
-    slug,
+    key: slug,
     title: q.goal.title,
     main: { done: q.items.filter((i) => i.done && !i.cancelled).length, total: q.items.filter((i) => !i.cancelled).length },
     achievements: { done: q.sideQuests.filter((i) => i.done).length, total: q.sideQuests.length },
@@ -394,12 +394,12 @@ const summarise = (slug: string, heroes: string[], repos: string[]): QuestSummar
 // The quest board: every quest at a glance. Only the quests in `maps` open a map.
 // Between them the rows use every field a board row can show: underway, open, awaiting reply and abandoned
 // counts, heroes, "Blocked by" / "Blocks", and every shelf (underway, main quest fulfilled, 100%, abandoned, archived).
-export type QuestSummary = BoardQuest
+export type QuestSummary = AtlasJourney
 
 export const quests: QuestSummary[] = [
   summarise('mikado-slice-1', ['claude', 'erkan'], ['mikado']),
   {
-    slug: 'winter-update',
+    key: 'winter-update',
     title: 'The winter update ships to every player',
     state: 'active',
     main: { done: 1, total: 9 },
@@ -411,10 +411,10 @@ export const quests: QuestSummary[] = [
     heroes: ['ada', 'bo', 'cyd'],
     repos: ['game', 'saves', 'net', 'build'],
     lastActivity: 'Sep 19',
-    blockedBy: [{ slug: 'controller-support', title: 'Controller support on every platform', state: 'active' }],
+    blockedBy: [{ key: 'controller-support', title: 'Controller support on every platform', state: 'active' }],
   },
   {
-    slug: 'controller-support',
+    key: 'controller-support',
     title: 'Controller support on every platform',
     main: { done: 7, total: 12 },
     achievements: { done: 1, total: 4 },
@@ -425,10 +425,10 @@ export const quests: QuestSummary[] = [
     repos: ['input', 'game'],
     lastActivity: 'Sep 23',
     state: 'active',
-    blocks: [{ slug: 'winter-update', title: 'The winter update ships to every player', state: 'active' }],
+    blocks: [{ key: 'winter-update', title: 'The winter update ships to every player', state: 'active' }],
   },
   {
-    slug: 'level-editor',
+    key: 'level-editor',
     title: 'The level editor goes public',
     main: { done: 5, total: 5 },
     achievements: { done: 3, total: 5 },
@@ -440,7 +440,7 @@ export const quests: QuestSummary[] = [
     state: 'complete',
   },
   {
-    slug: 'crash-reports',
+    key: 'crash-reports',
     title: 'Crash reports reach us within a minute',
     main: { done: 2, total: 6 },
     achievements: { done: 0, total: 1 },
@@ -451,7 +451,7 @@ export const quests: QuestSummary[] = [
     lastActivity: 'Sep 12',
   },
   {
-    slug: 'achievement-sync',
+    key: 'achievement-sync',
     title: 'Achievements sync across devices',
     main: { done: 4, total: 4 },
     achievements: { done: 2, total: 2 },
@@ -463,7 +463,7 @@ export const quests: QuestSummary[] = [
     state: 'complete',
   },
   {
-    slug: 'split-screen',
+    key: 'split-screen',
     title: 'Split-screen co-op on the couch',
     state: 'cancelled',
     main: { done: 2, total: 7 },
@@ -476,7 +476,7 @@ export const quests: QuestSummary[] = [
     lastActivity: 'Aug 30',
   },
   {
-    slug: 'old-launcher',
+    key: 'old-launcher',
     title: 'The old launcher is retired',
     state: 'complete',
     main: { done: 3, total: 3 },

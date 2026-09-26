@@ -1,7 +1,7 @@
-// Turns the API's JSON into the shapes the shared quest pages draw.
-import type { Card, LogEvent, QuestSummary, QuestView } from '../api'
-import type { BoardQuest } from '../quest/QuestBoard'
-import type { Item, Kind, QuestData } from '../quest/model'
+// Turns the API's JSON into the shapes the shared pages draw.
+import type { Card, JourneySummary, JourneyView, LogEvent } from '../api'
+import type { AtlasJourney } from '../quest/Atlas'
+import type { Item, JourneyData, Kind } from '../quest/model'
 
 const kinds: Record<Card['kind'], Kind> = { issue: 'issue', errand: 'task', awaiting: 'wait' }
 
@@ -32,7 +32,7 @@ export function daysSince(ymd: string, now = new Date()): number {
 export function toItem(c: Card): Item {
   return {
     id: cardId(c.id),
-    key: c.key ?? `M${c.id}`,
+    key: c.key,
     kind: kinds[c.kind],
     title: c.title,
     done: c.done,
@@ -56,7 +56,7 @@ export function toItem(c: Card): Item {
     status: c.status,
     openBefore: c.openBefore,
     crowns: c.crowns && {
-      slug: c.crowns.slug,
+      key: c.crowns.key,
       title: c.crowns.title,
       state: c.crowns.state,
       archived: !!c.crowns.archivedAt,
@@ -70,10 +70,10 @@ export function toItem(c: Card): Item {
 
 const toLog = (e: LogEvent) => ({ at: dayLabel(e.at), text: e.text, kind: e.kind, id: e.cardId != null ? cardId(e.cardId) : undefined })
 
-export function toQuestData(v: QuestView): QuestData {
+export function toJourneyData(v: JourneyView): JourneyData {
   const items = v.cards.map(toItem)
   return {
-    goal: { title: v.quest.title, doneWhen: v.quest.finalCardId != null ? cardId(v.quest.finalCardId) : '' },
+    goal: { title: v.journey.title, doneWhen: v.journey.finalCardId != null ? cardId(v.journey.finalCardId) : '' },
     items: items.filter((i) => !i.sideOf),
     sideQuests: items.filter((i) => i.sideOf),
     needs: v.needs.map((n) => ({ from: cardId(n.from), to: cardId(n.to) })),
@@ -81,8 +81,8 @@ export function toQuestData(v: QuestView): QuestData {
   }
 }
 
-/** A board row; repos are shown by name, as the board has room for. */
-export function toBoardQuest(q: QuestSummary): BoardQuest {
+/** A journey on the atlas; repos are shown by name, as the atlas has room for. */
+export function toAtlasJourney(q: JourneySummary): AtlasJourney {
   return {
     ...q,
     repos: [...new Set(q.repos.map((r) => r.slice(r.indexOf('/') + 1)))],

@@ -1,15 +1,15 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Ban, Check, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
-import type { QuestState } from './model'
-import { QuestStateChip } from './look'
+import type { JourneyState } from './model'
+import { JourneyStateChip } from './look'
 import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
 
-// One quest on the Quest Board, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
-export type BoardQuest = {
-  slug: string
+// One journey on the Atlas, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
+export type AtlasJourney = {
+  key: string // J7
   title: string
   main: { done: number; total: number }
   achievements: { done: number; total: number } // side quests
@@ -18,21 +18,21 @@ export type BoardQuest = {
   heroes: string[]
   repos: string[]
   lastActivity: string
-  state?: QuestState
+  state?: JourneyState
   cancelled?: number
   inProgress?: number
   archivedAt?: string // set while archived: kept off the shelves above
-  blockedBy?: QuestLink[] // quests drawn on this one's chart as quest cards
-  blocks?: QuestLink[] // quests with this one on their chart
+  blockedBy?: JourneyLink[] // journeys drawn on this one's chart as journey cards
+  blocks?: JourneyLink[] // journeys with this one on their chart
 }
 
-/** Another quest, named on a board row. */
-export type QuestLink = { slug: string; title: string; state: QuestState }
+/** Another journey, named on an atlas row. */
+export type JourneyLink = { key: string; title: string; state: JourneyState }
 
-const cancelled = (q: BoardQuest) => q.state === 'cancelled'
-// A quest that says what state it is in is believed; otherwise its main-quest count decides.
-const mainDone = (q: BoardQuest) => (q.state ? q.state === 'complete' : q.main.done === q.main.total)
-const perfect = (q: BoardQuest) => mainDone(q) && q.achievements.done === q.achievements.total
+const cancelled = (q: AtlasJourney) => q.state === 'cancelled'
+// A journey that says what state it is in is believed; otherwise its main-quest count decides.
+const mainDone = (q: AtlasJourney) => (q.state ? q.state === 'complete' : q.main.done === q.main.total)
+const perfect = (q: AtlasJourney) => mainDone(q) && q.achievements.done === q.achievements.total
 
 function Heroes({ names }: { names: string[] }) {
   return (
@@ -51,17 +51,17 @@ function Heroes({ names }: { names: string[] }) {
 }
 
 // The row's columns, shared by every row so the shelves line up. Narrow screens wrap instead.
-// The heroes column is left out when no quest on the board has a hero, so it is not an empty strip.
+// The heroes column is left out when no journey on the atlas has a hero, so it is not an empty strip.
 const columns = (heroes: boolean) =>
   heroes ? 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px_96px]' : 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px]'
 
-/** One linked quest in a row's "Blocked by" / "Blocks" line: a finished one steps back. */
-function LinkedQuest({ q }: { q: QuestLink }) {
+/** One linked journey in a row's "Blocked by" / "Blocks" line: a finished one steps back. */
+function LinkedJourney({ q }: { q: JourneyLink }) {
   const over = q.state !== 'active'
   return (
     <a
-      href={`/quest/${encodeURIComponent(q.slug)}`}
-      title={`${q.title} (${q.slug})${q.state === 'complete' ? ' — fulfilled' : q.state === 'cancelled' ? ' — abandoned' : ''}`}
+      href={`/journey/${encodeURIComponent(q.key)}`}
+      title={`${q.title} (${q.key})${q.state === 'complete' ? ' — fulfilled' : q.state === 'cancelled' ? ' — abandoned' : ''}`}
       className={`relative z-10 hover:text-[var(--ink)] hover:underline ${
         over ? 'text-[var(--ink-faint)]' : 'font-semibold text-[var(--ink)]'
       } ${q.state === 'cancelled' ? 'line-through' : ''}`}
@@ -72,16 +72,16 @@ function LinkedQuest({ q }: { q: QuestLink }) {
   )
 }
 
-/** Which quests this one waits on, and which wait on it: those drawn as quest cards on a chart. */
-function Linked({ label, quests }: { label: string; quests?: QuestLink[] }) {
-  if (!quests?.length) return null
+/** Which journeys this one waits on, and which wait on it: those drawn as journey cards on a chart. */
+function Linked({ label, journeys }: { label: string; journeys?: JourneyLink[] }) {
+  if (!journeys?.length) return null
   return (
     <span>
       {label}:{' '}
-      {quests.map((l, k) => (
-        <span key={l.slug}>
+      {journeys.map((l, k) => (
+        <span key={l.key}>
           {k > 0 && ', '}
-          <LinkedQuest q={l} />
+          <LinkedJourney q={l} />
         </span>
       ))}
     </span>
@@ -89,7 +89,7 @@ function Linked({ label, quests }: { label: string; quests?: QuestLink[] }) {
 }
 
 // `chip`: say fulfilled or abandoned on the row; off on a shelf whose heading already says it.
-function QuestRow({ q, href, noMap, heroes, chip }: { q: BoardQuest; href?: string; noMap?: string; heroes: boolean; chip: boolean }) {
+function JourneyRow({ q, href, noMap, heroes, chip }: { q: AtlasJourney; href?: string; noMap?: string; heroes: boolean; chip: boolean }) {
   const pct = q.main.total ? Math.round((q.main.done / q.main.total) * 100) : 0
   const done = mainDone(q)
   const medal: CSSProperties = cancelled(q)
@@ -113,7 +113,7 @@ function QuestRow({ q, href, noMap, heroes, chip }: { q: BoardQuest; href?: stri
       {/* On a narrow screen the title takes the medal's line; the rest wraps below it. */}
       <div className="min-w-0 basis-[calc(100%-3.25rem)] md:basis-auto">
         <div className="flex items-center gap-2">
-          {/* The title is the row's link, stretched over the whole row; the quest links below sit above it. */}
+          {/* The title is the row's link, stretched over the whole row; the journey links below sit above it. */}
           {href ? (
             <a
               href={href}
@@ -132,20 +132,21 @@ function QuestRow({ q, href, noMap, heroes, chip }: { q: BoardQuest; href?: stri
               {q.title}
             </span>
           )}
-          {chip && <QuestStateChip state={q.state} />}
+          {chip && <JourneyStateChip state={q.state} />}
         </div>
         <div className="truncate text-[13px] text-[var(--ink-soft)]">
-          {[...q.repos, `last move ${q.lastActivity}`].join(' · ')}
+          <span className="font-mono">{q.key}</span>
+          {[...q.repos, `last move ${q.lastActivity}`].map((part) => ` · ${part}`)}
         </div>
         {(!!q.blockedBy?.length || !!q.blocks?.length) && (
           <div className="flex gap-3 truncate text-[13px] text-[var(--ink-soft)]">
-            <Linked label="Blocked by" quests={q.blockedBy} />
-            <Linked label="Blocks" quests={q.blocks} />
+            <Linked label="Blocked by" journeys={q.blockedBy} />
+            <Linked label="Blocks" journeys={q.blocks} />
           </div>
         )}
       </div>
 
-      <div className="flex min-w-[150px] flex-1 items-center gap-2 md:w-[170px] md:flex-none" title="Main quest: deeds fulfilled">
+      <div className="flex min-w-[150px] flex-1 items-center gap-2 md:w-[170px] md:flex-none" title="Main quest: quests fulfilled">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
           <div className="h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
         </div>
@@ -217,37 +218,37 @@ function Section({ title, hint, children }: { title: string; hint: string; child
   )
 }
 
-export type QuestBoardProps = {
-  quests: BoardQuest[]
-  hrefOf: (q: BoardQuest) => string | undefined // undefined: the quest has no chart to open
+export type AtlasProps = {
+  journeys: AtlasJourney[]
+  hrefOf: (q: AtlasJourney) => string | undefined // undefined: the journey has no chart to open
   eyebrow: string // the small line above the title
-  noMap?: string // what a quest without a chart says about it
+  noMap?: string // what a journey without a chart says about it
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
-  empty?: ReactNode // shown instead of the shelves when there are no quests at all
-  search?: boolean // the live board searches the API; the mock has none
+  empty?: ReactNode // shown instead of the shelves when there are no journeys at all
+  search?: boolean // the live atlas searches the API; the mock has none
   version?: string // the running server's version, shown small at the bottom; the mock has none
 }
 
-export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, empty, search, version }: QuestBoardProps) {
+export default function Atlas({ journeys, hrefOf, eyebrow, noMap, banner, empty, search, version }: AtlasProps) {
   const [theme, setTheme] = useTheme()
-  const shelved = quests.filter((q) => !q.archivedAt)
-  const archived = quests.filter((q) => q.archivedAt)
+  const shelved = journeys.filter((q) => !q.archivedAt)
+  const archived = journeys.filter((q) => q.archivedAt)
   const active = shelved.filter((q) => !cancelled(q) && !mainDone(q))
   const bonus = shelved.filter((q) => !cancelled(q) && mainDone(q) && !perfect(q))
   const hundred = shelved.filter((q) => !cancelled(q) && perfect(q))
   const gone = shelved.filter(cancelled)
-  const sum = (f: (q: BoardQuest) => number) => active.reduce((n, q) => n + f(q), 0)
+  const sum = (f: (q: AtlasJourney) => number) => active.reduce((n, q) => n + f(q), 0)
   const heroes = shelved.some((q) => q.heroes.length > 0) || archived.some((q) => q.heroes.length > 0)
-  const row = (q: BoardQuest) => <QuestRow key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip={false} />
+  const row = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip={false} />
   // The archive mixes every state, so there each row says its own.
-  const archivedRow = (q: BoardQuest) => <QuestRow key={q.slug} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip />
+  const archivedRow = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip />
 
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">
       <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
         <div>
           <div className="text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
-          <h1 className="quest-display text-2xl font-semibold">Quest Board</h1>
+          <h1 className="quest-display text-2xl font-semibold">Atlas</h1>
         </div>
         <div className="flex gap-2">
           {search && <Search />}
@@ -256,7 +257,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
         <div className="ml-auto flex gap-2 text-center">
           {(
             [
-              [active.length, 'active quests', 'var(--gold)', 'gold'],
+              [active.length, 'active journeys', 'var(--gold)', 'gold'],
               [sum((q) => q.available), 'open now', 'var(--avail)', 'enamel'],
               [sum((q) => q.awaiting), 'awaiting reply', 'var(--await)', 'silver'],
             ] as const
@@ -272,13 +273,13 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
       </header>
       {banner}
 
-      {quests.length === 0 && empty ? (
+      {journeys.length === 0 && empty ? (
         <main className="mx-auto max-w-7xl p-6">{empty}</main>
       ) : (
         <main className={`mx-auto max-w-7xl space-y-8 p-6 ${theme === 'wartable' ? 'wt-sheet' : ''}`}>
           {/* The war table's campaign map, spread under the shelves. */}
           {theme === 'wartable' && <div className="wt-map" aria-hidden />}
-          <Section title="Underway" hint="the main quest still has deeds to fulfil">
+          <Section title="Journeys underway" hint="the main quest still has quests to fulfil">
             {active.map(row)}
           </Section>
           <Section title="Main quest fulfilled" hint="finished — achievements still there if you're into it">
@@ -288,7 +289,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
             {hundred.map(row)}
           </Section>
           {gone.length > 0 && (
-            <Section title="Abandoned" hint="the crowning deed won't be done, so neither will the quest">
+            <Section title="Abandoned" hint="the crowning quest won't be done, so neither will the journey">
               {gone.map(row)}
             </Section>
           )}
@@ -301,7 +302,7 @@ export default function QuestBoard({ quests, hrefOf, eyebrow, noMap, banner, emp
                   Archived ({archived.length})
                 </h2>
                 <span className="text-[14px] text-[var(--ink-soft)]">
-                  put away with <span className="font-mono">mikado quest archive</span> — charts still open
+                  put away with <span className="font-mono">mikado journey archive</span> — charts still open
                 </span>
               </summary>
               <Rows>{archived.map(archivedRow)}</Rows>

@@ -19,7 +19,7 @@ export function Failed({ error, what }: { error: ApiError; what: string }) {
       </NoticePage>
     )
   return (
-    <NoticePage title={`Could not load ${what}`} back={{ href: '/', label: 'Quest Board' }}>
+    <NoticePage title={`Could not load ${what}`} back={{ href: '/', label: 'Atlas' }}>
       <p>{error.message}</p>
     </NoticePage>
   )

@@ -1,25 +1,25 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { Crown, Search as SearchIcon, Trophy } from 'lucide-react'
-import { fetchSearch, type Card, type QuestInfo, type SearchResult } from '../api'
-import { ArchivedChip, QuestStateChip, stateColour, words } from './look'
+import { fetchSearch, type Card, type JourneyInfo, type SearchResult } from '../api'
+import { ArchivedChip, JourneyStateChip, stateColour, words } from './look'
 
-// The search popup: quests and deeds by title, or straight to a deed by its id (M142) or
-// issue (owner/repo#n). Ctrl+K / ⌘K or "/" opens it from anywhere on the page.
+// The search popup: journeys and quests by title, or straight to a journey or quest by its key
+// (J7, Q142) or an issue (owner/repo#n). Ctrl+K / ⌘K or "/" opens it from anywhere on the page.
 
-type Hit = { kind: 'quest'; quest: QuestInfo } | { kind: 'deed'; deed: Card; exact: boolean }
+type Hit = { kind: 'journey'; journey: JourneyInfo } | { kind: 'quest'; quest: Card; exact: boolean }
 
-const questHref = (slug: string) => `/quest/${encodeURIComponent(slug)}`
+const journeyHref = (key: string) => `/journey/${encodeURIComponent(key)}`
 const mac = typeof navigator !== 'undefined' && /Mac|iP(hone|ad)/.test(navigator.platform)
 
-/** The chart a deed opens on: the one being viewed if the deed is on it, else its first quest. */
+/** The chart a quest opens on: the one being viewed if the quest is on it, else its first journey's. */
 function chartOf(d: Card, here?: string): string | undefined {
-  const slugs = (d.alsoIn ?? []).map((q) => q.slug)
-  return here && slugs.includes(here) ? here : slugs[0]
+  const keys = (d.alsoIn ?? []).map((j) => j.key)
+  return here && keys.includes(here) ? here : keys[0]
 }
 
 export type SearchProps = {
-  here?: string // the slug of the chart being viewed, if any
-  select?: (key: string) => boolean // select a deed on that chart; false if it is not there
+  here?: string // the key of the journey whose chart is being viewed, if any
+  select?: (key: string) => boolean // select a quest on that chart; false if it is not there
 }
 
 /** compact: the button shows only its icon (the chart's header is crowded); the tooltip keeps the shortcut. */
@@ -43,8 +43,8 @@ export function Search({ here, select, compact }: SearchProps & { compact?: bool
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Search quests and deeds"
-        title={`Search quests and deeds (${mac ? '⌘' : 'Ctrl'} K)`}
+        aria-label="Search journeys and quests"
+        title={`Search journeys and quests (${mac ? '⌘' : 'Ctrl'} K)`}
         className={`flex h-10 shrink-0 items-center gap-2 rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)] ${compact ? 'w-10 justify-center' : 'px-3'}`}
       >
         <SearchIcon size={17} />
@@ -90,22 +90,22 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
 
   const hits: Hit[] = res
     ? [
-        ...(res.exact ? [{ kind: 'deed' as const, deed: res.exact, exact: true }] : []),
-        ...res.quests.map((quest) => ({ kind: 'quest' as const, quest })),
-        ...res.deeds.filter((d) => d.id !== res.exact?.id).map((deed) => ({ kind: 'deed' as const, deed, exact: false })),
+        ...(res.exact ? [{ kind: 'quest' as const, quest: res.exact, exact: true }] : []),
+        ...res.journeys.map((journey) => ({ kind: 'journey' as const, journey })),
+        ...res.quests.filter((d) => d.id !== res.exact?.id).map((quest) => ({ kind: 'quest' as const, quest, exact: false })),
       ]
     : []
 
   const go = (h: Hit | undefined) => {
     if (!h) return
-    if (h.kind === 'quest') {
-      location.assign(questHref(h.quest.slug))
+    if (h.kind === 'journey') {
+      location.assign(journeyHref(h.journey.key))
       return
     }
-    const slug = chartOf(h.deed, here)
-    if (!slug) return // in no quest: no chart to show it on
-    if (slug === here && select?.(h.deed.key ?? `M${h.deed.id}`)) close()
-    else location.assign(`${questHref(slug)}?deed=${encodeURIComponent(h.deed.key ?? `M${h.deed.id}`)}`)
+    const key = chartOf(h.quest, here)
+    if (!key) return // in no journey: no chart to show it on
+    if (key === here && select?.(h.quest.key)) close()
+    else location.assign(`${journeyHref(key)}?quest=${encodeURIComponent(h.quest.key)}`)
   }
 
   useEffect(() => {
@@ -125,7 +125,7 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
     const i = hits.indexOf(h)
     return (
       <div
-        key={h.kind === 'quest' ? `q:${h.quest.slug}` : `d:${h.deed.id}`}
+        key={h.kind === 'journey' ? `j:${h.journey.key}` : `q:${h.quest.id}`}
         data-hit={i}
         role="option"
         aria-selected={i === active}
@@ -133,13 +133,13 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
         onClick={() => go(h)}
         className={`flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 ${i === active ? 'bg-[var(--chip)]' : ''}`}
       >
-        {h.kind === 'quest' ? <QuestHit q={h.quest} /> : <DeedHit d={h.deed} exact={h.exact} here={here} />}
+        {h.kind === 'journey' ? <JourneyHit j={h.journey} /> : <QuestHit d={h.quest} exact={h.exact} here={here} />}
       </div>
     )
   }
-  const exact = hits.filter((h) => h.kind === 'deed' && h.exact)
-  const quests = hits.filter((h) => h.kind === 'quest')
-  const deeds = hits.filter((h) => h.kind === 'deed' && !h.exact)
+  const exact = hits.filter((h) => h.kind === 'quest' && h.exact)
+  const journeys = hits.filter((h) => h.kind === 'journey')
+  const quests = hits.filter((h) => h.kind === 'quest' && !h.exact)
 
   return (
     <div
@@ -156,7 +156,7 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Search quests and deeds, or jump to M142 / owner/repo#n"
+            placeholder="Search journeys and quests, or jump to J7 / Q142 / owner/repo#n"
             aria-label="Search"
             className="h-14 min-w-0 flex-1 bg-transparent text-[16px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)]"
           />
@@ -165,10 +165,10 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
         <div ref={list} role="listbox" className="overflow-y-auto p-2">
           {error && <div className="px-3 py-2 text-[14px] text-[#e11d48]">Search failed: {error}</div>}
           {exact.length > 0 && <Group title="Go to">{exact.map(row)}</Group>}
+          {journeys.length > 0 && <Group title="Journeys">{journeys.map(row)}</Group>}
           {quests.length > 0 && <Group title="Quests">{quests.map(row)}</Group>}
-          {deeds.length > 0 && <Group title="Deeds">{deeds.map(row)}</Group>}
           {res && !error && hits.length === 0 && (
-            <div className="px-3 py-6 text-center text-[14px] text-[var(--ink-soft)]">{q.trim() ? `Nothing matches “${q.trim()}”.` : 'No quests yet.'}</div>
+            <div className="px-3 py-6 text-center text-[14px] text-[var(--ink-soft)]">{q.trim() ? `Nothing matches “${q.trim()}”.` : 'No journeys yet.'}</div>
           )}
         </div>
         <div className="flex gap-4 border-t border-[var(--panel-border)] px-4 py-2 text-[12px] text-[var(--ink-faint)]">
@@ -190,27 +190,27 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function QuestHit({ q }: { q: QuestInfo }) {
+function JourneyHit({ j }: { j: JourneyInfo }) {
   return (
     <>
       <Trophy size={17} className="shrink-0 text-[var(--gold)]" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold text-[var(--ink)]">{q.title}</span>
-        <span className="block truncate font-mono text-[12px] text-[var(--ink-faint)]">{q.slug}</span>
+        <span className="block truncate text-[15px] font-semibold text-[var(--ink)]">{j.title}</span>
+        <span className="block truncate font-mono text-[12px] text-[var(--ink-faint)]">{j.key}</span>
       </span>
-      <QuestStateChip state={q.state} />
-      {q.archivedAt && <ArchivedChip />}
+      <JourneyStateChip state={j.state} />
+      {j.archivedAt && <ArchivedChip />}
     </>
   )
 }
 
-function DeedHit({ d, exact, here }: { d: Card; exact: boolean; here?: string }) {
-  const quests = d.alsoIn ?? []
+function QuestHit({ d, exact, here }: { d: Card; exact: boolean; here?: string }) {
+  const journeys = d.alsoIn ?? []
   const kind = d.kind === 'issue' ? d.ref : d.kind === 'awaiting' ? 'Petition' : 'Errand'
   return (
     <>
       <span className={`w-14 shrink-0 font-mono text-[13px] font-semibold ${exact ? 'text-[var(--avail)]' : 'text-[var(--ink-soft)]'}`}>
-        {d.key ?? `M${d.id}`}
+        {d.key}
       </span>
       <span className="min-w-0 flex-1">
         <span
@@ -218,14 +218,14 @@ function DeedHit({ d, exact, here }: { d: Card; exact: boolean; here?: string })
             d.status === 'done' || d.status === 'cancelled' ? 'text-[var(--ink-soft)]' : 'font-semibold text-[var(--ink)]'
           } ${d.status === 'cancelled' ? 'line-through' : ''}`}
         >
-          {d.final && <Crown size={14} className="shrink-0 text-[var(--gold)]" aria-label="crowning deed" />}
+          {d.final && <Crown size={14} className="shrink-0 text-[var(--gold)]" aria-label="crowning quest" />}
           <span className="truncate">{d.title}</span>
         </span>
         <span className="block truncate text-[12px] text-[var(--ink-faint)]">
           {kind} ·{' '}
-          {quests.length === 0
-            ? 'in no quest, so no chart to open'
-            : quests.map((q) => (q.slug === here ? `${q.slug} (this chart)` : q.slug)).join(', ')}
+          {journeys.length === 0
+            ? 'in no journey, so no chart to open'
+            : journeys.map((j) => (j.key === here ? `${j.key} ${j.title} (this chart)` : `${j.key} ${j.title}`)).join(', ')}
         </span>
       </span>
       <span className="shrink-0 text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour[d.status] }}>

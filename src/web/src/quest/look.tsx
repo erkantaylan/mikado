@@ -15,7 +15,7 @@ export const words: Record<Status, string> = {
 export const glow = (v: string, px: number, pct: number) => `0 0 ${px}px color-mix(in srgb, var(${v}) ${pct}%, transparent)`
 
 // What is still to do catches the eye; what is fulfilled steps back (muted, no glow), so a chart
-// full of finished deeds still points at the open ones.
+// full of finished quests still points at the open ones.
 const spentGold = 'color-mix(in srgb, var(--gold) 55%, var(--panel))'
 export const medal: Record<Status, CSSProperties> = {
   done: { background: spentGold, borderColor: spentGold, color: 'var(--gold-ink)' },
@@ -24,7 +24,7 @@ export const medal: Record<Status, CSSProperties> = {
   awaiting: { background: 'var(--await)', borderColor: 'var(--await)', color: '#fff' },
   cancelled: { background: 'var(--panel)', borderColor: 'var(--edge-off)', color: 'var(--ink-faint)' },
 }
-// The quest itself, once its crowning deed is fulfilled: the one win that keeps the full gold.
+// The journey itself, once its crowning quest is fulfilled: the one win that keeps the full gold.
 export const crownMedal: CSSProperties = { background: 'var(--gold)', borderColor: 'var(--gold)', color: 'var(--gold-ink)', boxShadow: glow('--gold', 16, 55) }
 export const sideMedal: CSSProperties = { background: 'var(--panel)', borderColor: 'var(--side)', color: 'var(--side)' }
 
@@ -45,7 +45,7 @@ export const stateColour: Record<Status, string> = {
   cancelled: 'var(--ink-faint)',
 }
 
-/** A fulfilled deed's own label: still gold, but quiet. The header counts keep stateColour.done. */
+/** A fulfilled quest's own label: still gold, but quiet. The header counts keep stateColour.done. */
 export const spentText = 'color-mix(in srgb, var(--gold) 55%, var(--ink-faint))'
 
 export function Hero({ name }: { name?: string }) {
@@ -63,34 +63,34 @@ export function Hero({ name }: { name?: string }) {
   )
 }
 
-// NPC changes nothing about a deed's status; it only makes the deed red on the chart.
+// NPC changes nothing about a quest's status; it only makes the quest red on the chart.
 export function Npc() {
   return (
     <span
       className="shrink-0 rounded border border-[var(--npc)] bg-[var(--npc)] px-1 text-[11px] font-bold tracking-wider text-[var(--npc-ink)]"
-      title="NPC (right-click the deed on the chart to change)"
+      title="NPC (right-click the quest on the chart to change)"
     >
       NPC
     </span>
   )
 }
 
-/** The deed's key (M142), the id people use for it, in front of everything else. */
+/** The quest's key (Q142), the id people use for it, in front of everything else. */
 export function Key({ id }: { id?: string }) {
   if (!id) return null
   return <span className="quest-key shrink-0 font-mono text-[12px] font-semibold text-[var(--ink-faint)]">{id}</span>
 }
 
-/** The kind tag in front of a title: the deed's key, then the issue's repo#n or what sort of deed it is. */
+/** The kind tag in front of a title: the quest's key, then the issue's repo#n or what sort of quest it is. */
 export function Label({ item, tag }: { item: Item; tag: string }) {
   const kind = item.crowns ? (
-    // A quest card: named by the quest it stands for.
+    // A journey card: named by the journey it stands for.
     <span className="flex min-w-0 items-center gap-1">
       <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.done }}>
-        <Layers size={12} /> Quest
+        <Layers size={12} /> Journey
       </span>
-      <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.slug}>
-        {item.crowns.slug}
+      <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.key}>
+        {item.crowns.key}
       </span>
     </span>
   ) : item.kind === 'wait' ? (
@@ -178,8 +178,8 @@ export function Stat({ n, label, colour }: { n: number; label: string; colour: s
   )
 }
 
-/** A quest that is over, one way or the other: shown on the Quest Board and in the chart header. */
-export function QuestStateChip({ state }: { state?: string }) {
+/** A journey that is over, one way or the other: shown on the Atlas and in the chart header. */
+export function JourneyStateChip({ state }: { state?: string }) {
   if (state !== 'complete' && state !== 'cancelled') return null
   const complete = state === 'complete'
   return (
@@ -196,12 +196,12 @@ export function QuestStateChip({ state }: { state?: string }) {
   )
 }
 
-/** An archived quest: put away off the Quest Board's shelves, otherwise as it was. */
+/** An archived journey: put away off the Atlas's shelves, otherwise as it was. */
 export function ArchivedChip() {
   return (
     <span
       className="inline-flex shrink-0 items-center rounded-full border-2 border-[var(--edge-off)] px-2 py-0.5 text-[11px] font-bold tracking-[0.15em] text-[var(--ink-soft)] uppercase"
-      title="Archived: off the Quest Board's shelves (mikado quest unarchive brings it back)"
+      title="Archived: off the Atlas's shelves (mikado journey unarchive brings it back)"
     >
       Archived
     </span>
@@ -210,17 +210,17 @@ export function ArchivedChip() {
 
 // ---- the war table's card marks (quest.css draws them) ----------------------
 // On a war-table card each spot answers one question: the gate on the top-left
-// corner says whether the deed can be started, the kind marks on the top-right
+// corner says whether the quest can be started, the kind marks on the top-right
 // what sort of card it is.
 
 const gateTitle: Record<Exclude<Status, 'cancelled'>, string> = {
-  locked: 'Sealed: it waits on deeds it requires',
+  locked: 'Sealed: it waits on quests it requires',
   available: 'Open: it can be started',
   awaiting: 'Awaiting reply',
   done: 'Fulfilled',
 }
 
-/** The gate mark: a whole seal with the count still to go, a broken seal, an hourglass or a planted flag. An abandoned deed has none. */
+/** The gate mark: a whole seal with the count still to go, a broken seal, an hourglass or a planted flag. An abandoned quest has none. */
 export function Gate({ status, count, small = false }: { status: Status; count?: number; small?: boolean }) {
   if (status === 'cancelled') return null
   const title = status === 'locked' && count !== undefined ? `Sealed: ${count} still to go` : gateTitle[status]
@@ -231,13 +231,13 @@ export function Gate({ status, count, small = false }: { status: Status; count?:
   )
 }
 
-export type Kind = 'side' | 'unearthed' | 'quest' | 'npc'
+export type Kind = 'side' | 'found' | 'journey' | 'npc'
 
 export const kindTitle: Record<Kind, string> = {
   side: 'Side quest: optional, earns an achievement',
-  unearthed: 'Unearthed: found along the way',
-  quest: 'Quest card: stands for another quest, with its own chart',
-  npc: 'NPC (right-click the deed on the chart to change)',
+  found: 'Found: turned up along the way',
+  journey: 'Journey card: stands for another journey, with its own chart',
+  npc: 'NPC (right-click the quest on the chart to change)',
 }
 
 /** One kind mark: a gem, a spade, a castle or a red banner. */
@@ -257,7 +257,7 @@ export function Kinds({ kinds, reason, children }: { kinds: Kind[]; reason?: str
     <span className="wt-kinds ml-auto flex shrink-0 items-center gap-1.5">
       {children}
       {kinds.map((k) => (
-        <KindMark key={k} kind={k} title={k === 'unearthed' && reason ? `${kindTitle.unearthed} (${reason})` : undefined} />
+        <KindMark key={k} kind={k} title={k === 'found' && reason ? `${kindTitle.found} (${reason})` : undefined} />
       ))}
     </span>
   )

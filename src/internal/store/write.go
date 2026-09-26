@@ -11,63 +11,13 @@ import (
 	"mikado/internal/github"
 )
 
-var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-
-// stopWords are left out of derived slugs.
-var stopWords = map[string]bool{
-	"a": true, "an": true, "the": true, "with": true, "in": true, "on": true, "for": true, "of": true,
-	"to": true, "and": true, "or": true, "at": true, "by": true, "from": true, "into": true, "is": true,
-	"are": true, "be": true, "its": true, "it": true, "as": true, "via": true,
-}
-
-// maxSlug caps derived slugs.
-const maxSlug = 32
-
-// Slugify derives a short slug from a title: its first four significant
-// words (stop-words dropped; a hyphenated word counts as one), lowercase
-// ASCII letters and digits joined by dashes, at most 32 characters.
-func Slugify(title string) string {
-	var words []string
-	for _, field := range strings.Fields(strings.ToLower(title)) {
-		var parts []string
-		for _, p := range strings.FieldsFunc(field, func(r rune) bool { return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9') }) {
-			parts = append(parts, p)
-		}
-		w := strings.Join(parts, "-")
-		if w == "" || stopWords[w] {
-			continue
-		}
-		words = append(words, w)
-		if len(words) == 4 {
-			break
-		}
-	}
-	s := strings.Join(words, "-")
-	for len(s) > maxSlug {
-		i := strings.LastIndexByte(s, '-')
-		if i <= 0 {
-			s = s[:maxSlug]
-			break
-		}
-		s = s[:i]
-	}
-	return strings.Trim(s, "-")
-}
-
-func checkSlug(slug string) error {
-	if !slugRe.MatchString(slug) {
-		return errf(ErrInvalid, "slug %q: use lowercase letters, digits and single dashes", slug)
-	}
-	return nil
-}
-
-func (s *Store) event(ctx context.Context, q querier, questID, cardID *int64, kind, text string) error {
-	_, err := q.ExecContext(ctx, `INSERT INTO events (quest_id, card_id, at, kind, text) VALUES (?, ?, ?, ?, ?)`,
-		questID, cardID, s.stamp(), kind, text)
+func (s *Store) event(ctx context.Context, q querier, journeyID, cardID *int64, kind, text string) error {
+	_, err := q.ExecContext(ctx, `INSERT INTO events (journey_id, card_id, at, kind, text) VALUES (?, ?, ?, ?, ?)`,
+		journeyID, cardID, s.stamp(), kind, text)
 	return err
 }
 
-// cardEvent logs a change to a card; it shows in the log of every quest the
+// cardEvent logs a change to a card; it shows in the log of every journey the
 // card is a member of.
 func (s *Store) cardEvent(ctx context.Context, q querier, id int64, kind, text string) error {
 	return s.event(ctx, q, nil, &id, kind, text)
@@ -88,195 +38,147 @@ func quoted(t string) string {
 	return "“" + t + "”"
 }
 
-// CreateQuest creates a quest, optionally with its final card. With no slug
-// one is derived from the title (suffixed -2, -3… if taken); an explicit
-// slug that is taken is a conflict.
-func (s *Store) CreateQuest(ctx context.Context, title, slug string, final *int64) (*QuestSummary, error) {
+// CreateJourney creates a journey, optionally with its final card.
+func (s *Store) CreateJourney(ctx context.Context, title string, final *int64) (*JourneySummary, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
-		return nil, errf(ErrInvalid, "a quest needs a title")
+		return nil, errf(ErrInvalid, "a journey needs a title")
 	}
-	slug = strings.ToLower(strings.TrimSpace(slug))
-	explicit := slug != ""
-	if !explicit {
-		if slug = Slugify(title); slug == "" {
-			slug = "quest"
-		}
-	} else if err := checkSlug(slug); err != nil {
-		return nil, err
-	}
+	var id int64
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
-		base := slug
-		for n := 2; ; n++ {
-			var exists int
-			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM quests WHERE slug = ?`, slug).Scan(&exists); err != nil {
-				return err
-			}
-			if exists == 0 {
-				break
-			}
-			if explicit {
-				return errf(ErrConflict, "a quest with slug %q already exists", slug)
-			}
-			slug = fmt.Sprintf("%s-%d", base, n)
-		}
-		var id int64
-		if err := tx.QueryRowContext(ctx, `INSERT INTO quests (slug, title, created_at) VALUES (?, ?, ?) RETURNING id`,
-			slug, title, s.stamp()).Scan(&id); err != nil {
+		if err := tx.QueryRowContext(ctx, `INSERT INTO journeys (title, created_at) VALUES (?, ?) RETURNING id`,
+			title, s.stamp()).Scan(&id); err != nil {
 			return err
 		}
-		if err := s.event(ctx, tx, &id, nil, "create", "quest created"); err != nil {
+		if err := s.event(ctx, tx, &id, nil, "create", "journey created"); err != nil {
 			return err
 		}
 		if final != nil {
-			return s.setFinal(ctx, tx, &questRow{ID: id, Slug: slug}, *final)
+			return s.setFinal(ctx, tx, &journeyRow{ID: id}, *final)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.summary(ctx, slug)
+	return s.summary(ctx, id)
 }
 
-func (s *Store) summary(ctx context.Context, slug string) (*QuestSummary, error) {
-	qs, _, err := s.Quests(ctx)
+func (s *Store) summary(ctx context.Context, id int64) (*JourneySummary, error) {
+	js, _, err := s.Journeys(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for i := range qs {
-		if qs[i].Slug == slug {
-			return &qs[i], nil
+	for i := range js {
+		if js[i].Key == JourneyKey(id) {
+			return &js[i], nil
 		}
 	}
-	return nil, errf(ErrNotFound, "no quest %q", slug)
+	return nil, errf(ErrNotFound, "no journey %s", JourneyKey(id))
 }
 
-// UpdateQuest renames a quest (slug and/or title), archives or unarchives it,
-// or sets its final card.
-func (s *Store) UpdateQuest(ctx context.Context, slug string, p QuestPatch) (*QuestSummary, error) {
-	q, err := getQuest(ctx, s.db, slug)
+// UpdateJourney retitles a journey, archives or unarchives it, or sets its
+// final card.
+func (s *Store) UpdateJourney(ctx context.Context, key string, p JourneyPatch) (*JourneySummary, error) {
+	j, err := getJourney(ctx, s.db, key)
 	if err != nil {
 		return nil, err
 	}
-	newSlug := q.Slug
 	err = s.inTx(ctx, func(tx *sql.Tx) error {
-		if p.Slug != nil {
-			ns := strings.ToLower(strings.TrimSpace(*p.Slug))
-			if err := checkSlug(ns); err != nil {
-				return err
-			}
-			if ns != q.Slug {
-				var n int
-				if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM quests WHERE slug = ?`, ns).Scan(&n); err != nil {
-					return err
-				}
-				if n > 0 {
-					return errf(ErrConflict, "a quest with slug %q already exists", ns)
-				}
-				if _, err := tx.ExecContext(ctx, `UPDATE quests SET slug = ? WHERE id = ?`, ns, q.ID); err != nil {
-					return err
-				}
-				if err := s.event(ctx, tx, &q.ID, nil, "edit", "quest renamed from "+q.Slug); err != nil {
-					return err
-				}
-				newSlug = ns
-			}
-		}
 		if p.Title != nil {
 			t := strings.TrimSpace(*p.Title)
 			if t == "" {
-				return errf(ErrInvalid, "a quest needs a title")
+				return errf(ErrInvalid, "a journey needs a title")
 			}
-			if t != q.Title {
-				if _, err := tx.ExecContext(ctx, `UPDATE quests SET title = ? WHERE id = ?`, t, q.ID); err != nil {
+			if t != j.Title {
+				if _, err := tx.ExecContext(ctx, `UPDATE journeys SET title = ? WHERE id = ?`, t, j.ID); err != nil {
 					return err
 				}
-				if err := s.event(ctx, tx, &q.ID, nil, "edit", "quest retitled from "+quoted(q.Title)); err != nil {
+				if err := s.event(ctx, tx, &j.ID, nil, "edit", "journey retitled from "+quoted(j.Title)); err != nil {
 					return err
 				}
 			}
 		}
-		if p.Archived != nil && *p.Archived != (q.ArchivedAt != "") {
+		if p.Archived != nil && *p.Archived != (j.ArchivedAt != "") {
 			var at any // NULL: brought back
-			text := "quest brought back from the archive"
+			text := "journey brought back from the archive"
 			if *p.Archived {
-				at, text = s.stamp(), "quest archived"
+				at, text = s.stamp(), "journey archived"
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE quests SET archived_at = ? WHERE id = ?`, at, q.ID); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE journeys SET archived_at = ? WHERE id = ?`, at, j.ID); err != nil {
 				return err
 			}
-			if err := s.event(ctx, tx, &q.ID, nil, "archive", text); err != nil {
+			if err := s.event(ctx, tx, &j.ID, nil, "archive", text); err != nil {
 				return err
 			}
 		}
 		if p.Final != nil {
-			return s.setFinal(ctx, tx, q, *p.Final)
+			return s.setFinal(ctx, tx, j, *p.Final)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return s.summary(ctx, newSlug)
+	return s.summary(ctx, j.ID)
 }
 
-// setFinal makes a live, non-side card the quest's final card.
-func (s *Store) setFinal(ctx context.Context, tx *sql.Tx, q *questRow, id int64) error {
+// setFinal makes a live, non-side card the journey's final card.
+func (s *Store) setFinal(ctx context.Context, tx *sql.Tx, j *journeyRow, id int64) error {
 	c, err := liveCard(ctx, tx, id)
 	if err != nil {
 		return err
 	}
 	if c.SideOf != nil {
-		return errf(ErrInvalid, "%s is a side quest; a side quest cannot be a quest's crowning deed", Key(id))
+		return errf(ErrInvalid, "%s is a side quest; a side quest cannot be a journey's crowning quest", Key(id))
 	}
 	var old sql.NullInt64
-	if err := tx.QueryRowContext(ctx, `SELECT q.final_card FROM quests q JOIN cards c ON c.id = q.final_card AND c.removed_at IS NULL WHERE q.id = ?`, q.ID).Scan(&old); err != nil && err != sql.ErrNoRows {
+	if err := tx.QueryRowContext(ctx, `SELECT j.final_card FROM journeys j JOIN cards c ON c.id = j.final_card AND c.removed_at IS NULL WHERE j.id = ?`, j.ID).Scan(&old); err != nil && err != sql.ErrNoRows {
 		return err
 	}
 	if old.Valid && old.Int64 == id {
 		return nil
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE quests SET final_card = ? WHERE id = ?`, id, q.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE journeys SET final_card = ? WHERE id = ?`, id, j.ID); err != nil {
 		return err
 	}
-	text := "crowning deed set to " + Key(id)
+	text := "crowning quest set to " + Key(id)
 	if old.Valid {
-		text = fmt.Sprintf("crowning deed changed from %s to %s", Key(old.Int64), Key(id))
+		text = fmt.Sprintf("crowning quest changed from %s to %s", Key(old.Int64), Key(id))
 	}
-	return s.event(ctx, tx, &q.ID, &id, "final", text)
+	return s.event(ctx, tx, &j.ID, &id, "final", text)
 }
 
-// clearFinal leaves the quest without a final card.
-func (s *Store) clearFinal(ctx context.Context, tx *sql.Tx, q *questRow, text string) error {
-	if _, err := tx.ExecContext(ctx, `UPDATE quests SET final_card = NULL WHERE id = ?`, q.ID); err != nil {
+// clearFinal leaves the journey without a final card.
+func (s *Store) clearFinal(ctx context.Context, tx *sql.Tx, j *journeyRow, text string) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE journeys SET final_card = NULL WHERE id = ?`, j.ID); err != nil {
 		return err
 	}
-	return s.event(ctx, tx, &q.ID, q.Final, "final", text)
+	return s.event(ctx, tx, &j.ID, j.Final, "final", text)
 }
 
 // AddCard adds a card to the global graph and links it as asked. An issue
 // that already has a live card is not added again: that card is returned
-// (created=false) with the requested links applied to it. viewing (a slug,
-// or "") only shapes the returned card; see card.
+// (created=false) with the requested links applied to it. viewing (a
+// journey key, or "") only shapes the returned card; see card.
 func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card, bool, error) {
 	in.Title, in.Owner, in.WaitingOn, in.Reason = strings.TrimSpace(in.Title), strings.TrimSpace(in.Owner), strings.TrimSpace(in.WaitingOn), strings.TrimSpace(in.Reason)
 	if in.Final {
 		if viewing == "" {
-			return nil, false, errf(ErrInvalid, "a crowning deed needs a quest: use finalOf")
+			return nil, false, errf(ErrInvalid, "a crowning quest needs a journey: use finalOf")
 		}
 		in.FinalOf = viewing
 	}
-	var finalOf *questRow
+	var finalOf *journeyRow
 	if in.FinalOf != "" {
-		q, err := getQuest(ctx, s.db, in.FinalOf)
+		q, err := getJourney(ctx, s.db, in.FinalOf)
 		if err != nil {
 			return nil, false, err
 		}
 		finalOf = q
 	}
 	if in.SideOf != nil && (finalOf != nil || len(in.Needs) > 0 || len(in.NeededBy) > 0) {
-		return nil, false, errf(ErrInvalid, "a side quest never blocks anything: it cannot crown a quest, require or open a deed")
+		return nil, false, errf(ErrInvalid, "a side quest never blocks anything: it cannot crown a journey, require or open a quest")
 	}
 
 	var ref github.Ref
@@ -382,8 +284,8 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 			}
 		}
 
-		// "M9 errand added as a side quest on M4 — opens M3", or for a deed found
-		// on the way, "M9 unearthed while on M3: old saves crash the loader — opens M3".
+		// "Q9 errand added as a side quest on Q4 — opens Q3", or for a quest found
+		// on the way, "Q9 found on Q3: old saves crash the loader — opens Q3".
 		head := Key(id)
 		switch in.Kind {
 		case KindErrand:
@@ -393,7 +295,7 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 		}
 		var details []string
 		if in.FoundWhile != nil {
-			head += " unearthed while on " + Key(*in.FoundWhile)
+			head += " found on " + Key(*in.FoundWhile)
 			if in.Reason != "" {
 				head += ": " + in.Reason
 			}
@@ -440,7 +342,7 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 // link applies the link requests of an add to an existing card: needs,
 // neededBy, sideOf and finalOf. Each new link is logged; existing ones are
 // left alone.
-func (s *Store) link(ctx context.Context, tx *sql.Tx, id int64, in NewCard, finalOf *questRow) error {
+func (s *Store) link(ctx context.Context, tx *sql.Tx, id int64, in NewCard, finalOf *journeyRow) error {
 	c, err := liveCard(ctx, tx, id)
 	if err != nil {
 		return err
@@ -496,13 +398,13 @@ func (s *Store) makeSide(ctx context.Context, tx *sql.Tx, c *cardRow, parent int
 		return err
 	}
 	if n > 0 {
-		return errf(ErrConflict, "%s requires or opens other deeds; a side quest never blocks anything (unrequire it first)", Key(c.ID))
+		return errf(ErrConflict, "%s requires or opens other quests; a side quest never blocks anything (unrequire it first)", Key(c.ID))
 	}
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM quests WHERE final_card = ?`, c.ID).Scan(&n); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM journeys WHERE final_card = ?`, c.ID).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
-		return errf(ErrConflict, "%s is a quest's crowning deed; a side quest cannot be", Key(c.ID))
+		return errf(ErrConflict, "%s is a journey's crowning quest; a side quest cannot be", Key(c.ID))
 	}
 	// parent must not be c or one of c's own side quests.
 	for p := &parent; p != nil; {
@@ -529,7 +431,7 @@ func mainCards(ctx context.Context, q querier, ids []int64) error {
 			return err
 		}
 		if c.SideOf != nil {
-			return errf(ErrInvalid, "%s is a side quest; side quests neither require nor open other deeds", Key(id))
+			return errf(ErrInvalid, "%s is a side quest; side quests neither require nor open other quests", Key(id))
 		}
 	}
 	return nil
@@ -539,7 +441,7 @@ func mainCards(ctx context.Context, q querier, ids []int64) error {
 // close a cycle anywhere in the graph.
 func addNeed(ctx context.Context, q querier, from, to int64) (bool, error) {
 	if from == to {
-		return false, errf(ErrInvalid, "a deed cannot require itself")
+		return false, errf(ErrInvalid, "a quest cannot require itself")
 	}
 	rows, err := q.QueryContext(ctx, `SELECT from_card, to_card FROM needs`)
 	if err != nil {
@@ -616,7 +518,7 @@ func (s *Store) AddNeed(ctx context.Context, from, to int64) (bool, error) {
 	return created, err
 }
 
-// RemoveNeed drops the need from→to. This is how a card leaves a quest.
+// RemoveNeed drops the need from→to. This is how a card leaves a journey.
 func (s *Store) RemoveNeed(ctx context.Context, from, to int64) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `DELETE FROM needs WHERE from_card = ? AND to_card = ?`, from, to)
@@ -665,11 +567,11 @@ func sideQuestsOf(ctx context.Context, q querier, id int64) ([]*cardRow, error) 
 
 // RemoveCard soft-deletes a card: it leaves the graph (and every need that
 // touches it) but stays in the log. Its side quests go with it, each with
-// its own event; a quest whose final card goes is left without one.
+// its own event; a journey whose final card goes is left without one.
 func (s *Store) RemoveCard(ctx context.Context, id int64, reason string) error {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		return errf(ErrInvalid, "say why the deed is struck (reason)")
+		return errf(ErrInvalid, "say why the quest is struck (reason)")
 	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		if _, err := liveCard(ctx, tx, id); err != nil {
@@ -689,14 +591,14 @@ func (s *Store) RemoveCard(ctx context.Context, id int64, reason string) error {
 			if err := s.cardEvent(ctx, tx, cid, "remove", text); err != nil {
 				return err
 			}
-			rows, err := tx.QueryContext(ctx, `SELECT id, slug FROM quests WHERE final_card = ?`, cid)
+			rows, err := tx.QueryContext(ctx, `SELECT id FROM journeys WHERE final_card = ?`, cid)
 			if err != nil {
 				return err
 			}
-			var qs []*questRow
+			var qs []*journeyRow
 			for rows.Next() {
-				q := &questRow{Final: &cid}
-				if err := rows.Scan(&q.ID, &q.Slug); err != nil {
+				q := &journeyRow{Final: &cid}
+				if err := rows.Scan(&q.ID); err != nil {
 					rows.Close()
 					return err
 				}
@@ -704,7 +606,7 @@ func (s *Store) RemoveCard(ctx context.Context, id int64, reason string) error {
 			}
 			rows.Close()
 			for _, q := range qs {
-				if err := s.clearFinal(ctx, tx, q, "crowning deed "+Key(cid)+" struck: "+reason); err != nil {
+				if err := s.clearFinal(ctx, tx, q, "crowning quest "+Key(cid)+" struck: "+reason); err != nil {
 					return err
 				}
 			}
@@ -714,7 +616,7 @@ func (s *Store) RemoveCard(ctx context.Context, id int64, reason string) error {
 			return err
 		}
 		for _, sq := range sides {
-			if err := remove(sq.ID, fmt.Sprintf("%s struck with its deed %s: %s", Key(sq.ID), Key(id), reason)); err != nil {
+			if err := remove(sq.ID, fmt.Sprintf("%s struck with its quest %s: %s", Key(sq.ID), Key(id), reason)); err != nil {
 				return err
 			}
 		}
@@ -725,16 +627,16 @@ func (s *Store) RemoveCard(ctx context.Context, id int64, reason string) error {
 // UpdateCard applies a patch. done and title apply to errands and awaitings
 // only: an issue is done when it closes on GitHub. Cancelling (any kind,
 // reason required) cascades to the card's side quests; marking a card done
-// or cancelled stops work on it. Final needs a quest: viewing names it.
+// or cancelled stops work on it. Final needs a journey: viewing names it.
 func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing string) (*Card, error) {
-	var q *questRow
+	var q *journeyRow
 	if viewing != "" {
 		var err error
-		if q, err = getQuest(ctx, s.db, viewing); err != nil {
+		if q, err = getJourney(ctx, s.db, viewing); err != nil {
 			return nil, err
 		}
 	} else if p.Final != nil {
-		return nil, errf(ErrInvalid, "a crowning deed belongs to a quest: set it with PATCH /api/quests/{slug} {final} (mikado quest crown)")
+		return nil, errf(ErrInvalid, "a crowning quest belongs to a journey: set it with PATCH /api/journeys/{key} {final} (mikado journey crown)")
 	}
 	// An issue's done and abandoned states live on GitHub, which the local
 	// guard below cannot see: check them before taking an issue up.
@@ -836,7 +738,7 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 					reason = strings.TrimSpace(*p.CancelReason)
 				}
 				if reason == "" {
-					return errf(ErrInvalid, "say why the deed is abandoned (cancelReason)")
+					return errf(ErrInvalid, "say why the quest is abandoned (cancelReason)")
 				}
 				sides, err := sideQuestsOf(ctx, tx, id)
 				if err != nil {
@@ -854,7 +756,7 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 				}
 				for _, sq := range sides {
 					if !sq.Cancelled {
-						if err := cancel(sq.ID, fmt.Sprintf("%s abandoned with its deed %s: %s", Key(sq.ID), k, reason)); err != nil {
+						if err := cancel(sq.ID, fmt.Sprintf("%s abandoned with its quest %s: %s", Key(sq.ID), k, reason)); err != nil {
 							return err
 						}
 					}
@@ -910,7 +812,7 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 			case *p.Final && !isFinal:
 				return s.setFinal(ctx, tx, q, id)
 			case !*p.Final && isFinal:
-				return s.clearFinal(ctx, tx, q, "crowning deed "+k+" unset; the quest has no crowning deed")
+				return s.clearFinal(ctx, tx, q, "crowning quest "+k+" unset; the journey has no crowning quest")
 			}
 		}
 		return nil

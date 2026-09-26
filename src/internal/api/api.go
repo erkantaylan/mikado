@@ -21,9 +21,10 @@ import (
 	"mikado/internal/store"
 )
 
-// Handler returns the API handler. Paths include the /api prefix. Cards and
-// needs are global; the quest-scoped card and need routes are kept as aliases
-// (they only check that the quest exists, and let "final" mean that quest's).
+// Handler returns the API handler. Paths include the /api prefix. Cards
+// (quests) and needs are global; the journey-scoped card and need routes are
+// aliases (they only check that the journey exists, and let "final" mean
+// that journey's).
 // Requests must be addressed to localhost or to an accepted host (see
 // HostMatcher): one of hosts, which are fixed for this run (--allow-host,
 // $MIKADO_ALLOWED_HOSTS), or one stored in the database, which can be added
@@ -43,10 +44,10 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 		return nil, err
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/quests", h.listQuests)
-	mux.HandleFunc("POST /api/quests", h.createQuest)
-	mux.HandleFunc("GET /api/quests/{slug}", h.getQuest)
-	mux.HandleFunc("PATCH /api/quests/{slug}", h.patchQuest)
+	mux.HandleFunc("GET /api/journeys", h.listJourneys)
+	mux.HandleFunc("POST /api/journeys", h.createJourney)
+	mux.HandleFunc("GET /api/journeys/{key}", h.getJourney)
+	mux.HandleFunc("PATCH /api/journeys/{key}", h.patchJourney)
 
 	mux.HandleFunc("POST /api/cards", h.addCard)
 	mux.HandleFunc("GET /api/cards/{ref...}", h.getCard)
@@ -56,13 +57,13 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	mux.HandleFunc("POST /api/needs", h.addNeed)
 	mux.HandleFunc("DELETE /api/needs", h.removeNeed)
 
-	// Quest-scoped aliases.
-	mux.HandleFunc("POST /api/quests/{slug}/cards", h.inQuest(h.addCard))
-	mux.HandleFunc("PATCH /api/quests/{slug}/cards/{id}", h.inQuest(h.patchCard))
-	mux.HandleFunc("DELETE /api/quests/{slug}/cards/{id}", h.inQuest(h.removeCard))
-	mux.HandleFunc("POST /api/quests/{slug}/cards/{id}/assignees", h.inQuest(h.assign))
-	mux.HandleFunc("POST /api/quests/{slug}/needs", h.inQuest(h.addNeed))
-	mux.HandleFunc("DELETE /api/quests/{slug}/needs", h.inQuest(h.removeNeed))
+	// Journey-scoped aliases.
+	mux.HandleFunc("POST /api/journeys/{key}/cards", h.inJourney(h.addCard))
+	mux.HandleFunc("PATCH /api/journeys/{key}/cards/{id}", h.inJourney(h.patchCard))
+	mux.HandleFunc("DELETE /api/journeys/{key}/cards/{id}", h.inJourney(h.removeCard))
+	mux.HandleFunc("POST /api/journeys/{key}/cards/{id}/assignees", h.inJourney(h.assign))
+	mux.HandleFunc("POST /api/journeys/{key}/needs", h.inJourney(h.addNeed))
+	mux.HandleFunc("DELETE /api/journeys/{key}/needs", h.inJourney(h.removeNeed))
 
 	mux.HandleFunc("GET /api/hosts", h.listHosts)
 	mux.HandleFunc("POST /api/hosts", h.localOnly(h.addHost))
@@ -260,11 +261,11 @@ func (h *handler) removeHost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// inQuest checks the {slug} of a quest-scoped alias exists before handing
-// over to the global handler.
-func (h *handler) inQuest(next http.HandlerFunc) http.HandlerFunc {
+// inJourney checks the {key} of a journey-scoped alias exists before
+// handing over to the global handler.
+func (h *handler) inJourney(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := h.s.CheckQuest(r.Context(), r.PathValue("slug")); err != nil {
+		if err := h.s.CheckJourney(r.Context(), r.PathValue("key")); err != nil {
 			fail(w, err)
 			return
 		}
@@ -273,7 +274,7 @@ func (h *handler) inQuest(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // cardRef is a card named in a body by id (142) or by any reference string
-// ("M142", "studio/game#7").
+// ("Q142", "studio/game#7", "J7" for that journey's crowning quest).
 type cardRef struct{ raw json.RawMessage }
 
 func (c *cardRef) UnmarshalJSON(b []byte) error { c.raw = append(json.RawMessage{}, b...); return nil }
@@ -289,14 +290,14 @@ func (h *handler) resolve(r *http.Request, c *cardRef) (*int64, error) {
 		ref = strconv.FormatInt(n, 10)
 	case json.Unmarshal(c.raw, &ref) == nil:
 	default:
-		return nil, &store.Error{Kind: store.ErrInvalid, Msg: "a deed is a number or a string like \"M142\""}
+		return nil, &store.Error{Kind: store.ErrInvalid, Msg: "a quest is a number or a string like \"Q142\""}
 	}
 	id, err := h.s.Resolve(r.Context(), ref)
 	return &id, err
 }
 
-func (h *handler) listQuests(w http.ResponseWriter, r *http.Request) {
-	qs, warning, err := h.s.Quests(r.Context())
+func (h *handler) listJourneys(w http.ResponseWriter, r *http.Request) {
+	qs, warning, err := h.s.Journeys(r.Context())
 	if err != nil {
 		fail(w, err)
 		return
@@ -308,10 +309,9 @@ func (h *handler) listQuests(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, qs)
 }
 
-func (h *handler) createQuest(w http.ResponseWriter, r *http.Request) {
+func (h *handler) createJourney(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Title string   `json:"title"`
-		Slug  string   `json:"slug"`
 		Final *cardRef `json:"final"`
 	}
 	if !decode(w, r, &in) {
@@ -322,7 +322,7 @@ func (h *handler) createQuest(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	q, err := h.s.CreateQuest(r.Context(), in.Title, in.Slug, final)
+	q, err := h.s.CreateJourney(r.Context(), in.Title, final)
 	if err != nil {
 		fail(w, err)
 		return
@@ -330,8 +330,8 @@ func (h *handler) createQuest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, q)
 }
 
-func (h *handler) getQuest(w http.ResponseWriter, r *http.Request) {
-	v, err := h.s.Quest(r.Context(), r.PathValue("slug"))
+func (h *handler) getJourney(w http.ResponseWriter, r *http.Request) {
+	v, err := h.s.Journey(r.Context(), r.PathValue("key"))
 	if err != nil {
 		fail(w, err)
 		return
@@ -339,9 +339,8 @@ func (h *handler) getQuest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, v)
 }
 
-func (h *handler) patchQuest(w http.ResponseWriter, r *http.Request) {
+func (h *handler) patchJourney(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Slug     *string  `json:"slug"`
 		Title    *string  `json:"title"`
 		Final    *cardRef `json:"final"`
 		Archived *bool    `json:"archived"`
@@ -354,7 +353,7 @@ func (h *handler) patchQuest(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	q, err := h.s.UpdateQuest(r.Context(), r.PathValue("slug"), store.QuestPatch{Slug: in.Slug, Title: in.Title, Final: final, Archived: in.Archived})
+	q, err := h.s.UpdateJourney(r.Context(), r.PathValue("key"), store.JourneyPatch{Title: in.Title, Final: final, Archived: in.Archived})
 	if err != nil {
 		fail(w, err)
 		return
@@ -367,7 +366,7 @@ func (h *handler) addCard(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	c, created, err := h.s.AddCard(r.Context(), in, r.PathValue("slug"))
+	c, created, err := h.s.AddCard(r.Context(), in, r.PathValue("key"))
 	if err != nil {
 		fail(w, err)
 		return
@@ -402,7 +401,7 @@ func (h *handler) patchCard(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	c, err := h.s.UpdateCard(r.Context(), id, in, r.PathValue("slug"))
+	c, err := h.s.UpdateCard(r.Context(), id, in, r.PathValue("key"))
 	if err != nil {
 		fail(w, err)
 		return
@@ -440,7 +439,7 @@ func (h *handler) assign(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	c, err := h.s.Assign(r.Context(), id, in.Add, in.Remove, r.PathValue("slug"))
+	c, err := h.s.Assign(r.Context(), id, in.Add, in.Remove, r.PathValue("key"))
 	if err != nil {
 		fail(w, err)
 		return
@@ -495,8 +494,8 @@ func (h *handler) repoAssignees(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, users)
 }
 
-// cardID reads the {id} path segment: 142, M142, m-142, c142 or an issue
-// URL-escaped as one segment.
+// cardID reads the {id} path segment: 142, Q142, q-142, J7 (its crowning
+// quest) or an issue URL-escaped as one segment.
 func (h *handler) cardID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := h.s.Resolve(r.Context(), r.PathValue("id"))
 	if err != nil {

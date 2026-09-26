@@ -61,7 +61,7 @@ func scanCard(sc interface{ Scan(...any) error }) (*cardRow, error) {
 func getCard(ctx context.Context, q querier, id int64) (*cardRow, error) {
 	c, err := scanCard(q.QueryRowContext(ctx, `SELECT `+cardCols+` FROM cards WHERE id = ?`, id))
 	if err == sql.ErrNoRows {
-		return nil, errf(ErrNotFound, "no deed %s", Key(id))
+		return nil, errf(ErrNotFound, "no quest %s", Key(id))
 	}
 	return c, err
 }
@@ -73,32 +73,49 @@ func liveCard(ctx context.Context, q querier, id int64) (*cardRow, error) {
 		return nil, err
 	}
 	if c.Removed {
-		return nil, errf(ErrNotFound, "deed %s was struck", Key(id))
+		return nil, errf(ErrNotFound, "quest %s was struck", Key(id))
 	}
 	return c, nil
 }
 
-// questRow is a quest as stored. Final is nil unless it names a live card.
-type questRow struct {
+// journeyRow is a journey as stored. Final is nil unless it names a live card.
+type journeyRow struct {
 	ID         int64
-	Slug       string
 	Title      string
 	Final      *int64
 	CreatedAt  string
 	ArchivedAt string // empty: not archived
 }
 
-func (q *questRow) ref() QuestRef { return QuestRef{Slug: q.Slug, Title: q.Title} }
+func (j *journeyRow) Key() string     { return JourneyKey(j.ID) }
+func (j *journeyRow) ref() JourneyRef { return JourneyRef{Key: j.Key(), Title: j.Title} }
 
-// getQuest finds a quest by slug, ignoring case.
-func getQuest(ctx context.Context, q querier, slug string) (*questRow, error) {
-	var r questRow
+var journeyIDRe = regexp.MustCompile(`^(?i)j-?([1-9][0-9]*)$`)
+
+// ParseJourneyID reads a journey key: J7, J-7 or j7. It reports false for
+// anything else.
+func ParseJourneyID(s string) (int64, bool) {
+	m := journeyIDRe.FindStringSubmatch(strings.TrimSpace(s))
+	if m == nil {
+		return 0, false
+	}
+	id, err := strconv.ParseInt(m[1], 10, 64)
+	return id, err == nil
+}
+
+// getJourney finds a journey by its key (J7).
+func getJourney(ctx context.Context, q querier, key string) (*journeyRow, error) {
+	id, ok := ParseJourneyID(key)
+	if !ok {
+		return nil, errf(ErrInvalid, "%q is not a journey (want J7)", key)
+	}
+	var r journeyRow
 	var final sql.NullInt64
-	err := q.QueryRowContext(ctx, `SELECT q.id, q.slug, q.title, c.id, q.created_at, COALESCE(q.archived_at, '')
-		FROM quests q LEFT JOIN cards c ON c.id = q.final_card AND c.removed_at IS NULL
-		WHERE q.slug = ?`, strings.ToLower(strings.TrimSpace(slug))).Scan(&r.ID, &r.Slug, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt)
+	err := q.QueryRowContext(ctx, `SELECT j.id, j.title, c.id, j.created_at, COALESCE(j.archived_at, '')
+		FROM journeys j LEFT JOIN cards c ON c.id = j.final_card AND c.removed_at IS NULL
+		WHERE j.id = ?`, id).Scan(&r.ID, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt)
 	if err == sql.ErrNoRows {
-		return nil, errf(ErrNotFound, "no quest %q", slug)
+		return nil, errf(ErrNotFound, "no journey %s", JourneyKey(id))
 	}
 	if final.Valid {
 		r.Final = &final.Int64
@@ -106,16 +123,16 @@ func getQuest(ctx context.Context, q querier, slug string) (*questRow, error) {
 	return &r, err
 }
 
-// graph is the whole live graph: cards, needs, side quests and quests.
+// graph is the whole live graph: cards, needs, side quests and journeys.
 type graph struct {
-	cards  map[int64]*cardRow
-	next   map[int64][]int64 // from → cards it needs
-	prev   map[int64][]int64 // to → cards that need it
-	sides  map[int64][]int64 // card → its side quests
-	needs  []Need
-	quests []*questRow
-	// crowned maps each card that crowns a quest to those quests (by id).
-	crowned map[int64][]*questRow
+	cards    map[int64]*cardRow
+	next     map[int64][]int64 // from → cards it needs
+	prev     map[int64][]int64 // to → cards that need it
+	sides    map[int64][]int64 // card → its side quests
+	needs    []Need
+	journeys []*journeyRow
+	// crowned maps each card that crowns a journey to those journeys (by id).
+	crowned map[int64][]*journeyRow
 }
 
 func loadGraph(ctx context.Context, q querier) (*graph, error) {
@@ -162,26 +179,26 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT id, slug, title, final_card, created_at, COALESCE(archived_at, '') FROM quests ORDER BY id`)
+	rows, err = q.QueryContext(ctx, `SELECT id, title, final_card, created_at, COALESCE(archived_at, '') FROM journeys ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var r questRow
+		var r journeyRow
 		var final sql.NullInt64
-		if err := rows.Scan(&r.ID, &r.Slug, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt); err != nil {
 			return nil, err
 		}
 		if final.Valid && g.cards[final.Int64] != nil {
 			r.Final = &final.Int64
 		}
-		g.quests = append(g.quests, &r)
+		g.journeys = append(g.journeys, &r)
 	}
-	g.crowned = map[int64][]*questRow{}
-	for _, q := range g.quests {
-		if q.Final != nil {
-			g.crowned[*q.Final] = append(g.crowned[*q.Final], q)
+	g.crowned = map[int64][]*journeyRow{}
+	for _, j := range g.journeys {
+		if j.Final != nil {
+			g.crowned[*j.Final] = append(g.crowned[*j.Final], j)
 		}
 	}
 	return g, rows.Err()
@@ -189,7 +206,7 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 
 // closure returns the start cards, everything they transitively need, and
 // the side quests (recursively) of all of those, ascending by id. It is what
-// a card's status depends on, so it never stops at another quest.
+// a card's status depends on, so it never stops at another journey.
 func (g *graph) closure(start ...int64) []int64 {
 	return g.reach(start, func(int64) bool { return true })
 }
@@ -233,45 +250,48 @@ func (g *graph) reach(start []int64, expand func(id int64) bool) []int64 {
 	return out
 }
 
-// members are a quest's cards: its final card, everything that transitively
-// needs, and their side quests. A quest without a final has none.
+// members are a journey's cards: its final card, everything that transitively
+// needs, and their side quests. A journey without a final has none.
 //
-// A card that crowns another quest stands for that whole quest: it is a
-// member, but what it needs and its side quests are that quest's, so they
+// A card that crowns another journey stands for that whole journey: it is a
+// member, but what it needs and its side quests are that journey's, so they
 // are not reached through it (anything reachable by another route still is).
-// The quest's own final is always followed, even when it also crowns another.
-func (g *graph) members(q *questRow) []int64 {
+// The journey's own final is always followed, even when it also crowns another.
+func (g *graph) members(q *journeyRow) []int64 {
 	if q.Final == nil {
 		return nil
 	}
 	return g.reach([]int64{*q.Final}, func(id int64) bool { return id == *q.Final || !g.folds(id, q) })
 }
 
-// folds reports whether card id, seen on quest q, stands for another quest:
-// it crowns a quest and is not q's own final.
-func (g *graph) folds(id int64, q *questRow) bool {
+// folds reports whether card id, seen on journey q, stands for another
+// journey: it crowns a journey and is not q's own final.
+func (g *graph) folds(id int64, q *journeyRow) bool {
 	return len(g.crowned[id]) > 0 && (q.Final == nil || *q.Final != id)
 }
 
-// membership maps each card to the quests it is a member of.
-func (g *graph) membership() map[int64][]*questRow {
-	out := map[int64][]*questRow{}
-	for _, q := range g.quests {
-		for _, id := range g.members(q) {
-			out[id] = append(out[id], q)
+// membership maps each card to the journeys it is a member of.
+func (g *graph) membership() map[int64][]*journeyRow {
+	out := map[int64][]*journeyRow{}
+	for _, j := range g.journeys {
+		for _, id := range g.members(j) {
+			out[id] = append(out[id], j)
 		}
 	}
 	return out
 }
 
-func (g *graph) quest(slug string) (*questRow, error) {
-	slug = strings.ToLower(strings.TrimSpace(slug))
-	for _, q := range g.quests {
-		if q.Slug == slug {
-			return q, nil
+func (g *graph) journey(key string) (*journeyRow, error) {
+	id, ok := ParseJourneyID(key)
+	if !ok {
+		return nil, errf(ErrInvalid, "%q is not a journey (want J7)", key)
+	}
+	for _, j := range g.journeys {
+		if j.ID == id {
+			return j, nil
 		}
 	}
-	return nil, errf(ErrNotFound, "no quest %q", slug)
+	return nil, errf(ErrNotFound, "no journey %s", JourneyKey(id))
 }
 
 func (g *graph) rows(ids []int64) []*cardRow {
@@ -284,13 +304,13 @@ func (g *graph) rows(ids []int64) []*cardRow {
 	return out
 }
 
-// isFinal reports whether a card is the final of any quest.
+// isFinal reports whether a card is the final of any journey.
 func (g *graph) isFinal(id int64) bool { return len(g.crowned[id]) > 0 }
 
-var cardIDRe = regexp.MustCompile(`^(?i)(?:m-?|c)?([1-9][0-9]*)$`)
+var cardIDRe = regexp.MustCompile(`^(?i)(?:q-?)?([1-9][0-9]*)$`)
 
-// ParseCardID reads a card id in any accepted form: M142, M-142, m142, c142
-// or 142. It reports false for anything else (such as an issue ref).
+// ParseCardID reads a quest key in any accepted form: Q142, Q-142, q142 or
+// 142. It reports false for anything else (such as an issue ref).
 func ParseCardID(s string) (int64, bool) {
 	m := cardIDRe.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
@@ -300,31 +320,26 @@ func ParseCardID(s string) (int64, bool) {
 	return id, err == nil
 }
 
-// Resolve turns a card reference (an id in any form, an issue ref, an issue
-// URL, or a quest slug for that quest's crowning deed) into the id of a live
-// card. The deed forms win: a slug is tried only when ref is none of them.
+// Resolve turns a card reference (a quest key in any form, an issue ref, an
+// issue URL, or a journey key for that journey's crowning quest) into the id
+// of a live card.
 func (s *Store) Resolve(ctx context.Context, ref string) (int64, error) {
-	id, err := s.resolveDeed(ctx, ref)
-	if err == nil || KindOf(err) != ErrInvalid {
-		return id, err
+	if _, ok := ParseJourneyID(ref); !ok {
+		return s.resolveQuest(ctx, ref)
 	}
-	slug := strings.ToLower(strings.TrimSpace(ref))
-	if !slugRe.MatchString(slug) {
+	j, err := getJourney(ctx, s.db, ref)
+	if err != nil {
 		return 0, err
 	}
-	q, qerr := getQuest(ctx, s.db, slug)
-	if qerr != nil {
-		return 0, errf(ErrNotFound, "%q is neither a deed nor a quest (want M142, owner/repo#n or a quest slug)", ref)
+	if j.Final == nil {
+		return 0, errf(ErrInvalid, "journey %s has no crowning quest yet, so it names no quest — crown one with `mikado journey crown %s Q`", j.Key(), j.Key())
 	}
-	if q.Final == nil {
-		return 0, errf(ErrInvalid, "quest %s has no crowning deed yet, so it names no deed — crown one with `mikado quest crown %s D`", q.Slug, q.Slug)
-	}
-	return *q.Final, nil
+	return *j.Final, nil
 }
 
-// resolveDeed is Resolve for the deed forms only: an id, an issue ref or an
-// issue URL. Anything else is ErrInvalid.
-func (s *Store) resolveDeed(ctx context.Context, ref string) (int64, error) {
+// resolveQuest is Resolve for the quest forms only: a key, an issue ref or
+// an issue URL. Anything else is ErrInvalid.
+func (s *Store) resolveQuest(ctx context.Context, ref string) (int64, error) {
 	if id, ok := ParseCardID(ref); ok {
 		if _, err := liveCard(ctx, s.db, id); err != nil {
 			return 0, err
@@ -333,7 +348,7 @@ func (s *Store) resolveDeed(ctx context.Context, ref string) (int64, error) {
 	}
 	r, err := github.ParseRef(ref)
 	if err != nil {
-		return 0, errf(ErrInvalid, "%q is not a deed (want M142, owner/repo#n or a quest slug)", ref)
+		return 0, errf(ErrInvalid, "%q is not a quest (want Q142, owner/repo#n or a journey key like J7)", ref)
 	}
 	var id int64
 	err = s.db.QueryRowContext(ctx, `SELECT id FROM cards WHERE ref_key = ? AND removed_at IS NULL`, r.Key()).Scan(&id)
@@ -453,7 +468,7 @@ func buildCards(rows []*cardRow, needs []Need, gh map[string]cached) []Card {
 			Owner: r.Owner, SideOf: r.SideOf, FoundWhile: r.FoundWhile, Reason: r.Reason, NPC: r.NPC,
 			Cancelled: r.Cancelled, CancelReason: r.CancelReason,
 			Working: r.WorkingSince != "", WorkingSince: r.WorkingSince, WorkingBy: r.WorkingBy,
-			AlsoIn: []QuestRef{},
+			AlsoIn: []JourneyRef{},
 		}
 		switch r.Kind {
 		case KindIssue:
@@ -552,64 +567,64 @@ func (s *Store) view(ctx context.Context, g *graph, ids []int64) (map[int64]Card
 	return out, warning, nil
 }
 
-// alsoIn lists the quests of a card other than the one being viewed.
-func alsoIn(quests []*questRow, viewing *questRow) []QuestRef {
-	out := []QuestRef{}
-	for _, q := range quests {
-		if viewing == nil || q.ID != viewing.ID {
-			out = append(out, q.ref())
+// alsoIn lists the journeys of a card other than the one being viewed.
+func alsoIn(journeys []*journeyRow, viewing *journeyRow) []JourneyRef {
+	out := []JourneyRef{}
+	for _, j := range journeys {
+		if viewing == nil || j.ID != viewing.ID {
+			out = append(out, j.ref())
 		}
 	}
 	return out
 }
 
-// Quest returns the full view of one quest: its members, the needs among
+// Journey returns the full view of one journey: its members, the needs among
 // them, and its log.
-func (s *Store) Quest(ctx context.Context, slug string) (*QuestView, error) {
+func (s *Store) Journey(ctx context.Context, key string) (*JourneyView, error) {
 	g, err := loadGraph(ctx, s.db)
 	if err != nil {
 		return nil, err
 	}
-	q, err := g.quest(slug)
+	j, err := g.journey(key)
 	if err != nil {
 		return nil, err
 	}
-	ids := g.members(q)
-	// A folded quest card's status (and its quest's progress) needs what lies behind it too.
+	ids := g.members(j)
+	// A folded journey card's status (and its journey's progress) needs what lies behind it too.
 	built, warning, err := s.view(ctx, g, g.closure(ids...))
 	if err != nil {
 		return nil, err
 	}
 	in := g.membership()
-	v := &QuestView{
-		Quest:  QuestInfo{Slug: q.Slug, Title: q.Title, FinalCardID: q.Final, State: QuestActive, ArchivedAt: q.ArchivedAt},
-		Cards:  make([]Card, 0, len(ids)),
-		Needs:  g.needsAmong(ids),
-		GitHub: warning,
+	v := &JourneyView{
+		Journey: JourneyInfo{Key: j.Key(), Title: j.Title, FinalCardID: j.Final, State: JourneyActive, ArchivedAt: j.ArchivedAt},
+		Cards:   make([]Card, 0, len(ids)),
+		Needs:   g.needsAmong(ids),
+		GitHub:  warning,
 	}
 	for _, id := range ids {
 		c := built[id]
-		c.Final = q.Final != nil && *q.Final == id
-		c.AlsoIn = alsoIn(in[id], q)
+		c.Final = j.Final != nil && *j.Final == id
+		c.AlsoIn = alsoIn(in[id], j)
 		if c.Final {
-			v.Quest.State = questState(&c)
+			v.Journey.State = journeyState(&c)
 		}
-		if g.folds(id, q) {
-			c.Crowns = g.crowns(id, q, built)
+		if g.folds(id, j) {
+			c.Crowns = g.crowns(id, j, built)
 		}
 		v.Cards = append(v.Cards, c)
 	}
-	v.Log, err = questLog(ctx, s.db, q.ID, ids)
+	v.Log, err = journeyLog(ctx, s.db, j.ID, ids)
 	return v, err
 }
 
-// questLog is the quest's own events plus the events of its current members,
-// oldest first.
-func questLog(ctx context.Context, q querier, questID int64, members []int64) ([]Event, error) {
-	query := `SELECT id, at, kind, card_id, text FROM events WHERE quest_id = ?`
-	args := []any{questID}
+// journeyLog is the journey's own events plus the events of its current
+// members, oldest first.
+func journeyLog(ctx context.Context, q querier, journeyID int64, members []int64) ([]Event, error) {
+	query := `SELECT id, at, kind, card_id, text FROM events WHERE journey_id = ?`
+	args := []any{journeyID}
 	if len(members) > 0 {
-		query += ` OR (quest_id IS NULL AND card_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(members)), ",") + `))`
+		query += ` OR (journey_id IS NULL AND card_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(members)), ",") + `))`
 		for _, id := range members {
 			args = append(args, id)
 		}
@@ -658,7 +673,7 @@ func (s *Store) CardView(ctx context.Context, id int64) (*CardView, error) {
 		c.AlsoIn = alsoIn(in[cid], nil)
 		return c
 	}
-	v := &CardView{Card: card(id), Quests: alsoIn(in[id], nil), Needs: []Card{}, NeededBy: []Card{}, SideQuests: []Card{}, GitHub: warning}
+	v := &CardView{Card: card(id), Journeys: alsoIn(in[id], nil), Needs: []Card{}, NeededBy: []Card{}, SideQuests: []Card{}, GitHub: warning}
 	v.Card.Crowns = g.crowns(id, nil, built)
 	for _, n := range g.next[id] {
 		v.Needs = append(v.Needs, card(n))
@@ -672,9 +687,10 @@ func (s *Store) CardView(ctx context.Context, id int64) (*CardView, error) {
 	return v, nil
 }
 
-// card returns one live card as the API shows it. When viewing names a quest
-// (slug), Final means "final of that quest" and AlsoIn leaves that quest out;
-// otherwise Final means "final of any quest" and AlsoIn lists every quest.
+// card returns one live card as the API shows it. When viewing names a
+// journey (J7), Final means "final of that journey" and AlsoIn leaves that
+// journey out; otherwise Final means "final of any journey" and AlsoIn lists
+// every journey.
 func (s *Store) card(ctx context.Context, id int64, viewing string) (*Card, error) {
 	v, err := s.CardView(ctx, id)
 	if err != nil {
@@ -682,17 +698,17 @@ func (s *Store) card(ctx context.Context, id int64, viewing string) (*Card, erro
 	}
 	c := v.Card
 	if viewing != "" {
-		q, err := getQuest(ctx, s.db, viewing)
+		j, err := getJourney(ctx, s.db, viewing)
 		if err != nil {
 			return nil, err
 		}
-		c.Final = q.Final != nil && *q.Final == id
+		c.Final = j.Final != nil && *j.Final == id
 		if c.Final {
-			c.Crowns = nil // the viewed quest's own crowning deed stands for no other quest
+			c.Crowns = nil // the viewed journey's own crowning quest stands for no other journey
 		}
-		c.AlsoIn = []QuestRef{}
-		for _, r := range v.Quests {
-			if r.Slug != q.Slug {
+		c.AlsoIn = []JourneyRef{}
+		for _, r := range v.Journeys {
+			if r.Key != j.Key() {
 				c.AlsoIn = append(c.AlsoIn, r)
 			}
 		}
@@ -700,18 +716,18 @@ func (s *Store) card(ctx context.Context, id int64, viewing string) (*Card, erro
 	return &c, nil
 }
 
-// Quests returns the quest board. The warning is non-empty when GitHub data
-// is stale.
-func (s *Store) Quests(ctx context.Context) ([]QuestSummary, string, error) {
+// Journeys returns the atlas. The warning is non-empty when GitHub data is
+// stale.
+func (s *Store) Journeys(ctx context.Context) ([]JourneySummary, string, error) {
 	g, err := loadGraph(ctx, s.db)
 	if err != nil {
 		return nil, "", err
 	}
 	members := map[int64][]int64{}
 	var all []int64
-	for _, q := range g.quests {
-		members[q.ID] = g.members(q)
-		all = append(all, members[q.ID]...)
+	for _, j := range g.journeys {
+		members[j.ID] = g.members(j)
+		all = append(all, members[j.ID]...)
 	}
 	built, warning, err := s.view(ctx, g, g.closure(all...))
 	if err != nil {
@@ -721,105 +737,105 @@ func (s *Store) Quests(ctx context.Context) ([]QuestSummary, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	out := make([]QuestSummary, 0, len(g.quests))
-	for _, q := range g.quests {
-		cards := make([]Card, 0, len(members[q.ID]))
-		at := q.CreatedAt
-		if t := last.quest[q.ID]; t > at {
+	out := make([]JourneySummary, 0, len(g.journeys))
+	for _, j := range g.journeys {
+		cards := make([]Card, 0, len(members[j.ID]))
+		at := j.CreatedAt
+		if t := last.journey[j.ID]; t > at {
 			at = t
 		}
-		for _, id := range members[q.ID] {
+		for _, id := range members[j.ID] {
 			c := built[id]
-			c.Final = q.Final != nil && *q.Final == id
+			c.Final = j.Final != nil && *j.Final == id
 			cards = append(cards, c)
 			if t := last.card[id]; t > at {
 				at = t
 			}
 		}
-		out = append(out, summarize(QuestSummary{Slug: q.Slug, Title: q.Title, LastActivity: at, ArchivedAt: q.ArchivedAt,
-			BlockedBy: []QuestLink{}, Blocks: []QuestLink{}}, cards))
+		out = append(out, summarize(JourneySummary{Key: j.Key(), Title: j.Title, LastActivity: at, ArchivedAt: j.ArchivedAt,
+			BlockedBy: []JourneyLink{}, Blocks: []JourneyLink{}}, cards))
 	}
-	// A quest whose crowning deed is folded into another's chart blocks it.
+	// A journey whose crowning quest is folded into another's chart blocks it.
 	index := map[int64]int{}
-	for i, q := range g.quests {
-		index[q.ID] = i
+	for i, j := range g.journeys {
+		index[j.ID] = i
 	}
-	for i, q := range g.quests {
-		for _, id := range members[q.ID] {
-			if !g.folds(id, q) {
+	for i, j := range g.journeys {
+		for _, id := range members[j.ID] {
+			if !g.folds(id, j) {
 				continue
 			}
 			for _, other := range g.crowned[id] {
 				out[i].BlockedBy = append(out[i].BlockedBy, g.link(other, built))
-				j := index[other.ID]
-				out[j].Blocks = append(out[j].Blocks, g.link(q, built))
+				k := index[other.ID]
+				out[k].Blocks = append(out[k].Blocks, g.link(j, built))
 			}
 		}
 	}
 	return out, warning, nil
 }
 
-// link names a quest with its state, from its final card among built.
-func (g *graph) link(q *questRow, built map[int64]Card) QuestLink {
-	l := QuestLink{Slug: q.Slug, Title: q.Title, State: QuestActive, ArchivedAt: q.ArchivedAt}
-	if q.Final != nil {
-		if c, ok := built[*q.Final]; ok {
-			l.State = questState(&c)
+// link names a journey with its state, from its final card among built.
+func (g *graph) link(j *journeyRow, built map[int64]Card) JourneyLink {
+	l := JourneyLink{Key: j.Key(), Title: j.Title, State: JourneyActive, ArchivedAt: j.ArchivedAt}
+	if j.Final != nil {
+		if c, ok := built[*j.Final]; ok {
+			l.State = journeyState(&c)
 		}
 	}
 	return l
 }
 
-// crowns describes the quest card id stands for, seen from quest viewing
-// (nil: seen globally): the first quest it crowns other than viewing, with
-// that quest's progress counted as the board counts it. built must hold the
-// closure of id. Nil when id crowns no such quest.
-func (g *graph) crowns(id int64, viewing *questRow, built map[int64]Card) *Crowns {
-	var q *questRow
+// crowns describes the journey card id stands for, seen from journey viewing
+// (nil: seen globally): the first journey it crowns other than viewing, with
+// that journey's progress counted as the atlas counts it. built must hold the
+// closure of id. Nil when id crowns no such journey.
+func (g *graph) crowns(id int64, viewing *journeyRow, built map[int64]Card) *Crowns {
+	var j *journeyRow
 	for _, c := range g.crowned[id] {
 		if viewing == nil || c.ID != viewing.ID {
-			q = c
+			j = c
 			break
 		}
 	}
-	if q == nil {
+	if j == nil {
 		return nil
 	}
-	ids := g.members(q)
+	ids := g.members(j)
 	cards := make([]Card, 0, len(ids))
-	open := []OpenDeed{}
+	open := []OpenQuest{}
 	for _, mid := range ids {
 		c := built[mid]
-		c.Final = mid == *q.Final
+		c.Final = mid == *j.Final
 		cards = append(cards, c)
 		if c.SideOf == nil && !c.Done && !c.Cancelled {
-			open = append(open, OpenDeed{Key: c.Key, Title: c.Title, Status: c.Status, Working: c.Working})
+			open = append(open, OpenQuest{Key: c.Key, Title: c.Title, Status: c.Status, Working: c.Working})
 		}
 	}
-	sum := summarize(QuestSummary{}, cards)
-	return &Crowns{Slug: q.Slug, Title: q.Title, State: sum.State, ArchivedAt: q.ArchivedAt,
+	sum := summarize(JourneySummary{}, cards)
+	return &Crowns{Key: j.Key(), Title: j.Title, State: sum.State, ArchivedAt: j.ArchivedAt,
 		Done: sum.Main.Done, Total: sum.Main.Total, Working: sum.InProgress, Open: open}
 }
 
-type lastEvents struct{ quest, card map[int64]string }
+type lastEvents struct{ journey, card map[int64]string }
 
 func lastActivity(ctx context.Context, q querier) (lastEvents, error) {
-	l := lastEvents{quest: map[int64]string{}, card: map[int64]string{}}
-	rows, err := q.QueryContext(ctx, `SELECT quest_id, card_id, MAX(at) FROM events GROUP BY quest_id, card_id`)
+	l := lastEvents{journey: map[int64]string{}, card: map[int64]string{}}
+	rows, err := q.QueryContext(ctx, `SELECT journey_id, card_id, MAX(at) FROM events GROUP BY journey_id, card_id`)
 	if err != nil {
 		return l, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var quest, card sql.NullInt64
+		var journey, card sql.NullInt64
 		var at string
-		if err := rows.Scan(&quest, &card, &at); err != nil {
+		if err := rows.Scan(&journey, &card, &at); err != nil {
 			return l, err
 		}
 		switch {
-		case quest.Valid:
-			if at > l.quest[quest.Int64] {
-				l.quest[quest.Int64] = at
+		case journey.Valid:
+			if at > l.journey[journey.Int64] {
+				l.journey[journey.Int64] = at
 			}
 		case card.Valid:
 			if at > l.card[card.Int64] {
@@ -830,25 +846,25 @@ func lastActivity(ctx context.Context, q querier) (lastEvents, error) {
 	return l, rows.Err()
 }
 
-// questState is what the final card says about the quest.
-func questState(final *Card) string {
+// journeyState is what the final card says about the journey.
+func journeyState(final *Card) string {
 	switch final.Status {
 	case StatusCancelled:
-		return QuestCancelled
+		return JourneyCancelled
 	case StatusDone:
-		return QuestComplete
+		return JourneyComplete
 	}
-	return QuestActive
+	return JourneyActive
 }
 
-// summarize counts a quest's cards. Cancelled cards count only in Cancelled
+// summarize counts a journey's cards. Cancelled cards count only in Cancelled
 // (main and side quests alike), never in progress totals.
-func summarize(s QuestSummary, cards []Card) QuestSummary {
+func summarize(s JourneySummary, cards []Card) JourneySummary {
 	heroes, repos := map[string]bool{}, map[string]bool{}
-	s.State = QuestActive
+	s.State = JourneyActive
 	for _, c := range cards {
 		if c.Final {
-			s.State = questState(&c)
+			s.State = journeyState(&c)
 		}
 		if c.Ref != "" {
 			if r, err := github.ParseRef(c.Ref); err == nil {
@@ -915,8 +931,8 @@ func (s *Store) RepoAssignees(ctx context.Context, owner, repo string) ([]string
 	return users, nil
 }
 
-// CheckQuest reports whether a quest exists (slug matched ignoring case).
-func (s *Store) CheckQuest(ctx context.Context, slug string) error {
-	_, err := getQuest(ctx, s.db, slug)
+// CheckJourney reports whether a journey exists.
+func (s *Store) CheckJourney(ctx context.Context, key string) error {
+	_, err := getJourney(ctx, s.db, key)
 	return err
 }

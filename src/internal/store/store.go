@@ -1,5 +1,5 @@
-// Package store keeps quests, cards, needs and the quest log in SQLite, and
-// computes card status. It is the only package that touches the database;
+// Package store keeps journeys, cards (quests), needs and the chronicle in
+// SQLite, and computes card status. It is the only package that touches the database;
 // the SQL is plain so another engine (Postgres) stays possible.
 package store
 
@@ -26,7 +26,7 @@ var migrations embed.FS
 // CacheTTL is how long GitHub data is served without refetching.
 const CacheTTL = 60 * time.Second
 
-// Store is the quest database plus the GitHub client used to fill issue cards.
+// Store is the journey database plus the GitHub client used to fill issue cards.
 type Store struct {
 	db  *sql.DB
 	gh  GitHub

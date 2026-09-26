@@ -9,7 +9,7 @@ export const THEMES = [
 
 export type ThemeId = (typeof THEMES)[number]['id']
 
-/** The theme the chart is drawn in, for the parts (the deed cards) that are drawn differently per theme. */
+/** The theme the chart is drawn in, for the parts (the quest cards) that are drawn differently per theme. */
 export const ThemeContext = createContext<ThemeId>('wartable')
 
 /** True when the chart is drawn as the war table. */

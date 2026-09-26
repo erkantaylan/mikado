@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import BoardPage from './live/BoardPage.tsx'
-import QuestPage from './live/QuestPage.tsx'
+import AtlasPage from './live/AtlasPage.tsx'
+import JourneyPage from './live/JourneyPage.tsx'
 import MockPage from './mock/MockPage.tsx'
 import MockBoard from './mock/QuestBoard.tsx'
 import GlowDemo from './mock/GlowDemo.tsx'
@@ -13,11 +13,11 @@ function route(path: string) {
   if (path === '/mock/glow') return <GlowDemo />
   if (path === '/mock') return <MockBoard />
   if (path.startsWith('/mock/quest/')) return <MockPage />
-  if (path === '/') return <BoardPage />
-  const quest = path.match(/^\/quest\/([^/]+)\/?$/)
-  if (quest) return <QuestPage slug={decodeURIComponent(quest[1])} />
+  if (path === '/') return <AtlasPage />
+  const journey = path.match(/^\/journey\/([^/]+)\/?$/)
+  if (journey) return <JourneyPage journeyKey={decodeURIComponent(journey[1])} />
   return (
-    <NoticePage title="Nothing here" back={{ href: '/', label: 'Quest Board' }}>
+    <NoticePage title="Nothing here" back={{ href: '/', label: 'Atlas' }}>
       <p>
         There is no page at <span className="font-mono">{path}</span>.
       </p>

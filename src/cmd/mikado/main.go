@@ -1,5 +1,5 @@
 // Command mikado groups GitHub issues from several repos under small goals
-// (quests) and tracks the side issues found along the way. `mikado serve`
+// (journeys) and tracks the side issues found along the way. `mikado serve`
 // runs the local server (JSON API + dashboard); every other command is a thin
 // client of that API.
 package main
@@ -246,9 +246,9 @@ func skillCmd(args []string) error {
 func usage() {
 	fmt.Fprint(os.Stderr, `usage: mikado <command> [args] [flags]
 
-  A quest is a goal, drawn as a chart of deeds (tasks) ending in one crowning deed.
-  A deed is an issue, an errand or a petition, named M142; "M5 requires M3" means
-  M3 must be fulfilled first (M3 opens M5). Full glossary: mikado skill.
+  A journey (J7) is a goal, drawn as a war table of quests ending in one crowning quest.
+  A quest is an issue, an errand or a petition, named Q142; "Q5 requires Q3" means
+  Q3 must be fulfilled first (Q3 opens Q5). Full glossary: mikado skill.
 
 AI agents: run `+"`mikado skill`"+` before using mikado. It is the guide, glossary included.
 
@@ -268,47 +268,49 @@ agents:
   skill install [--dir DIR] [--force] install it for Claude Code (~/.claude/skills/mikado)
   skill path [--dir DIR]              where install puts it
 
-quests (a quest is its crowning deed, every deed that one requires, and their side quests):
-  quest new "title" [--slug S] [--crown D]   start a quest
-  quest list [--all]                  every quest at a glance (the Quest Board);
-                                      --all includes archived quests
-  quest show SLUG                     its chart: deeds, their status and requirements, chronicle
-  quest crown SLUG D                  make D the quest's crowning deed
-  quest rename SLUG NEW-SLUG          change the slug
-  quest set SLUG [--slug S] [--title T] [--crown D]
-  quest archive SLUG / unarchive SLUG put a quest away (off the board, its chart and
-                                      deeds untouched) / bring it back
+journeys (a journey is its crowning quest, every quest that one requires, and their
+side quests; J is a journey key, J7):
+  journey new "title" [--crown Q]     start a journey
+  journey list [--all]                every journey at a glance (the atlas);
+                                      --all includes archived journeys
+  journey show J                      its war table: quests, their status and
+                                      requirements, chronicle
+  journey crown J Q                   make Q the journey's crowning quest
+  journey set J [--title T] [--crown Q]
+  journey archive J / unarchive J     put a journey away (off the atlas, its war table
+                                      and quests untouched) / bring it back
 
-deeds are global, one per GitHub issue. D is a deed id (M142, M-142, m142, 142), an
-issue owner/repo#n, an issue URL, or a quest slug for that quest's crowning deed (so
-`+"`require M5 other-quest`"+` makes M5 wait on the whole other quest, drawn there as one
-card). A deed is in a quest once it is linked in.
-  add owner/repo#N [link flags]       add a GitHub issue; if it is already on the chart,
-                                      that deed is returned and the link flags applied to it
+quests are global, one per GitHub issue. Q is a quest key (Q142, Q-142, q142, 142), an
+issue owner/repo#n, an issue URL, or a journey key for that journey's crowning quest (so
+`+"`require Q5 J3`"+` makes Q5 wait on the whole journey J3, drawn there as one card).
+A quest is in a journey once it is linked in.
+  add owner/repo#N [link flags]       add a GitHub issue; if it is already on a war table,
+                                      that quest is returned and the link flags applied to it
   errand "title" [link flags]         add a step not worth an issue
   petition "title" --on WHO [link flags]
                                       add something we await a reply on from someone
-      link flags: --opens D (repeatable)  --requires D (repeatable)  --side-of D
-                  --crowns SLUG  --unearthed-on D --reason "why"  --npc  --hero WHO
-  show D                              one deed: what it requires, what it opens, its quests
-  require D PREREQ                    D requires PREREQ fulfilled first (cycles are refused)
-  unrequire D PREREQ                  drop that requirement
-  fulfil D / unfulfil D               mark an errand or petition fulfilled / not
+      link flags: --opens Q (repeatable)  --requires Q (repeatable)  --side-of Q
+                  --crowns J  --found-on Q --reason "why"  --npc  --hero WHO
+  show Q                              one quest: what it requires, what it opens, its journeys
+  require Q PREREQ                    Q requires PREREQ fulfilled first (cycles are refused)
+  unrequire Q PREREQ                  drop that requirement
+  fulfil Q / unfulfil Q               mark an errand or petition fulfilled / not
                                       (issues are fulfilled by closing them on GitHub)
-  take-up D [--by WHO] / set-down D   someone is on it right now (underway) / no longer
-  abandon D --reason "why"            won't do: stays on the chart, blocks nothing, counts
-                                      in no total (its side quests are abandoned too)
-  unabandon D                         undo an abandon made here
-  strike D --reason "why"             gone for good, with its side quests (stays in the
+  take-up Q [--by WHO] / set-down Q   someone is on it right now (underway) / no longer
+  abandon Q --reason "why"            won't do: stays on the war table, blocks nothing,
+                                      counts in no total (its side quests are abandoned too)
+  unabandon Q                         undo an abandon made here
+  strike Q --reason "why"             gone for good, with its side quests (stays in the
                                       chronicle); prefer abandon
-  set D [--hero WHO] [--title T] [--npc=true|false]
-  assign D LOGIN... [--remove]        assign (or unassign) an issue on GitHub
+  set Q [--hero WHO] [--title T] [--npc=true|false]
+  assign Q LOGIN... [--remove]        assign (or unassign) an issue on GitHub
   assignees owner/repo                who can be assigned in a repo
 
 dashboard:
-  open [SLUG | D] [--quest SLUG] [--print]
-                                      open the Quest Board, a quest's chart, or the chart
-                                      of a quest holding D with it selected (--print: URL)
+  open [J | Q] [--journey J] [--print]
+                                      open the atlas, a journey's war table, or the war
+                                      table of a journey holding Q with it selected
+                                      (--print: URL)
 
 every command but serve and skill takes --server URL (env MIKADO_SERVER, default
 `+defaultServer+`) and --json to print the API's JSON instead of text.

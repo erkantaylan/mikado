@@ -38,7 +38,7 @@ type GitHub interface {
 // it (issues), and its computed status.
 type Card struct {
 	ID         int64    `json:"id"`
-	Key        string   `json:"key"` // "M142": how people and the AI name the card
+	Key        string   `json:"key"` // "Q142": how people and the AI name the card
 	Kind       string   `json:"kind"`
 	Ref        string   `json:"ref,omitempty"`
 	URL        string   `json:"url,omitempty"`
@@ -65,61 +65,62 @@ type Card struct {
 	WorkingBy    string `json:"workingBy,omitempty"`
 	Status       string `json:"status"`
 	OpenBefore   int    `json:"openBefore"`
-	// AlsoIn lists the quests the card is a member of, other than the one
-	// being viewed (all of them when no quest is being viewed).
-	AlsoIn []QuestRef `json:"alsoIn"`
-	// Crowns is set on a card that crowns another quest. On a quest's chart
-	// (GET /api/quests/{slug}) such a card stands for that whole quest, drawn
-	// as one quest card; seen globally (GET /api/cards) it names the quest it
-	// crowns. Never set on the viewed quest's own crowning deed.
+	// AlsoIn lists the journeys the card is a member of, other than the one
+	// being viewed (all of them when no journey is being viewed).
+	AlsoIn []JourneyRef `json:"alsoIn"`
+	// Crowns is set on a card that crowns another journey. On a journey's
+	// chart (GET /api/journeys/{key}) such a card stands for that whole
+	// journey, drawn as one journey card; seen globally (GET /api/cards) it
+	// names the journey it crowns. Never set on the viewed journey's own
+	// crowning quest.
 	Crowns *Crowns `json:"crowns,omitempty"`
 }
 
-// Crowns is the quest a card crowns, as its quest card shows it: the
-// quest's state and its main-quest progress, counted as the board counts it
-// (a quest folded into it counts as one deed), and what is still to do in it.
+// Crowns is the journey a card crowns, as its journey card shows it: the
+// journey's state and its main-quest progress, counted as the atlas counts it
+// (a journey folded into it counts as one quest), and what is still to do in it.
 type Crowns struct {
-	Slug       string     `json:"slug"`
-	Title      string     `json:"title"`
-	State      string     `json:"state"`
-	ArchivedAt string     `json:"archivedAt,omitempty"`
-	Done       int        `json:"done"`
-	Total      int        `json:"total"`
-	Working    int        `json:"working"` // deeds underway in it
-	Open       []OpenDeed `json:"open"`    // its main-quest deeds neither fulfilled nor abandoned
+	Key        string      `json:"key"`
+	Title      string      `json:"title"`
+	State      string      `json:"state"`
+	ArchivedAt string      `json:"archivedAt,omitempty"`
+	Done       int         `json:"done"`
+	Total      int         `json:"total"`
+	Working    int         `json:"working"` // quests underway in it
+	Open       []OpenQuest `json:"open"`    // its main quests neither fulfilled nor abandoned
 }
 
-// OpenDeed is a deed still to do in a quest, as a quest card lists it.
-type OpenDeed struct {
+// OpenQuest is a quest still to do in a journey, as a journey card lists it.
+type OpenQuest struct {
 	Key     string `json:"key"`
 	Title   string `json:"title"`
 	Status  string `json:"status"`
 	Working bool   `json:"working"`
 }
 
-// QuestLink names a quest with its state, as the board links it.
-type QuestLink struct {
-	Slug       string `json:"slug"`
+// JourneyLink names a journey with its state, as the atlas links it.
+type JourneyLink struct {
+	Key        string `json:"key"`
 	Title      string `json:"title"`
 	State      string `json:"state"`
 	ArchivedAt string `json:"archivedAt,omitempty"`
 }
 
-// QuestRef names a quest.
-type QuestRef struct {
-	Slug  string `json:"slug"`
+// JourneyRef names a journey.
+type JourneyRef struct {
+	Key   string `json:"key"`
 	Title string `json:"title"`
 }
 
-// CardView is one card seen globally: the quests it is in, the cards it
+// CardView is one card seen globally: the journeys it is in, the cards it
 // needs, the cards that need it and its side quests.
 type CardView struct {
-	Card       Card       `json:"card"`
-	Quests     []QuestRef `json:"quests"`
-	Needs      []Card     `json:"needs"`
-	NeededBy   []Card     `json:"neededBy"`
-	SideQuests []Card     `json:"sideQuests"`
-	GitHub     string     `json:"github,omitempty"`
+	Card       Card         `json:"card"`
+	Journeys   []JourneyRef `json:"journeys"`
+	Needs      []Card       `json:"needs"`
+	NeededBy   []Card       `json:"neededBy"`
+	SideQuests []Card       `json:"sideQuests"`
+	GitHub     string       `json:"github,omitempty"`
 }
 
 // Need says From needs To done first.
@@ -128,7 +129,7 @@ type Need struct {
 	To   int64 `json:"to"`
 }
 
-// Event is one line of the quest log.
+// Event is one line of the journey log (the chronicle).
 type Event struct {
 	ID     int64  `json:"id"`
 	At     string `json:"at"`
@@ -137,30 +138,30 @@ type Event struct {
 	Text   string `json:"text"`
 }
 
-// QuestInfo is the quest's own fields.
-type QuestInfo struct {
-	Slug        string `json:"slug"`
+// JourneyInfo is the journey's own fields.
+type JourneyInfo struct {
+	Key         string `json:"key"`
 	Title       string `json:"title"`
 	FinalCardID *int64 `json:"finalCardId"`
 	State       string `json:"state"`                // active, complete or cancelled
-	ArchivedAt  string `json:"archivedAt,omitempty"` // set while the quest is archived
+	ArchivedAt  string `json:"archivedAt,omitempty"` // set while the journey is archived
 }
 
-// Quest states, from the final card.
+// Journey states, from the final card.
 const (
-	QuestActive    = "active"
-	QuestComplete  = "complete"
-	QuestCancelled = "cancelled"
+	JourneyActive    = "active"
+	JourneyComplete  = "complete"
+	JourneyCancelled = "cancelled"
 )
 
-// QuestView is everything the quest map needs. GitHub is set when live data
-// could not be fetched and cached data is shown instead.
-type QuestView struct {
-	Quest  QuestInfo `json:"quest"`
-	Cards  []Card    `json:"cards"`
-	Needs  []Need    `json:"needs"`
-	Log    []Event   `json:"log"`
-	GitHub string    `json:"github,omitempty"`
+// JourneyView is everything the war table needs. GitHub is set when live
+// data could not be fetched and cached data is shown instead.
+type JourneyView struct {
+	Journey JourneyInfo `json:"journey"`
+	Cards   []Card      `json:"cards"`
+	Needs   []Need      `json:"needs"`
+	Log     []Event     `json:"log"`
+	GitHub  string      `json:"github,omitempty"`
 }
 
 // Progress counts done cards out of a total.
@@ -169,9 +170,9 @@ type Progress struct {
 	Total int `json:"total"`
 }
 
-// QuestSummary is one row of the quest board.
-type QuestSummary struct {
-	Slug         string   `json:"slug"`
+// JourneySummary is one journey on the atlas.
+type JourneySummary struct {
+	Key          string   `json:"key"`
 	Title        string   `json:"title"`
 	Main         Progress `json:"main"`
 	Achievements Progress `json:"achievements"`
@@ -183,23 +184,23 @@ type QuestSummary struct {
 	Heroes       []string `json:"heroes"`
 	Repos        []string `json:"repos"`
 	LastActivity string   `json:"lastActivity"`
-	// ArchivedAt is set while the quest is archived: put away, off the
-	// board's shelves, otherwise unchanged.
+	// ArchivedAt is set while the journey is archived: put away, off the
+	// atlas's shelves, otherwise unchanged.
 	ArchivedAt string `json:"archivedAt,omitempty"`
-	// BlockedBy are the quests whose crowning deeds are on this quest's
-	// chart as quest cards; Blocks are the quests with this one's on theirs.
-	BlockedBy []QuestLink `json:"blockedBy"`
-	Blocks    []QuestLink `json:"blocks"`
+	// BlockedBy are the journeys whose crowning quests are on this journey's
+	// chart as journey cards; Blocks are the journeys with this one's on theirs.
+	BlockedBy []JourneyLink `json:"blockedBy"`
+	Blocks    []JourneyLink `json:"blocks"`
 }
 
-// NewCard is a request to add a card. Cards are global; a card is in a quest
+// NewCard is a request to add a card. Cards are global; a card is in a journey
 // once it is linked into it (FinalOf, NeededBy a member, SideOf a member).
 type NewCard struct {
 	Kind       string  `json:"kind"`
 	Ref        string  `json:"ref"`
 	Title      string  `json:"title"`
-	FinalOf    string  `json:"finalOf"` // make it the final card of this quest (slug)
-	Final      bool    `json:"final"`   // quest-scoped route only: final of that quest
+	FinalOf    string  `json:"finalOf"` // make it the final card of this journey (J7)
+	Final      bool    `json:"final"`   // journey-scoped route only: final of that journey
 	SideOf     *int64  `json:"sideOf"`
 	FoundWhile *int64  `json:"foundWhile"`
 	Reason     string  `json:"reason"`
@@ -216,8 +217,8 @@ type CardPatch struct {
 	Owner *string `json:"owner"`
 	NPC   *bool   `json:"npc"`
 	Title *string `json:"title"`
-	// Final (quest-scoped route only) makes the card that quest's final, or
-	// clears it if it was.
+	// Final (journey-scoped route only) makes the card that journey's final,
+	// or clears it if it was.
 	Final *bool `json:"final"`
 	// Cancelled cancels (with CancelReason, required) or uncancels.
 	Cancelled    *bool   `json:"cancelled"`
@@ -232,7 +233,7 @@ type ErrKind int
 
 const (
 	ErrInvalid  ErrKind = iota + 1 // the request makes no sense (400)
-	ErrNotFound                    // no such quest/card/need (404)
+	ErrNotFound                    // no such journey/card/need (404)
 	ErrConflict                    // clashes with existing data (409)
 	ErrUpstream                    // GitHub (gh) failed (502)
 )
@@ -258,19 +259,21 @@ func KindOf(err error) ErrKind {
 	return 0
 }
 
-// QuestPatch changes a quest; nil fields are left alone.
-type QuestPatch struct {
-	Slug  *string `json:"slug"`
+// JourneyPatch changes a journey; nil fields are left alone.
+type JourneyPatch struct {
 	Title *string `json:"title"`
 	Final *int64  `json:"final"`
-	// Archived puts the quest away (true) or brings it back (false).
+	// Archived puts the journey away (true) or brings it back (false).
 	Archived *bool `json:"archived"`
 }
 
-// Key is how a card id is shown: M142.
-func Key(id int64) string { return fmt.Sprintf("M%d", id) }
+// Key is how a card id is shown: Q142. A card is a quest.
+func Key(id int64) string { return fmt.Sprintf("Q%d", id) }
 
-// kindNoun is how a sentence names a kind of deed: "an issue", "an errand",
+// JourneyKey is how a journey id is shown: J7.
+func JourneyKey(id int64) string { return fmt.Sprintf("J%d", id) }
+
+// kindNoun is how a sentence names a kind of quest: "an issue", "an errand",
 // "a petition" (stored as awaiting).
 func kindNoun(kind string) string {
 	switch kind {

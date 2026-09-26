@@ -4,17 +4,17 @@ export type Health = { status: string; version: string }
 
 export type CardKind = 'issue' | 'errand' | 'awaiting'
 export type CardStatus = 'cancelled' | 'done' | 'locked' | 'awaiting' | 'available'
-export type QuestState = 'active' | 'complete' | 'cancelled'
+export type JourneyState = 'active' | 'complete' | 'cancelled'
 
 export type Progress = { done: number; total: number }
 
-/** One row of the quest board (store.QuestSummary). */
-export type QuestSummary = {
-  slug: string
+/** One journey on the atlas (store.JourneySummary). */
+export type JourneySummary = {
+  key: string // J7
   title: string
   main: Progress
   achievements: Progress
-  state: QuestState
+  state: JourneyState
   available: number
   awaiting: number
   cancelled: number
@@ -23,38 +23,38 @@ export type QuestSummary = {
   repos: string[] // owner/repo
   lastActivity: string // RFC 3339
   archivedAt?: string // RFC 3339, set while archived
-  blockedBy?: QuestLink[] // quests whose crowning deeds are on this quest's chart as quest cards; older servers send none
-  blocks?: QuestLink[] // quests with this one's crowning deed on their chart
+  blockedBy: JourneyLink[] // journeys whose crowning quests are on this journey's chart as journey cards
+  blocks: JourneyLink[] // journeys with this one's crowning quest on their chart
 }
 
-/** A quest named with its state, as the board links it (store.QuestLink). */
-export type QuestLink = { slug: string; title: string; state: QuestState; archivedAt?: string }
+/** A journey named with its state, as the atlas links it (store.JourneyLink). */
+export type JourneyLink = { key: string; title: string; state: JourneyState; archivedAt?: string }
 
-/** A deed still to do in a quest, as its quest card lists it (store.OpenDeed). */
-export type OpenDeed = { key: string; title: string; status: CardStatus; working: boolean }
+/** A quest still to do in a journey, as its journey card lists it (store.OpenQuest). */
+export type OpenQuest = { key: string; title: string; status: CardStatus; working: boolean }
 
 /**
- * The quest a card crowns (store.Crowns). On a chart it is set on a card that stands for another
- * quest: that quest's state, its main-quest progress as the board counts it, and what is left in it.
+ * The journey a card crowns (store.Crowns). On a chart it is set on a card that stands for another
+ * journey: that journey's state, its main-quest progress as the atlas counts it, and what is left in it.
  */
 export type Crowns = {
-  slug: string
+  key: string // J7
   title: string
-  state: QuestState
+  state: JourneyState
   archivedAt?: string
   done: number
   total: number
-  working: number // deeds underway in it
-  open: OpenDeed[]
+  working: number // quests underway in it
+  open: OpenQuest[]
 }
 
-/** Another quest the same card belongs to. */
-export type QuestRef = { slug: string; title: string }
+/** Another journey the same card belongs to. */
+export type JourneyRef = { key: string; title: string }
 
-/** A card with what GitHub says about it and its computed status (store.Card). */
+/** A card — a quest — with what GitHub says about it and its computed status (store.Card). */
 export type Card = {
   id: number
-  key?: string // the id people use (M142); older servers do not send it
+  key: string // the key people use (Q142)
   kind: CardKind
   ref?: string // issues: owner/repo#n
   url?: string
@@ -78,14 +78,14 @@ export type Card = {
   workingBy?: string
   status: CardStatus
   openBefore: number
-  alsoIn?: QuestRef[]
-  crowns?: Crowns // it crowns another quest and stands for that whole quest on this chart
+  alsoIn?: JourneyRef[]
+  crowns?: Crowns // it crowns another journey and stands for that whole journey on this chart
 }
 
 /** `from` needs `to` done first. */
 export type Need = { from: number; to: number }
 
-/** One line of the quest log (store.Event). */
+/** One line of the chronicle (store.Event). */
 export type LogEvent = {
   id: number
   at: string // RFC 3339
@@ -94,17 +94,17 @@ export type LogEvent = {
   text: string
 }
 
-export type QuestInfo = {
-  slug: string
+export type JourneyInfo = {
+  key: string // J7
   title: string
   finalCardId: number | null
-  state: QuestState
+  state: JourneyState
   archivedAt?: string // RFC 3339, set while archived
 }
 
-/** Everything the quest map needs (store.QuestView). */
-export type QuestView = {
-  quest: QuestInfo
+/** Everything the war table needs (store.JourneyView). */
+export type JourneyView = {
+  journey: JourneyInfo
   cards: Card[]
   needs: Need[]
   log: LogEvent[]
@@ -165,12 +165,12 @@ async function send<T>(method: 'PATCH' | 'POST' | 'DELETE', path: string, body: 
   return out as T
 }
 
-/** Retitles a quest; its slug, and so its links, stay as they are. */
-export async function retitleQuest(slug: string, title: string): Promise<QuestSummary> {
-  return send<QuestSummary>('PATCH', `/api/quests/${encodeURIComponent(slug)}`, { title })
+/** Retitles a journey; its key, and so its links, stay as they are. */
+export async function retitleJourney(key: string, title: string): Promise<JourneySummary> {
+  return send<JourneySummary>('PATCH', `/api/journeys/${encodeURIComponent(key)}`, { title })
 }
 
-/** Marks a deed as an NPC, or not: it only changes how the deed looks on the chart. */
+/** Marks a quest as an NPC, or not: it only changes how the quest looks on the chart. */
 export async function setNpc(id: number, npc: boolean): Promise<Card> {
   return send<Card>('PATCH', `/api/cards/${id}`, { npc })
 }
@@ -179,19 +179,19 @@ export async function fetchHealth(): Promise<Health> {
   return (await get<Health>('/api/health')).body
 }
 
-/** The quest board, and GitHub's warning if its data is stale. */
-export async function fetchQuests(): Promise<{ quests: QuestSummary[]; github?: string }> {
-  const { body, res } = await get<QuestSummary[]>('/api/quests')
-  return { quests: body, github: res.headers.get('X-Mikado-GitHub') ?? undefined }
+/** The atlas, and GitHub's warning if its data is stale. */
+export async function fetchJourneys(): Promise<{ journeys: JourneySummary[]; github?: string }> {
+  const { body, res } = await get<JourneySummary[]>('/api/journeys')
+  return { journeys: body, github: res.headers.get('X-Mikado-GitHub') ?? undefined }
 }
 
-/** What the search popup finds (store.SearchResult). `exact` is the deed the query names by id or issue. */
-export type SearchResult = { quests: QuestInfo[]; deeds: Card[]; exact?: Card }
+/** What the search popup finds (store.SearchResult). `exact` is the quest the query names by key or issue. */
+export type SearchResult = { journeys: JourneyInfo[]; quests: Card[]; exact?: Card }
 
 export async function fetchSearch(q: string, signal?: AbortSignal): Promise<SearchResult> {
   return (await get<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`, signal)).body
 }
 
-export async function fetchQuest(slug: string): Promise<QuestView> {
-  return (await get<QuestView>(`/api/quests/${encodeURIComponent(slug)}`)).body
+export async function fetchJourney(key: string): Promise<JourneyView> {
+  return (await get<JourneyView>(`/api/journeys/${encodeURIComponent(key)}`)).body
 }
