@@ -63,6 +63,12 @@ local server.
   so.
 - When you report back to the user, name quests by their `Q` id (and the issue ref if it helps)
   and journeys by their `J` id: "Added Q12 (studio/saves#45) to J2; it opens Q9."
+- **mikado ids stay out of anything shared.** mikado is the user's own map; other people working
+  in the same repos do not have it, and `Q12` or `J2` means nothing to them. Never write mikado
+  ids, journey titles or mentions of mikado into commit messages, branch names, code comments,
+  docs, GitHub issues, pull requests or review comments. Refer to the work the way the repo
+  does: by issue or PR (`#45`, `owner/repo#45`) or in plain words. (Example ids in mikado's own
+  docs are syntax, not the user's map, and are fine.)
 
 ## Workflows
 
