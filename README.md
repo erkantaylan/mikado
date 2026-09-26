@@ -23,7 +23,7 @@ across projects, people and plain life, so the end goal stays in view while side
 | The Atlas | Glossary tab |
 |---|---|
 | ![Atlas](docs/screenshots/board.png) | ![Glossary](docs/screenshots/glossary.png) |
-| **Midnight theme** | **War table theme** <!-- screenshot to retake: war table --> |
+| **Midnight theme** | **War table theme** |
 | ![Midnight theme](docs/screenshots/midnight.png) | ![War table theme](docs/screenshots/medieval.png) |
 
 **The words** — journey, atlas, chart, quest (or task), crowning quest, requires/opens, petition,
