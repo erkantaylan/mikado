@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Gem, Layers } from 'lucide-react'
+import { Ban, Check, Gem, Layers } from 'lucide-react'
 import type { Item, Status } from './model'
 
 // Every colour is a theme variable (quest.css).
@@ -22,7 +22,7 @@ export const medal: Record<Status, CSSProperties> = {
   available: { background: 'var(--avail)', borderColor: 'var(--avail)', color: '#fff' },
   locked: { background: 'var(--locked-medal)', borderColor: 'var(--plate-border)', color: 'var(--ink)' },
   awaiting: { background: 'var(--await)', borderColor: 'var(--await)', color: '#fff' },
-  cancelled: { background: 'var(--panel)', borderColor: 'var(--edge-off)', color: 'var(--ink-faint)' },
+  cancelled: { background: 'var(--char-plate)', borderColor: 'var(--char-border)', color: 'var(--ink-faint)' },
 }
 // The journey itself, once its crowning quest is fulfilled: the one win that keeps the full gold.
 export const crownMedal: CSSProperties = { background: 'var(--gold)', borderColor: 'var(--gold)', color: 'var(--gold-ink)', boxShadow: glow('--gold', 16, 55) }
@@ -33,7 +33,8 @@ export const plate: Record<Status, CSSProperties> = {
   available: { background: 'var(--avail-plate)', borderColor: 'var(--avail)', boxShadow: glow('--avail', 18, 45) },
   locked: { background: 'var(--plate)', borderColor: 'var(--plate-border)' },
   awaiting: { background: 'var(--await-plate)', borderColor: 'var(--await)' },
-  cancelled: { background: 'var(--panel)', borderColor: 'var(--edge-off)', opacity: 0.75 },
+  // Abandoned sinks below fulfilled: the darkest plate on the chart, so the two never read alike.
+  cancelled: { background: 'var(--char-plate)', borderColor: 'var(--char-border)' },
 }
 export const sidePlate: CSSProperties = { background: 'var(--panel)', borderColor: 'color-mix(in srgb, var(--side) 60%, var(--panel))' }
 
@@ -260,5 +261,27 @@ export function Kinds({ kinds, reason, children }: { kinds: Kind[]; reason?: str
         <KindMark key={k} kind={k} title={k === 'found' && reason ? `${kindTitle.found} (${reason})` : undefined} />
       ))}
     </span>
+  )
+}
+
+/**
+ * The tile laid over a settled quest when the chart covers them, as guessed cards are covered in
+ * Codenames: the card stays where it stands, so nothing moves, but only its key and how it ended
+ * show. Hovering lifts the tile to read the card; a selected quest is never covered. Its colours are
+ * in quest.css, per theme.
+ */
+export function Cover({ status, name, style }: { status: Status; name?: string; style?: CSSProperties }) {
+  const done = status === 'done'
+  return (
+    <div
+      aria-hidden
+      data-cover={done ? 'done' : 'cancelled'}
+      style={style}
+      className="quest-cover pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-lg border-2"
+    >
+      {done ? <Check size={18} strokeWidth={3} /> : <Ban size={18} />}
+      {name && <span className="quest-cover-key font-mono text-[14px] font-bold">{name}</span>}
+      <span className="quest-cover-word text-[11px] font-bold tracking-[0.2em] uppercase">{words[status]}</span>
+    </div>
   )
 }

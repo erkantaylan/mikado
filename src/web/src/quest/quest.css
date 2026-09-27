@@ -37,6 +37,10 @@
   --gold: #c38a12;
   --gold-ink: #ffffff;
   --done-plate: #fbefcc;
+  --char-plate: #d3c9b3; /* abandoned: the darkest paper on the chart */
+  --char-border: #9d9076;
+  --char-tile: #4a4134; /* the tile over a covered abandoned quest */
+  --char-tile-ink: #c9bda3;
   --avail: #1d74ad;
   --avail-plate: #e8f3fb;
   --await: #c05a14;
@@ -65,6 +69,10 @@
   --gold: #fbbf24;
   --gold-ink: #3b2a05;
   --done-plate: #3a2e0f;
+  --char-plate: #0a0e17; /* abandoned: darker than the chart itself */
+  --char-border: #262f44;
+  --char-tile: #06090f;
+  --char-tile-ink: #94a3b8;
   --avail: #38bdf8;
   --avail-plate: #0f3552;
   --await: #fb923c;
@@ -76,6 +84,46 @@
 
 .quest-display {
   font-family: var(--font-display);
+}
+
+/* ---- covered quests ----
+   Like the agent tiles laid over guessed cards in Codenames: a settled quest the chart covers keeps
+   its place, under a solid tile with its key and how it ended. Hovering lifts the tile off to read
+   the card. Fulfilled is a quiet gold tile, abandoned a dark one. */
+.quest-cover {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 3px 8px -2px rgba(0, 0, 0, 0.25);
+  transition:
+    opacity 0.18s,
+    transform 0.18s;
+}
+.quest-cover[data-cover='done'] {
+  background: color-mix(in srgb, var(--gold) 28%, var(--panel));
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--panel));
+  color: color-mix(in srgb, var(--gold) 45%, var(--ink));
+}
+.quest-cover[data-cover='cancelled'] {
+  background: var(--char-tile);
+  border-color: var(--char-border);
+  color: var(--char-tile-ink);
+}
+.quest-cover[data-cover='cancelled'] .quest-cover-key {
+  text-decoration: line-through;
+}
+/* Under the tile, the card's corner marks would peek out; they come back with the card. */
+.quest-item[data-covered] > :not(.quest-cover, .react-flow__handle) {
+  transition: opacity 0.18s;
+}
+.quest-item[data-covered]:not(:hover) > :not(.quest-cover, .react-flow__handle, .quest-plate, .quest-behind) {
+  opacity: 0;
+}
+.quest-item[data-covered]:hover > .quest-cover {
+  opacity: 0;
+  transform: translateY(-10px) rotate(-1.5deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-item[data-covered]:hover > .quest-cover {
+    transform: none;
+  }
 }
 
 /* ---- War table ------------------------------------------------------------
@@ -108,6 +156,8 @@
   --gold: #a87417;
   --gold-ink: #fff6dc;
   --done-plate: #f0e1b6;
+  --char-plate: #5b5446;
+  --char-border: #3b3429;
   --avail: #1f4e8c;
   --avail-plate: #e8eef5;
   --await: #9b2b1d;
@@ -840,8 +890,9 @@
     0 0 2px rgba(246, 236, 214, 0.95),
     0 0 5px rgba(246, 236, 214, 0.8);
 }
-/* Abandoned: faded sepia paper with a jagged strip torn off its right side,
-   wider towards the bottom. The tear is a fixed clip-path (the same on every
+/* Abandoned: charred grey paper, darker than a fulfilled quest's, with a jagged strip torn off its
+   right side, wider towards the bottom. Live work is lit, fulfilled work has its light out, and
+   abandoned work is the darkest thing on the table. The tear is a fixed clip-path (the same on every
    card), with a pale rim of torn fibres along it; the shadow comes from a
    drop-shadow on the card, as a clip-path would cut off the paper's own. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] {
@@ -853,13 +904,10 @@
   filter: var(--wt-tear-shadow);
 }
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate {
-  filter: sepia(0.35) saturate(0.6);
+  filter: grayscale(0.9) brightness(0.42) contrast(1.15);
   clip-path: var(--wt-tear);
   box-shadow: none !important;
   padding-right: 34px; /* the writing stays clear of the tear */
-}
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate > * {
-  opacity: 0.72;
 }
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate::after {
   content: '';
@@ -879,6 +927,27 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'][data-dim] {
   filter: grayscale(0.85) contrast(0.42) brightness(1.28) var(--wt-tear-shadow);
 }
+/* Covered: a brass plaque over a fulfilled quest, a slab of dark oak over an abandoned one. */
+.quest-theme[data-theme='wartable'] .quest-cover {
+  border-width: 1.5px;
+  border-radius: 4px 7px 5px 8px / 7px 4px 8px 5px;
+  box-shadow: 0 1px 1px rgba(20, 12, 4, 0.45), 0 4px 10px -2px rgba(20, 12, 4, 0.5);
+}
+.quest-theme[data-theme='wartable'] .quest-cover[data-cover='done'] {
+  background: linear-gradient(180deg, #c9ac6c 0%, #9c7836 50%, #75561f 100%);
+  border-color: #5a3708;
+  color: #3b2506;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.45);
+}
+.quest-theme[data-theme='wartable'] .quest-cover[data-cover='cancelled'] {
+  background: #1e130a url('../assets/wartable/oak-dark.webp') center / 640px;
+  border-color: #0e0904;
+  color: #b9a888;
+}
+.quest-theme[data-theme='wartable'] .quest-cover-word {
+  font-family: 'Cinzel', 'EB Garamond', serif;
+}
+
 /* NPC: a red ink border and a faint red wash, whatever its state. */
 .quest-theme[data-theme='wartable'] .quest-item[data-npc] {
   --wt-ink-rule: var(--npc);

@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { Ban, Check, ExternalLink, Flag, Layers } from 'lucide-react'
 import type { Item, JourneyCard, Status } from './model'
-import { Gate, Key, Kinds, Working, glow, medal, plate, spentText, stateColour, words } from './look'
+import { Cover, Gate, Key, Kinds, Working, glow, medal, plate, spentText, stateColour, words } from './look'
 import { useWarTable } from './theme'
 
 // A journey card: a quest on this chart that crowns another journey, drawn as one card standing for
@@ -52,10 +52,10 @@ export function journeyCardWord(q: JourneyCard, status: Status): string {
   return words[status]
 }
 
-type Props = { item: Item; q: JourneyCard; status: Status; dim: boolean; selected: boolean }
+type Props = { item: Item; q: JourneyCard; status: Status; dim: boolean; selected: boolean; covered?: boolean }
 
 /** The journey card node. */
-export function JourneyCardView({ item, q, status, dim, selected }: Props) {
+export function JourneyCardView({ item, q, status, dim, selected, covered }: Props) {
   const wt = useWarTable()
   const done = status === 'done'
   const over = done || status === 'cancelled'
@@ -67,9 +67,12 @@ export function JourneyCardView({ item, q, status, dim, selected }: Props) {
       style={{ width: CARD_WIDTH + STACK * 2, paddingRight: STACK * 2, paddingBottom: STACK * 2 }}
       data-status={status}
       data-dim={dim || undefined}
+      data-covered={covered || undefined}
       className={`quest-item quest-stack relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
+      {/* The tile covers the front card; the journey's folded quests still peek out behind it. */}
+      {covered && <Cover status={status} name={q.key} style={{ right: STACK * 2, bottom: STACK * 2 }} />}
       {/* The journey's own quests, folded behind it. */}
       {[2, 1].map((depth) => (
         <div

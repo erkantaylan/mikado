@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import type { Item, JourneyModel, JourneyRef, JourneyState, Status } from './model'
-import { Achievements, Gate, Hero, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
+import { Achievements, Cover, Gate, Hero, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
 import { useWarTable } from './theme'
 import { JourneyCardView } from './JourneyCard'
 import { RailwayLine } from './railway'
@@ -29,7 +29,7 @@ const SIDE_WIDTH = 290
 
 // Node data carries everything a node draws, so node components read no journey state of their own.
 type GoalData = { title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
-export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; dim: boolean; selected: boolean }
+export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; dim: boolean; selected: boolean; covered: boolean }
 type GoalNode = Node<GoalData, 'goal'>
 type CardNode = Node<CardData, 'card'>
 export type QuestNode = GoalNode | CardNode
@@ -113,7 +113,7 @@ export function AlsoIn({ journeys, label = true }: { journeys: JourneyRef[]; lab
 function npcPlate(status: Status): CSSProperties {
   if (status === 'done' || status === 'cancelled')
     return {
-      background: 'color-mix(in srgb, var(--npc-plate) 55%, var(--panel))',
+      background: `color-mix(in srgb, var(--npc-plate) ${status === 'done' ? '55%, var(--panel)' : '30%, var(--char-plate)'})`,
       borderColor: 'color-mix(in srgb, var(--npc) 55%, var(--panel))',
       opacity: plate[status].opacity,
     }
@@ -121,10 +121,10 @@ function npcPlate(status: Status): CSSProperties {
 }
 
 function CardView({ data }: NodeProps<CardNode>) {
-  const { item, tag, status, openBefore, days, dim, selected } = data
+  const { item, tag, status, openBefore, days, dim, selected, covered } = data
   const wt = useWarTable()
   // A quest that crowns another journey stands for that whole journey here.
-  if (item.crowns) return <JourneyCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} />
+  if (item.crowns) return <JourneyCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} covered={covered} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   const underway = item.working && !item.done
@@ -141,9 +141,11 @@ function CardView({ data }: NodeProps<CardNode>) {
       data-side={side || undefined}
       data-npc={item.npc || undefined}
       data-dim={dim || undefined}
+      data-covered={covered || undefined}
       className={`quest-item relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
+      {covered && <Cover status={status} name={item.key ?? tag} />}
       {wt ? (
         // The war table's gate: can it be started?
         <Gate status={status} count={openBefore} small={side} />
@@ -292,19 +294,34 @@ export const edgeTypes = { quest: QuestLine }
 
 // ---- graph -----------------------------------------------------------------
 
-/** Which quests can be left off the chart: fulfilled ones, abandoned ones, or both. */
-export type Hide = { done: boolean; cancelled: boolean }
+/**
+ * What the chart does with a settled quest: shows it, covers it with a tile where it stands (as
+ * guessed cards are covered in Codenames, so nothing moves), or leaves it off.
+ */
+export type Veil = 'show' | 'cover' | 'hide'
+/** What the chart does with fulfilled quests and with abandoned ones. */
+export type Hide = { done: Veil; cancelled: Veil }
+
+/** The quests `hide` sets to `veil`. The crowning quest is never covered or hidden. */
+function veiled(m: JourneyModel, hide: Hide, veil: Veil) {
+  return (i: Item) => {
+    if (i.final || i.id === m.goal.doneWhen) return false
+    const s = m.statusOf(i)
+    return (s === 'done' || s === 'cancelled') && hide[s] === veil
+  }
+}
+
+/** The quests `hide` covers with a tile. */
+export function coveredQuests(m: JourneyModel, hide: Hide): Set<string> {
+  return new Set([...m.items, ...m.sideQuests].filter(veiled(m, hide, 'cover')).map((i) => i.id))
+}
 
 /**
  * The quests `hide` leaves off the chart. The crowning quest always stays; a side quest goes with
  * the quest it hangs on, as it would float on its own.
  */
 export function hiddenQuests(m: JourneyModel, hide: Hide): Set<string> {
-  const off = (i: Item) => {
-    if (i.final || i.id === m.goal.doneWhen) return false
-    const s = m.statusOf(i)
-    return (hide.done && s === 'done') || (hide.cancelled && s === 'cancelled')
-  }
+  const off = veiled(m, hide, 'hide')
   const out = new Set(m.items.filter(off).map((i) => i.id))
   for (const q of m.sideQuests) if (off(q) || (q.sideOf && out.has(q.sideOf))) out.add(q.id)
   return out
@@ -371,6 +388,7 @@ export function buildGraph(
   selected: string | null,
   state?: JourneyState,
   hidden: Set<string> = new Set(),
+  covered: Set<string> = new Set(),
 ): { nodes: QuestNode[]; edges: QuestEdge[] } {
   const { goal, items, sideQuests, needs, byId } = m
   const onPath = selected ? m.pathToGoal(selected) : null
@@ -407,6 +425,7 @@ export function buildGraph(
           days: m.daysSince(item),
           dim: !!onPath && !onPath.has(item.id),
           selected: item.id === selected,
+          covered: covered.has(item.id) && item.id !== selected,
         },
       }),
     ),

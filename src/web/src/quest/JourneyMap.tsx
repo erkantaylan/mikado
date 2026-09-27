@@ -22,11 +22,13 @@ import {
   LayoutWhenMeasured,
   buildGraph,
   edgeTypes,
+  coveredQuests,
   hiddenQuests,
   miniClass,
   nodeTypes,
   stroke,
   type Hide,
+  type Veil,
   type Placed,
   type QuestNode,
 } from './graph'
@@ -691,19 +693,23 @@ function PanelTabs({ tab, onChange, logCount }: { tab: PanelTab; onChange: (t: P
   )
 }
 
-const showAll: Hide = { done: false, cancelled: false }
+const showAll: Hide = { done: 'show', cancelled: 'show' }
 const GLIDE_MS = 300
 
+const veils: Veil[] = ['show', 'cover', 'hide']
+/** A saved choice: a veil, or `true` / `false` from before quests could be covered. */
+const veilOf = (v: unknown): Veil => (v === true ? 'hide' : veils.includes(v as Veil) ? (v as Veil) : 'show')
+
 /**
- * Which finished quests the chart leaves off, remembered per journey (the mock has no key).
+ * Which finished quests the chart covers or leaves off, remembered per journey (the mock has no key).
  * `adjust` may change what was remembered for this visit only, without saving it.
  */
 function useHide(journeyKey: string | undefined, adjust: (h: Hide) => Hide): [Hide, (h: Hide) => void] {
   const key = `mikado.hide.${journeyKey ?? 'mock'}`
   const [hide, setHide] = useState<Hide>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? 'null') as Partial<Hide> | null
-      return adjust({ done: !!saved?.done, cancelled: !!saved?.cancelled })
+      const saved = JSON.parse(localStorage.getItem(key) ?? 'null') as Record<keyof Hide, unknown> | null
+      return adjust({ done: veilOf(saved?.done), cancelled: veilOf(saved?.cancelled) })
     } catch {
       // storage may be unavailable or hold something else; show everything
       return adjust(showAll)
@@ -723,7 +729,10 @@ function useHide(journeyKey: string | undefined, adjust: (h: Hide) => Hide): [Hi
   return [hide, choose]
 }
 
-/** `hide` with whatever keeps quest `id` off the chart cleared: its own status, or that of the quest it hangs on. */
+/**
+ * `hide` with whatever keeps quest `id` off the chart eased to covering: its own status, or that of the
+ * quest it hangs on. Selected, it is not covered either.
+ */
 function revealing(m: JourneyModel, id: string, hide: Hide): Hide {
   const i = m.byId.get(id)
   const parent = i?.sideOf ? m.byId.get(i.sideOf) : undefined
@@ -731,13 +740,15 @@ function revealing(m: JourneyModel, id: string, hide: Hide): Hide {
   for (const x of [i, parent]) {
     if (!x) continue
     const s = m.statusOf(x)
-    if (s === 'done') next.done = false
-    if (s === 'cancelled') next.cancelled = false
+    if ((s === 'done' || s === 'cancelled') && next[s] === 'hide') next[s] = 'cover'
   }
   return next
 }
 
-/** The chart's "Show" menu, beside its controls: leave fulfilled or abandoned quests off the chart. */
+/**
+ * The chart's "Show" menu, beside its controls: show fulfilled or abandoned quests, cover them where
+ * they stand, or leave them off the chart.
+ */
 function ShowMenu({
   hide,
   counts,
@@ -762,11 +773,27 @@ function ShowMenu({
     }
   }, [onClose])
   const row = (k: keyof Hide, label: string) => (
-    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[14px] text-[var(--ink)] hover:bg-[var(--chip)]">
-      <input type="checkbox" checked={hide[k]} onChange={() => onChange({ ...hide, [k]: !hide[k] })} className="accent-[var(--avail)]" />
-      <span className="flex-1">{label}</span>
-      <span className="text-[12px] text-[var(--ink-faint)]">{counts[k]}</span>
-    </label>
+    <div className="flex flex-col gap-1 px-2 py-1.5">
+      <div className="flex items-center text-[14px] text-[var(--ink)]">
+        <span className="flex-1">{label}</span>
+        <span className="text-[12px] text-[var(--ink-faint)]">{counts[k]}</span>
+      </div>
+      <div role="radiogroup" aria-label={label} className="flex rounded-md border border-[var(--panel-border)] p-0.5">
+        {veils.map((v) => (
+          <button
+            key={v}
+            role="radio"
+            aria-checked={hide[k] === v}
+            onClick={() => onChange({ ...hide, [k]: v })}
+            className={`flex-1 rounded px-2 py-0.5 text-[13px] capitalize transition ${
+              hide[k] === v ? 'bg-[var(--chip)] font-semibold text-[var(--ink)]' : 'text-[var(--ink-soft)] hover:text-[var(--ink)]'
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+    </div>
   )
   return (
     <div
@@ -776,9 +803,11 @@ function ShowMenu({
       className="absolute bottom-[15px] left-[58px] z-20 w-56 rounded-lg border border-[var(--panel-border)] bg-[var(--panel)] p-1 shadow-lg"
     >
       <div className="px-2 pt-1 pb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Show</div>
-      {row('done', 'Hide fulfilled')}
-      {row('cancelled', 'Hide abandoned')}
-      <div className="px-2 pt-1 pb-1.5 text-[12px] leading-snug text-[var(--ink-faint)]">The crowning quest always stays.</div>
+      {row('done', 'Fulfilled')}
+      {row('cancelled', 'Abandoned')}
+      <div className="px-2 pt-1 pb-1.5 text-[12px] leading-snug text-[var(--ink-faint)]">
+        Cover lays a tile over each, where it stands; hover to lift it. The crowning quest always stays.
+      </div>
     </div>
   )
 }
@@ -832,9 +861,10 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
   const sel = selected ? m.byId.get(selected) : undefined
   const selectedId = sel ? sel.id : null
   const hidden = useMemo(() => hiddenQuests(m, hide), [m, hide])
-  const graph = useMemo(() => buildGraph(m, selectedId, state, hidden), [m, selectedId, state, hidden])
+  const covered = useMemo(() => coveredQuests(m, hide), [m, hide])
+  const graph = useMemo(() => buildGraph(m, selectedId, state, hidden, covered), [m, selectedId, state, hidden, covered])
   const hideable = useMemo(
-    () => ({ done: hiddenQuests(m, { done: true, cancelled: false }).size, cancelled: hiddenQuests(m, { done: false, cancelled: true }).size }),
+    () => ({ done: coveredQuests(m, { done: 'cover', cancelled: 'show' }).size, cancelled: coveredQuests(m, { done: 'show', cancelled: 'cover' }).size }),
     [m],
   )
 
@@ -941,7 +971,8 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
   // quest was asked for, that quest.
   const afterLayout = useRef<{ fit: true } | { quest: string } | null>(null)
   const chooseHide = (h: Hide) => {
-    afterLayout.current = { fit: true }
+    // Covering moves nothing; only showing or hiding quests lays the chart out again.
+    if ((h.done === 'hide') !== (hide.done === 'hide') || (h.cancelled === 'hide') !== (hide.cancelled === 'hide')) afterLayout.current = { fit: true }
     setHide(h)
   }
   const onLaidOut = useEffectEvent(() => {
@@ -1127,7 +1158,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                     aria-label="Show or hide finished quests"
                     aria-expanded={showOpen}
                   >
-                    {hidden.size ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {hidden.size || covered.size ? <EyeOff size={14} /> : <Eye size={14} />}
                   </ControlButton>
                 </Controls>
                 <LayoutWhenMeasured onPlaced={onPlaced} />

@@ -36,8 +36,8 @@ quiet "$m" errand "Reach 80 wpm on a code-typing test" --side-of "$a"
 s=$("$m" errand "Learn the symbols row without looking" --side-of "$a" --json | key)
 for q in "$b" "$a" "$s"; do quiet "$m" fulfil "$q"; done
 
-# J3: an omelette — sealed, open, underway and fulfilled quests, a found
-# quest, side quests on side quests and a petition.
+# J3: an omelette — sealed, open, underway, fulfilled and abandoned quests,
+# a found quest, side quests on side quests and a petition.
 quiet "$m" journey new "Make an omelette" 2>/dev/null
 serve=$("$m" errand "Serve the omelette on a warm plate while it is still soft in the middle" --crowns J3 --json | key)
 whisk=$("$m" errand "Whisk three eggs with a pinch of salt until no streaks of white remain" --opens "$serve" --json | key)
@@ -54,6 +54,8 @@ quiet "$m" errand "Grind black pepper into the eggs just before cooking" --side-
 quiet "$m" errand "Roll the omelette into a French fold with no browning at all" --side-of "$serve"
 for q in "$salt" "$pan" "$butter"; do quiet "$m" fulfil "$q"; done
 quiet "$m" take-up "$shop" --by erkan
+castiron=$("$m" errand "Borrow the flatmate's cast-iron pan" --opens "$heat" --json | key)
+quiet "$m" abandon "$castiron" --reason "the non-stick pan does the job"
 
 # J4: brunch waits on the whole omelette journey (drawn as one journey card).
 quiet "$m" journey new "Host brunch for four on Sunday" 2>/dev/null
@@ -62,7 +64,8 @@ quiet "$m" require "$brunch" J3
 table=$("$m" errand "Set the table for four with the good plates" --opens "$brunch" --json | key)
 quiet "$m" errand "Brew a pot of Turkish tea" --opens "$brunch"
 quiet "$m" petition "Confirm who is coming" --on "the group chat" --opens "$brunch"
-quiet "$m" errand "Bake simit the night before" --side-of "$brunch"
+simit=$("$m" errand "Bake simit the night before" --side-of "$brunch" --json | key)
+quiet "$m" abandon "$simit" --reason "the bakery on the corner sells them fresh"
 quiet "$m" fulfil "$table"
 
 # J5: a code journey. Its GitHub issue needs gh; without it, the journey is
