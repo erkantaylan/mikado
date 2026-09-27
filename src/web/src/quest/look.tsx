@@ -156,6 +156,7 @@ export function Pill({ n, label, colour, coin }: { n: number; label: string; col
   return (
     <span
       data-coin={coin}
+      data-zero={n === 0 || undefined}
       className={`quest-pill inline-flex items-baseline gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-1 whitespace-nowrap ${
         n === 0 ? 'opacity-45' : ''
       }`}

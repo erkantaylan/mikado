@@ -265,9 +265,11 @@
 
 /* ---- the carved-wood header ---- */
 .quest-theme[data-theme='wartable'] .quest-header {
-  --ink: #f4e8ca;
-  --ink-soft: #dccaa3;
-  --ink-faint: #b39d77;
+  --ink: #f8eed6;
+  --ink-soft: #e8d9b8;
+  --ink-faint: #cbb792;
+  /* Lifts small writing off the wood grain. */
+  --wt-carve: 0 0 3px rgba(12, 6, 2, 0.95), 0 1px 2px rgba(12, 6, 2, 0.85);
   --panel-border: rgba(222, 186, 118, 0.42);
   --chip: rgba(255, 238, 200, 0.1);
   --gold: #deaa48;
@@ -277,8 +279,10 @@
   padding-left: 30px;
   padding-right: 30px;
   border-bottom: 0;
+  /* The oak is darkened under the writing: its grain still shows, but quiet enough to read over. */
   background:
-    linear-gradient(180deg, rgba(255, 225, 170, 0.08) 0%, transparent 30%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, rgba(255, 225, 170, 0.06) 0%, transparent 30%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(rgba(16, 9, 3, 0.42), rgba(16, 9, 3, 0.42)),
     #2b190c url('../assets/wartable/oak-dark.webp') center / 640px;
   box-shadow:
     inset 0 1px 0 rgba(255, 225, 170, 0.12),
@@ -306,6 +310,16 @@
 }
 .quest-theme[data-theme='wartable'] .quest-header::after {
   right: 0;
+}
+/* Above the title, the way back (brighter brass); below it, what the journey holds (full cream). */
+.quest-theme[data-theme='wartable'] .quest-header .quest-crumb {
+  color: #f0c35f !important;
+  text-shadow: var(--wt-carve);
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-subtitle {
+  font-size: 15px;
+  color: var(--ink);
+  text-shadow: var(--wt-carve);
 }
 .quest-theme[data-theme='wartable'] .quest-header h1 {
   letter-spacing: 0.02em;
@@ -335,8 +349,14 @@
   text-align: left;
 }
 .quest-theme[data-theme='wartable'] :is(.quest-pill, .quest-stat) > :not(.quest-coin) {
-  color: var(--ink-soft);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow: var(--wt-carve);
+}
+/* A zero steps back, but stays readable. */
+.quest-theme[data-theme='wartable'] .quest-pill[data-zero] {
+  opacity: 0.6;
 }
 .quest-theme[data-theme='wartable'] .quest-coin {
   display: grid;

@@ -1039,15 +1039,15 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
               <Trophy size={20} />
             </span>
             <div className="min-w-0">
-              <a href={atlasHref} className="text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
-                ← Atlas{journeyKey && <span className="ml-2 font-mono tracking-normal text-[var(--ink-faint)] normal-case">{journeyKey}</span>}
+              <a href={atlasHref} className="quest-crumb text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
+                ← Atlas{journeyKey && <span className="ml-2 font-mono tracking-normal text-[var(--ink-soft)] normal-case">{journeyKey}</span>}
               </a>
               <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
                 <JourneyTitle title={goal.title} journeyKey={journeyKey} onRetitle={onRetitle} />
                 <JourneyStateChip state={state} />
                 {archived && <ArchivedChip />}
               </h1>
-              <div className="truncate text-[14px] text-[var(--ink-soft)]">
+              <div className="quest-subtitle truncate text-[14px] text-[var(--ink-soft)]">
                 {goal.doneWhen ? (
                   <>
                     Crowned by{' '}

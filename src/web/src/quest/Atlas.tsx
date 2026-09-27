@@ -247,7 +247,7 @@ export default function Atlas({ journeys, hrefOf, eyebrow, noMap, banner, empty,
     <div data-theme={theme} className="quest-theme min-h-screen">
       <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
         <div>
-          <div className="text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
+          <div className="quest-crumb text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
           <h1 className="quest-display text-2xl font-semibold">Atlas</h1>
         </div>
         <div className="flex gap-2">
