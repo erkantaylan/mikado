@@ -69,7 +69,7 @@ export function ThemeMenu({ theme, onChange }: { theme: ThemeId; onChange: (t: T
         aria-expanded={open}
         aria-label="Theme"
         title="Theme"
-        className="grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
+        className="quest-tool grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
       >
         <Palette size={18} />
       </button>

@@ -45,7 +45,7 @@ export function Search({ here, select, compact }: SearchProps & { compact?: bool
         onClick={() => setOpen(true)}
         aria-label="Search journeys and quests"
         title={`Search journeys and quests (${mac ? '⌘' : 'Ctrl'} K)`}
-        className={`flex h-10 shrink-0 items-center gap-2 rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)] ${compact ? 'w-10 justify-center' : 'px-3'}`}
+        className={`quest-tool flex h-10 shrink-0 items-center gap-2 rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)] ${compact ? 'w-10 justify-center' : 'px-3'}`}
       >
         <SearchIcon size={17} />
         {!compact && (

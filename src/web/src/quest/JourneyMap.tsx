@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css'
 import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import { titleOf, type Item, type JourneyCard, type JourneyModel, type JourneyState, type Status } from './model'
-import { ArchivedChip, Gate, Hero, Key, KindMark, Label, Npc, Pill, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { ArchivedChip, Gate, Hero, Key, KindMark, Label, Npc, Tally, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
   AlsoIn,
@@ -951,6 +951,8 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
   const awaiting = items.filter((i) => statusOf(i) === 'awaiting')
   const heroless = items.filter((i) => !i.done && !i.assignee).length
   const working = items.filter((i) => i.working && !i.done).length
+  // The tally's shares split the quests: one underway is counted there, not under its state.
+  const idle = (s: Status) => items.filter((i) => statusOf(i) === s && !i.working).length
   const openNow = useMemo(() => m.items.filter((i) => m.statusOf(i) === 'available' || (i.working && !i.done)).map((i) => i.id), [m])
   const frontier = useMemo(() => (wanted ? [wanted] : openNow), [openNow, wanted])
 
@@ -1034,7 +1036,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
     <ThemeContext value={theme}>
       <div data-theme={theme} className="quest-theme flex h-screen flex-col">
         <header className="quest-header flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="quest-nameplate flex min-w-0 items-center gap-3">
             <span className="quest-emblem grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
               <Trophy size={20} />
             </span>
@@ -1066,36 +1068,46 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
               </div>
             </div>
           </div>
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <Pill n={count('done')} label="fulfilled" colour={stateColour.done} coin="gold" />
-            <Pill n={count('available')} label="open" colour="var(--avail)" coin="enamel" />
-            <Pill n={working} label="underway" colour="var(--avail)" coin="bronze" />
-            <Pill n={count('awaiting')} label="awaiting reply" colour="var(--await)" coin="silver" />
-            <Pill n={count('locked')} label="sealed" colour="var(--ink)" coin="wax" />
-            {count('cancelled') > 0 && <Pill n={count('cancelled')} label="abandoned" colour="var(--ink-faint)" coin="iron" />}
-            <Pill n={heroless} label="no hero" colour="#e11d48" coin="crimson" />
-            <span className="ml-2" />
-            {journeyKey && (
-              <Search
-                compact
-                here={journeyKey}
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
+            <Tally
+              title="Main quest"
+              done={count('done')}
+              total={items.filter(m.counted).length}
+              shares={[
+                { key: 'done', n: count('done'), label: 'fulfilled' },
+                { key: 'underway', n: working, label: 'underway' },
+                { key: 'open', n: idle('available'), label: 'open' },
+                { key: 'awaiting', n: idle('awaiting'), label: 'awaiting reply' },
+                { key: 'sealed', n: idle('locked'), label: 'sealed' },
+              ]}
+              extra={[
+                ...(count('cancelled') ? [{ key: 'cancelled', n: count('cancelled'), label: 'abandoned' } as const] : []),
+                { key: 'nohero', n: heroless, label: 'no hero' },
+              ]}
+            />
+            {/* The buttons, racked in two rows beside the tally: search on top, the rest below. */}
+            <div className="quest-tools grid shrink-0 grid-cols-2 gap-1.5">
+              {journeyKey && (
+                <Search
+                  here={journeyKey}
                 select={(key) => {
                   const id = `c${key.slice(1)}`
                   if (!m.byId.has(id)) return false
                   focus(id)
                   return true
                 }}
-              />
-            )}
-            <ThemeMenu theme={theme} onChange={setTheme} />
-            <button
-              onClick={() => setPanelOpen((o) => !o)}
-              className="ml-1 grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
-              aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
-              title={panelOpen ? 'Hide side panel' : 'Show side panel'}
-            >
-              {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-            </button>
+                />
+              )}
+              <ThemeMenu theme={theme} onChange={setTheme} />
+              <button
+                onClick={() => setPanelOpen((o) => !o)}
+                className="quest-tool grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
+                title={panelOpen ? 'Hide side panel' : 'Show side panel'}
+              >
+                {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+              </button>
+            </div>
           </div>
         </header>
         {banner}

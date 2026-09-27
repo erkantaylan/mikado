@@ -120,6 +120,50 @@
   opacity: 0;
   transform: translateY(-10px) rotate(-1.5deg);
 }
+/* ---- the header's tally ----
+   One bar split by the states the quests are in; the legend's swatches match. What is still sealed is
+   the empty groove. */
+.quest-share[data-share='done'] {
+  background: var(--gold);
+}
+.quest-share[data-share='underway'] {
+  background: repeating-linear-gradient(135deg, var(--avail) 0 4px, color-mix(in srgb, var(--avail) 50%, var(--plate)) 4px 8px);
+}
+.quest-share[data-share='open'] {
+  background: var(--avail);
+}
+.quest-share[data-share='awaiting'] {
+  background: var(--await);
+}
+.quest-share[data-share='sealed'] {
+  background: var(--chip);
+  box-shadow: inset 0 0 0 1px var(--plate-border);
+}
+.quest-share[data-share='cancelled'] {
+  background: var(--char-plate);
+  box-shadow: inset 0 0 0 1px var(--char-border);
+}
+.quest-share[data-share='nohero'] {
+  background: #e11d48;
+}
+/* The tally takes the header's free width; the buttons rack beside it in two rows, search on top. */
+.quest-header .quest-tally {
+  flex: 1 1 auto;
+  max-width: 920px;
+}
+.quest-tools > :first-child {
+  grid-column: 1 / -1;
+}
+.quest-tools .quest-tool {
+  width: 100%;
+  min-width: 40px;
+  height: 30px;
+  justify-content: center;
+}
+.quest-tally-item[data-zero] {
+  opacity: 0.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .quest-item[data-covered]:hover > .quest-cover {
     transform: none;
@@ -268,8 +312,6 @@
   --ink: #f8eed6;
   --ink-soft: #e8d9b8;
   --ink-faint: #cbb792;
-  /* Lifts small writing off the wood grain. */
-  --wt-carve: 0 0 3px rgba(12, 6, 2, 0.95), 0 1px 2px rgba(12, 6, 2, 0.85);
   --panel-border: rgba(222, 186, 118, 0.42);
   --chip: rgba(255, 238, 200, 0.1);
   --gold: #deaa48;
@@ -279,6 +321,9 @@
   padding-left: 30px;
   padding-right: 30px;
   border-bottom: 0;
+  /* When the title would be squeezed, the counts drop to a second row (see the nameplate's flex). */
+  flex-wrap: wrap;
+  row-gap: 12px;
   /* The oak is darkened under the writing: its grain still shows, but quiet enough to read over. */
   background:
     linear-gradient(180deg, rgba(255, 225, 170, 0.06) 0%, transparent 30%, rgba(0, 0, 0, 0.28) 100%),
@@ -311,21 +356,168 @@
 .quest-theme[data-theme='wartable'] .quest-header::after {
   right: 0;
 }
-/* Above the title, the way back (brighter brass); below it, what the journey holds (full cream). */
+/* ---- brass-framed plaques ----
+   The writing in the header is not carved into the dark oak but set on light
+   plates inset into it: dark ink on parchment for the title, dark engraving on
+   polished brass for the counts. Dark on light reads at a glance; the oak
+   around them stays the frame. */
+.quest-theme[data-theme='wartable'] .quest-header {
+  /* Four rivets, one in each corner of a plaque's padding. */
+  --wt-rivets:
+    var(--wt-rivet) left 4px top 4px / 8px 8px no-repeat,
+    var(--wt-rivet) right 4px top 4px / 8px 8px no-repeat,
+    var(--wt-rivet) left 4px bottom 4px / 8px 8px no-repeat,
+    var(--wt-rivet) right 4px bottom 4px / 8px 8px no-repeat;
+  /* A plaque sits in a routed groove: a dark gap around it, a lit lip below. */
+  --wt-inset:
+    0 0 0 1px #5a3d12,
+    0 0 0 3px rgba(8, 4, 1, 0.7),
+    0 1px 0 3px rgba(255, 220, 160, 0.14),
+    0 3px 6px 2px rgba(0, 0, 0, 0.45);
+}
+
+/* The title's nameplate: a parchment label in a brass frame, inked like the
+   quest cards below it, so it takes the paper tokens back. */
+.quest-theme[data-theme='wartable'] .quest-header .quest-nameplate {
+  --ink: #22160a;
+  --ink-soft: #4b3620;
+  --ink-faint: #735d3d;
+  --panel: #f2e8cf;
+  --gold: #a87417;
+  --avail: #1f4e8c;
+  --edge-off: #7a6446;
+  /* It takes its title's width, down to 340px; a long title is cut short there
+     before the row breaks, so the header only grows a row on a narrow window. */
+  flex: 1 1 340px;
+  max-width: max-content;
+  min-width: 0;
+  padding: 6px 26px 6px 16px;
+  border: 2px solid #b98a3a;
+  border-radius: 4px;
+  color: var(--ink);
+  background:
+    var(--wt-rivets),
+    linear-gradient(180deg, rgba(255, 250, 235, 0.35), transparent 40%, rgba(120, 85, 35, 0.12)),
+    #f3e9cf url('../assets/wartable/paper-card.webp') center / 512px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 236, 178, 0.55),
+    inset 0 0 10px rgba(110, 75, 25, 0.28),
+    var(--wt-inset);
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-nameplate h1 {
+  letter-spacing: 0.02em;
+  color: #1d1208;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.7);
+}
+/* Above the title, the way back in rubric red; below it, what the journey holds. */
 .quest-theme[data-theme='wartable'] .quest-header .quest-crumb {
-  color: #f0c35f !important;
-  text-shadow: var(--wt-carve);
+  color: #8e2414 !important;
+  text-shadow: none;
 }
 .quest-theme[data-theme='wartable'] .quest-header .quest-subtitle {
   font-size: 15px;
-  color: var(--ink);
-  text-shadow: var(--wt-carve);
+  color: var(--ink-soft);
 }
-.quest-theme[data-theme='wartable'] .quest-header h1 {
-  letter-spacing: 0.02em;
-  text-shadow:
-    0 -1px 0 rgba(0, 0, 0, 0.75),
-    0 1px 0 rgba(255, 228, 175, 0.18);
+.quest-theme[data-theme='wartable'] .quest-header .quest-emblem {
+  margin-left: 2px;
+}
+
+/* The tally: one polished brass plate, the bar a groove engraved into it and
+   filled with enamel per state, the counts engraved beneath. */
+.quest-theme[data-theme='wartable'] .quest-header .quest-tally {
+  --wt-groove: #3b2608;
+  padding: 7px 20px 6px;
+  border: 0;
+  border-radius: 3px;
+  color: #2a1a06;
+  background:
+    var(--wt-rivets),
+    repeating-linear-gradient(90deg, rgba(255, 250, 225, 0.07) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #faeab8 0%, #ecd08a 40%, #d9b466 78%, #c9a052 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 252, 235, 0.9),
+    inset 0 -1px 0 rgba(110, 72, 15, 0.55),
+    inset 0 0 0 1px rgba(120, 82, 22, 0.5),
+    var(--wt-inset);
+}
+/* Engraved: dark ink cut into the brass, its lower edge catching the light. */
+.quest-theme[data-theme='wartable'] .quest-header .quest-tally :is(.quest-tally-title, .quest-tally-legend, .quest-tally-count) {
+  font-family: 'Cinzel', 'EB Garamond', serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #2a1a06;
+  text-shadow: 0 1px 0 rgba(255, 246, 215, 0.8);
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-tally .quest-tally-count {
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 17px;
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-tally .quest-tally-pct {
+  color: #6b4a14;
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-tally .quest-bar {
+  height: 12px;
+  border-radius: 3px;
+  background: var(--wt-groove);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.7),
+    0 1px 0 rgba(255, 246, 215, 0.75);
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-tally .quest-bar > .quest-share {
+  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+}
+/* Enamel per state, like the marks on the cards: gold fulfilled, bronze underway, blue open, silver awaiting. */
+.quest-theme[data-theme='wartable'] .quest-share[data-share='done'] {
+  background: linear-gradient(180deg, #fde9a2 0%, #d6a53c 55%, #8d5f14 100%);
+}
+.quest-theme[data-theme='wartable'] .quest-share[data-share='underway'] {
+  background: repeating-linear-gradient(135deg, #d48a4a 0 5px, #9a5520 5px 10px);
+}
+.quest-theme[data-theme='wartable'] .quest-share[data-share='open'] {
+  background: linear-gradient(180deg, #8fb8ec 0%, #2f68b3 55%, #1b417a 100%);
+}
+.quest-theme[data-theme='wartable'] .quest-share[data-share='awaiting'] {
+  background: linear-gradient(180deg, #ffffff 0%, #c6cad0 55%, #7a8089 100%);
+}
+.quest-theme[data-theme='wartable'] .quest-share[data-share='sealed'] {
+  background: var(--wt-groove, #3b2608);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+.quest-theme[data-theme='wartable'] .quest-share[data-share='cancelled'] {
+  background: linear-gradient(180deg, #b3ada3, #37332d);
+}
+.quest-theme[data-theme='wartable'] .quest-share[data-share='nohero'] {
+  background: linear-gradient(180deg, #f79a92, #c5272b 55%, #6b0d12);
+}
+/* The group of the tally and the buttons may break too, rather than run off the edge. */
+.quest-theme[data-theme='wartable'] .quest-header > :has(> .quest-tally) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 8px;
+  flex-shrink: 1;
+}
+/* The buttons: small brass plates of their own, set into the oak like the tally. */
+.quest-theme[data-theme='wartable'] .quest-header .quest-tool {
+  border: 0;
+  color: #3d2708;
+  background: linear-gradient(180deg, #faeab8 0%, #ecd08a 45%, #c9a052 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 252, 235, 0.9),
+    inset 0 -1px 0 rgba(110, 72, 15, 0.55),
+    inset 0 0 0 1px rgba(120, 82, 22, 0.5),
+    0 0 0 1px #5a3d12,
+    0 0 0 3px rgba(8, 4, 1, 0.7),
+    0 2px 5px 1px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 1px 0 rgba(255, 246, 215, 0.7);
+  transition: filter 0.15s;
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-tool:hover {
+  color: #1d1208;
+  filter: brightness(1.08);
+}
+.quest-theme[data-theme='wartable'] .quest-header .quest-tool :is(kbd, span) {
+  color: #4b3620;
+  border-color: rgba(96, 62, 14, 0.5);
 }
 /* The journey's emblem: a round brass medallion. */
 .quest-theme[data-theme='wartable'] .quest-emblem {
@@ -336,111 +528,6 @@
     inset 0 0 0 3px rgba(255, 236, 178, 0.35),
     inset 0 -3px 6px rgba(60, 35, 5, 0.45),
     0 2px 5px rgba(0, 0, 0, 0.6);
-}
-
-/* Counts struck on coins: the coin carries the colour, the word sits beside it. */
-.quest-theme[data-theme='wartable'] :is(.quest-pill, .quest-stat) {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  text-align: left;
-}
-.quest-theme[data-theme='wartable'] :is(.quest-pill, .quest-stat) > :not(.quest-coin) {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--ink);
-  text-shadow: var(--wt-carve);
-}
-/* A zero steps back, but stays readable. */
-.quest-theme[data-theme='wartable'] .quest-pill[data-zero] {
-  opacity: 0.6;
-}
-.quest-theme[data-theme='wartable'] .quest-coin {
-  display: grid;
-  place-items: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-family: 'EB Garamond', Georgia, serif;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--coin-ink) !important;
-  text-shadow: 0 1px 0 var(--coin-shine);
-  background: radial-gradient(circle at 35% 28%, var(--coin-hi) 0%, var(--coin-mid) 48%, var(--coin-lo) 100%);
-  box-shadow:
-    inset 0 0 0 1.5px var(--coin-lo),
-    inset 0 0 0 3px color-mix(in srgb, var(--coin-hi) 55%, transparent),
-    0 1px 3px rgba(0, 0, 0, 0.6);
-}
-.quest-theme[data-theme='wartable'] .quest-stat .quest-coin {
-  min-width: 34px;
-  height: 34px;
-  font-size: 18px;
-}
-.quest-theme[data-theme='wartable'] [data-coin] {
-  --coin-hi: #f3eee2;
-  --coin-mid: #b9b2a2;
-  --coin-lo: #6f6a60;
-  --coin-ink: #221c12;
-  --coin-shine: rgba(255, 255, 255, 0.45);
-}
-.quest-theme[data-theme='wartable'] [data-coin='gold'] {
-  --coin-hi: #fdeaa8;
-  --coin-mid: #d6a53c;
-  --coin-lo: #7d5310;
-  --coin-ink: #321f02;
-  --coin-shine: rgba(255, 240, 190, 0.6);
-}
-.quest-theme[data-theme='wartable'] [data-coin='enamel'] {
-  --coin-hi: #a9cdf5;
-  --coin-mid: #2f68b3;
-  --coin-lo: #15366b;
-  --coin-ink: #ffffff;
-  --coin-shine: rgba(0, 0, 0, 0.45);
-}
-.quest-theme[data-theme='wartable'] [data-coin='bronze'] {
-  --coin-hi: #f3c9a0;
-  --coin-mid: #b3743d;
-  --coin-lo: #633714;
-  --coin-ink: #2a1403;
-  --coin-shine: rgba(255, 220, 180, 0.5);
-}
-.quest-theme[data-theme='wartable'] [data-coin='silver'] {
-  --coin-hi: #ffffff;
-  --coin-mid: #c6cad0;
-  --coin-lo: #6f757e;
-  --coin-ink: #1f2329;
-  --coin-shine: rgba(255, 255, 255, 0.7);
-}
-.quest-theme[data-theme='wartable'] [data-coin='wax'] {
-  --coin-hi: #d66a5f;
-  --coin-mid: #8f2019;
-  --coin-lo: #4a0a07;
-  --coin-ink: #fbe9d6;
-  --coin-shine: rgba(0, 0, 0, 0.5);
-}
-.quest-theme[data-theme='wartable'] [data-coin='wax'] .quest-coin {
-  border-radius: 46% 54% 50% 48% / 52% 46% 54% 48%; /* a seal is never quite round */
-}
-.quest-theme[data-theme='wartable'] [data-coin='iron'] {
-  --coin-hi: #b3ada3;
-  --coin-mid: #6c665d;
-  --coin-lo: #37332d;
-  --coin-ink: #f2ede2;
-  --coin-shine: rgba(0, 0, 0, 0.5);
-}
-.quest-theme[data-theme='wartable'] [data-coin='crimson'] {
-  --coin-hi: #f79a92;
-  --coin-mid: #c5272b;
-  --coin-lo: #6b0d12;
-  --coin-ink: #ffffff;
-  --coin-shine: rgba(0, 0, 0, 0.5);
 }
 
 /* ---- the leather-bound ledger (side panel) ---- */

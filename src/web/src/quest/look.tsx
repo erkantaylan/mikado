@@ -148,24 +148,47 @@ export function Working({ compact = false, by }: { compact?: boolean; by?: strin
   )
 }
 
-/** Which coin a count is struck on in the war-table theme (quest.css); other themes ignore it. */
-export type Coin = 'gold' | 'enamel' | 'bronze' | 'silver' | 'wax' | 'iron' | 'crimson'
+/** One share of a tally: how many quests are in one state. Its colour is the key's, in quest.css. */
+export type Share = { key: 'done' | 'underway' | 'open' | 'awaiting' | 'sealed' | 'cancelled' | 'nohero'; n: number; label: string }
 
-/** A slim count for the chart header: the number and its word on one line; zeros step back. */
-export function Pill({ n, label, colour, coin }: { n: number; label: string; colour: string; coin?: Coin }) {
-  return (
-    <span
-      data-coin={coin}
-      data-zero={n === 0 || undefined}
-      className={`quest-pill inline-flex items-baseline gap-1.5 rounded-full border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-1 whitespace-nowrap ${
-        n === 0 ? 'opacity-45' : ''
-      }`}
-    >
-      <span className="quest-coin text-[15px] leading-none font-bold" style={{ color: n === 0 ? 'var(--ink-faint)' : colour }}>
-        {n}
-      </span>
-      <span className="text-[12px] font-semibold tracking-wide text-[var(--ink-soft)] uppercase">{label}</span>
+/**
+ * The header's tally: one bar split into the states the quests are in, so how far along it is and
+ * what is still ahead read as one thing, with the counts as its legend. What is still sealed is the
+ * bar's empty groove. `extra` counts sit beside it but are no share of it: abandoned quests count for
+ * nothing, and "no hero" cuts across the states.
+ */
+export function Tally({ title, done, total, shares, extra = [] }: { title: string; done: number; total: number; shares: Share[]; extra?: Share[] }) {
+  const pct = total ? Math.round((done / total) * 100) : 0
+  const sealed = shares.find((s) => s.key === 'sealed')?.n ?? 0
+  const item = (s: Share) => (
+    <span key={s.key} data-zero={s.n === 0 || undefined} className="quest-tally-item flex items-center gap-1.5 whitespace-nowrap">
+      <span data-share={s.key} className="quest-share quest-swatch size-2.5 shrink-0 rounded-sm" />
+      <b className="tabular-nums">{s.n}</b> {s.label}
     </span>
+  )
+  return (
+    <div className="quest-tally flex min-w-[360px] flex-col gap-1.5 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-3 py-1.5">
+      <div className="flex items-baseline gap-2 text-[12px] font-bold tracking-wider uppercase">
+        <span className="quest-tally-title text-[var(--ink-soft)]">{title}</span>
+        <span className="quest-tally-count text-[15px] text-[var(--ink)] tabular-nums">
+          {done}/{total}
+        </span>
+        <span className="quest-tally-pct text-[var(--ink-faint)] tabular-nums">{pct}%</span>
+        {extra.length > 0 && <span className="quest-tally-legend ml-auto flex gap-3 text-[var(--ink-soft)]">{extra.map(item)}</span>}
+      </div>
+      <div className="quest-bar flex h-2.5 gap-[2px] overflow-hidden rounded-full bg-[var(--chip)]" role="img" aria-label={`${title}: ${done} of ${total}`}>
+        {shares
+          .filter((s) => s.n > 0 && s.key !== 'sealed')
+          .map((s) => (
+            <span key={s.key} data-share={s.key} className="quest-share h-full" style={{ flexGrow: s.n, flexBasis: 0 }} title={`${s.n} ${s.label}`} />
+          ))}
+        {/* What is still sealed stays the empty groove. */}
+        {!!sealed && <span className="h-full" style={{ flexGrow: sealed, flexBasis: 0 }} />}
+      </div>
+      <div className="quest-tally-legend flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12px] font-semibold tracking-wide text-[var(--ink-soft)] uppercase">
+        {shares.map(item)}
+      </div>
+    </div>
   )
 }
 

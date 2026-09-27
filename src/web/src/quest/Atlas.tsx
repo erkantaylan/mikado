@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Ban, Check, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { JourneyState } from './model'
-import { JourneyStateChip } from './look'
+import { JourneyStateChip, Tally } from './look'
 import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
@@ -246,29 +246,28 @@ export default function Atlas({ journeys, hrefOf, eyebrow, noMap, banner, empty,
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">
       <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
-        <div>
+        <div className="quest-nameplate">
           <div className="quest-crumb text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
           <h1 className="quest-display text-2xl font-semibold">Atlas</h1>
         </div>
-        <div className="flex gap-2">
-          {search && <Search />}
-          <ThemeMenu theme={theme} onChange={setTheme} />
-        </div>
-        <div className="ml-auto flex gap-2 text-center">
-          {(
-            [
-              [active.length, 'active journeys', 'var(--gold)', 'gold'],
-              [sum((q) => q.available), 'open now', 'var(--avail)', 'enamel'],
-              [sum((q) => q.awaiting), 'awaiting reply', 'var(--await)', 'silver'],
-            ] as const
-          ).map(([n, label, colour, coin]) => (
-            <div key={label} data-coin={coin} className="quest-stat rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-3 py-1.5">
-              <div className="quest-coin text-xl leading-none font-bold" style={{ color: colour }}>
-                {n}
-              </div>
-              <div className="text-[11px] font-semibold tracking-wider text-[var(--ink-soft)] uppercase">{label}</div>
-            </div>
-          ))}
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
+          {/* The main quests of every journey underway, as one tally. */}
+          <Tally
+            title={`${active.length} ${active.length === 1 ? 'journey' : 'journeys'} underway`}
+            done={sum((q) => q.main.done)}
+            total={sum((q) => q.main.total)}
+            shares={[
+              { key: 'done', n: sum((q) => q.main.done), label: 'fulfilled' },
+              { key: 'open', n: sum((q) => q.available), label: 'open now' },
+              { key: 'awaiting', n: sum((q) => q.awaiting), label: 'awaiting reply' },
+              { key: 'sealed', n: sum((q) => Math.max(0, q.main.total - q.main.done - q.available - q.awaiting)), label: 'sealed' },
+            ]}
+          />
+          {/* The buttons, racked beside the tally as on a journey's header. */}
+          <div className="quest-tools grid shrink-0 grid-cols-1 gap-1.5">
+            {search && <Search />}
+            <ThemeMenu theme={theme} onChange={setTheme} />
+          </div>
         </div>
       </header>
       {banner}
