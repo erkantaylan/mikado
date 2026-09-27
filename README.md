@@ -133,6 +133,11 @@ mikado errand "Controller glyphs in the trailer" --opens J2   # a journey id nam
 mikado take-up Q2 --by cyd
 mikado abandon Q5 --reason "split-screen co-op is cut from this update"
 mikado show Q2                                   # requires, opens, side quests, journeys
+mikado rewire Q1 Q2 Q3                           # Q1 requires Q3 instead of Q2, in one step
+mikado journey extract J1 Q2 Q3 --title "Save format v2"   # a new journey, one card on J1
+mikado delete Q4 --journey J1 --rewire Q2        # out of J1 only; Q2 takes over what hung on it
+mikado delete Q4 --force --branch                # out of the database, with what only it held
+mikado journey delete J4 --force                 # and the quests in no other journey
 mikado journey show J1                           # the chart as text, or --json
 mikado open Q2                                   # the chart in the browser, Q2 selected
 mikado help                                      # every command
@@ -215,11 +220,15 @@ accepted host (`mikado hosts`); a refused host gets 403. The routes and fields k
 | `POST /api/journeys` `{title, final?}` | create a journey; `final` (its crowning quest) is a quest id or reference string |
 | `GET /api/journeys/{key}` | `{journey, cards, needs, log, github?}`: its quests, requirements and chronicle; each quest has `key` and `alsoIn`. A quest that crowns another journey has `crowns: {key, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that journey, its main-quest progress counted as the Atlas counts it, how many of its quests are underway, and its quests still to do. Its own quests are not in `cards` |
 | `PATCH /api/journeys/{key}` `{title?, final?, archived?}` | retitle, crown, archive (`true`) or bring back (`false`); an archived journey has `archivedAt` |
+| `DELETE /api/journeys/{key}` `{force?}` | delete a journey: `{key, deleted, kept}`. 409 when it is on another journey's chart, or when quests would be left in no journey and `force` (delete them too) is not set |
+| `POST /api/journeys/{key}/extract` `{title, quests}` | move quests into a new journey crowned by a new errand (201): `{journey, crown, stillIn}`. Quests of `{key}` that required them require the new crown instead; `stillIn` are moved quests `{key}` still reaches another way |
 | `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a quest (201); `finalOf` is a journey id. An issue that is already a quest gives 200 with that quest, and the links are applied to it |
 | `GET /api/search?q=` | `{journeys, quests, exact?}`: journeys by id and title, quests by id, issue and title (every word, any case; issue titles from the cache). `exact` is the quest the query names by id or issue. Quests still to do come first |
 | `GET /api/cards/{ref}` | `{card, journeys, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` or a journey id. A crowning quest's `card.crowns` names the journey it crowns, as above |
 | `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a quest: fulfil, hero, NPC, title, abandon, take up / set down |
 | `DELETE /api/cards/{id}` `{reason}` | strike a quest and its side quests |
+| `POST /api/cards/{id}/delete` `{journey?, force?, branch?, rewire?}` | take a quest out of `journey`, or out of the database (`force`, needed too when `journey` is its last): `{key, journeys, branch, deleted}`. 409 names what is missing when its side quests or prerequisites would leave with it and neither `branch` (take them along) nor `rewire` (a quest that takes them over) is set |
+| `POST /api/needs/rewire` `{from, old, new}` | `from` requires `new` instead of `old`, in one transaction: `{from, old, new, orphaned}` |
 | `POST`/`DELETE /api/needs` `{from, to}` | add / drop a requirement (`from` requires `to`) |
 | `POST /api/cards/{id}/assignees` `{add, remove}` | assign on GitHub (issues) |
 | `GET /api/repos/{owner}/{repo}/assignees` | assignable logins |

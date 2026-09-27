@@ -24,6 +24,8 @@ var commands = map[string]func([]string) error{
 	"petition": func(a []string) error { return addCmd("petition", store.KindAwaiting, a) },
 	"show":     showCmd,
 	"strike":   strikeCmd,
+	"delete":   deleteCmd,
+	"rewire":   rewireCmd,
 	"require":  func(a []string) error { return requireCmd("require", a) },
 	"unrequire": func(a []string) error {
 		return requireCmd("unrequire", a)
@@ -152,7 +154,7 @@ func journeyWord(state, archivedAt string) string {
 
 func journeyCmd(args []string) error {
 	if len(args) == 0 {
-		return usageError{"usage: mikado journey new|list|show|crown|set|archive|unarchive"}
+		return usageError{"usage: mikado journey new|list|show|crown|set|extract|archive|unarchive|delete"}
 	}
 	sub, args := args[0], args[1:]
 	switch sub {
@@ -257,6 +259,57 @@ func journeyCmd(args []string) error {
 			return err
 		}
 		return patchJourney(cmd, pos[0], map[string]any{"archived": sub == "archive"})
+	case "extract":
+		cmd := newCommand("journey extract")
+		title := cmd.fs.String("title", "", "title of the new journey (required)")
+		pos, err := cmd.parse(args, 2, -1, `J Q... --title "title"`)
+		if err != nil {
+			return err
+		}
+		if *title == "" {
+			return usageError{`--title "title" is required: the new journey's title`}
+		}
+		cl := cmd.client()
+		ids, err := resolveAll(cl, pos[1:])
+		if err != nil {
+			return err
+		}
+		var out store.Extracted
+		if _, err := cl.do("POST", journeyPath(pos[0])+"/extract", map[string]any{"title": *title, "quests": ids}, &out); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(out)
+		}
+		from := strings.ToUpper(pos[0])
+		fmt.Printf("journey %s created: %s, crowned by %s\n", out.Journey.Key, out.Journey.Title, out.Crown)
+		fmt.Printf("  %s shows it as one journey card where %s were\n", from, strings.Join(keyStrings(ids), ", "))
+		if len(out.StillIn) > 0 {
+			fmt.Fprintf(os.Stderr, "note: %s still reaches %s by another route, so they stay on its war table too\n", from, strings.Join(out.StillIn, ", "))
+		}
+		return nil
+	case "delete":
+		cmd := newCommand("journey delete")
+		force := cmd.fs.Bool("force", false, "also delete from the database the quests in no other journey")
+		pos, err := cmd.parse(args, 1, 1, "J [--force]")
+		if err != nil {
+			return err
+		}
+		var out store.JourneyDeleted
+		if _, err := cmd.client().do("DELETE", journeyPath(pos[0]), map[string]bool{"force": *force}, &out); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(out)
+		}
+		fmt.Printf("journey %s deleted\n", out.Key)
+		if len(out.Deleted) > 0 {
+			fmt.Printf("  deleted from the database: %s\n", strings.Join(out.Deleted, ", "))
+		}
+		if len(out.Kept) > 0 {
+			fmt.Printf("  kept (in other journeys): %s\n", strings.Join(out.Kept, ", "))
+		}
+		return nil
 	case "set":
 		cmd := newCommand("journey set")
 		title := cmd.fs.String("title", "", "new title")
@@ -281,7 +334,7 @@ func journeyCmd(args []string) error {
 		}
 		return patchJourney(cmd, pos[0], body)
 	default:
-		return usageError{fmt.Sprintf("unknown journey command %q (new, list, show, crown, set, archive, unarchive)", sub)}
+		return usageError{fmt.Sprintf("unknown journey command %q (new, list, show, crown, set, extract, archive, unarchive, delete)", sub)}
 	}
 }
 
@@ -644,6 +697,87 @@ func strikeCmd(args []string) error {
 	}
 	fmt.Printf("%s struck from the record (with its side quests)\n", store.Key(id))
 	return nil
+}
+
+func deleteCmd(args []string) error {
+	cmd := newCommand("delete")
+	journey := cmd.fs.String("journey", "", "take the quest out of this journey only")
+	force := cmd.fs.Bool("force", false, "delete it from the database: from every journey, or with --journey when that is its last")
+	branch := cmd.fs.Bool("branch", false, "take along what would leave with it: its side quests and the prerequisites only it holds there")
+	rewire := cmd.fs.String("rewire", "", "hand what hangs on it to quest Q: Q requires its prerequisites and gets its side quests")
+	pos, err := cmd.parse(args, 1, 1, "Q (--journey J | --force) [--branch | --rewire Q]")
+	if err != nil {
+		return err
+	}
+	if *journey == "" && !*force {
+		return usageError{"say which journey to take it out of (--journey J), or add --force to delete it from every journey and the database"}
+	}
+	cl := cmd.client()
+	id, err := resolve(cl, pos[0])
+	if err != nil {
+		return err
+	}
+	body := map[string]any{"journey": *journey, "force": *force, "branch": *branch}
+	heir, err := resolveOptional(cl, *rewire)
+	if err != nil {
+		return err
+	}
+	if heir != nil {
+		body["rewire"] = *heir
+	}
+	var out store.QuestDeleted
+	if _, err := cl.do("POST", cardPath(id, "delete"), body, &out); err != nil {
+		return err
+	}
+	if *cmd.json {
+		return printJSON(out)
+	}
+	if len(out.Deleted) > 0 {
+		fmt.Printf("deleted from the database: %s\n", strings.Join(out.Deleted, ", "))
+	} else {
+		fmt.Printf("%s taken out of %s\n", out.Key, strings.Join(out.Journeys, ", "))
+	}
+	if len(out.Branch) > 0 {
+		fmt.Printf("  went with it: %s\n", strings.Join(out.Branch, ", "))
+	}
+	if heir != nil {
+		fmt.Printf("  %s took over its prerequisites and side quests\n", store.Key(*heir))
+	}
+	return nil
+}
+
+func rewireCmd(args []string) error {
+	cmd := newCommand("rewire")
+	pos, err := cmd.parse(args, 3, 3, "Q OLD NEW")
+	if err != nil {
+		return err
+	}
+	cl := cmd.client()
+	ids, err := resolveAll(cl, pos)
+	if err != nil {
+		return err
+	}
+	var out store.Rewired
+	if _, err := cl.do("POST", "/api/needs/rewire", map[string]int64{"from": ids[0], "old": ids[1], "new": ids[2]}, &out); err != nil {
+		return err
+	}
+	if *cmd.json {
+		return printJSON(out)
+	}
+	fmt.Printf("%s now requires %s instead of %s\n", store.Key(out.From), store.Key(out.New), store.Key(out.Old))
+	if len(out.Orphaned) > 0 {
+		fmt.Fprintf(os.Stderr, "now in no journey: %s — link them with `mikado require`, or delete them with `mikado delete %s --force --branch`\n",
+			strings.Join(out.Orphaned, ", "), store.Key(out.Old))
+	}
+	return nil
+}
+
+func keyStrings(ids []int64) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = store.Key(id)
+	}
+	return out
 }
 
 func requireCmd(name string, args []string) error {

@@ -48,14 +48,18 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	mux.HandleFunc("POST /api/journeys", h.createJourney)
 	mux.HandleFunc("GET /api/journeys/{key}", h.getJourney)
 	mux.HandleFunc("PATCH /api/journeys/{key}", h.patchJourney)
+	mux.HandleFunc("DELETE /api/journeys/{key}", h.deleteJourney)
+	mux.HandleFunc("POST /api/journeys/{key}/extract", h.extract)
 
 	mux.HandleFunc("POST /api/cards", h.addCard)
 	mux.HandleFunc("GET /api/cards/{ref...}", h.getCard)
 	mux.HandleFunc("PATCH /api/cards/{id}", h.patchCard)
 	mux.HandleFunc("DELETE /api/cards/{id}", h.removeCard)
 	mux.HandleFunc("POST /api/cards/{id}/assignees", h.assign)
+	mux.HandleFunc("POST /api/cards/{id}/delete", h.deleteQuest)
 	mux.HandleFunc("POST /api/needs", h.addNeed)
 	mux.HandleFunc("DELETE /api/needs", h.removeNeed)
+	mux.HandleFunc("POST /api/needs/rewire", h.rewire)
 
 	// Journey-scoped aliases.
 	mux.HandleFunc("POST /api/journeys/{key}/cards", h.inJourney(h.addCard))
@@ -361,6 +365,50 @@ func (h *handler) patchJourney(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, q)
 }
 
+// deleteJourney deletes a journey; force also deletes the quests it alone held.
+func (h *handler) deleteJourney(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Force bool `json:"force"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.s.DeleteJourney(r.Context(), r.PathValue("key"), in.Force)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// extract moves quests of the journey into a new journey of their own.
+func (h *handler) extract(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Title  string    `json:"title"`
+		Quests []cardRef `json:"quests"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	var ids []int64
+	for i := range in.Quests {
+		id, err := h.resolve(r, &in.Quests[i])
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		if id != nil {
+			ids = append(ids, *id)
+		}
+	}
+	out, err := h.s.Extract(r.Context(), r.PathValue("key"), ids, in.Title)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, out)
+}
+
 func (h *handler) addCard(w http.ResponseWriter, r *http.Request) {
 	var in store.NewCard
 	if !decode(w, r, &in) {
@@ -427,6 +475,34 @@ func (h *handler) removeCard(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// deleteQuest takes a quest out of a journey, or out of the database (force).
+func (h *handler) deleteQuest(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.cardID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Journey string   `json:"journey"`
+		Force   bool     `json:"force"`
+		Branch  bool     `json:"branch"`
+		Rewire  *cardRef `json:"rewire"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	heir, err := h.resolve(r, in.Rewire)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	out, err := h.s.DeleteQuest(r.Context(), id, store.QuestDelete{Journey: in.Journey, Force: in.Force, Branch: in.Branch, Rewire: heir})
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (h *handler) assign(w http.ResponseWriter, r *http.Request) {
 	id, ok := h.cardID(w, r)
 	if !ok {
@@ -474,6 +550,37 @@ func (h *handler) removeNeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// rewire makes a quest require another instead of one it requires now.
+func (h *handler) rewire(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		From *cardRef `json:"from"`
+		Old  *cardRef `json:"old"`
+		New  *cardRef `json:"new"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	var ids [3]int64
+	for i, c := range []*cardRef{in.From, in.Old, in.New} {
+		id, err := h.resolve(r, c)
+		if err != nil {
+			fail(w, err)
+			return
+		}
+		if id == nil {
+			writeError(w, http.StatusBadRequest, "rewire needs from, old and new")
+			return
+		}
+		ids[i] = *id
+	}
+	out, err := h.s.Rewire(r.Context(), ids[0], ids[1], ids[2])
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *handler) search(w http.ResponseWriter, r *http.Request) {

@@ -277,3 +277,44 @@ func TestJourneyKeyRefsAndCrowns(t *testing.T) {
 		}
 	}
 }
+
+func TestReshapeRoutes(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"), noGitHub{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	h, err := Handler(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range []struct {
+		method, path, body string
+		want               int
+	}{
+		{"POST", "/api/journeys", `{"title":"Brunch"}`, 201},                             // J1
+		{"POST", "/api/cards", `{"kind":"errand","title":"eat","finalOf":"J1"}`, 201},    // Q1
+		{"POST", "/api/cards", `{"kind":"errand","title":"tea","neededBy":[1]}`, 201},    // Q2
+		{"POST", "/api/cards", `{"kind":"errand","title":"water","neededBy":[2]}`, 201},  // Q3
+		{"POST", "/api/cards", `{"kind":"errand","title":"plates","neededBy":[1]}`, 201}, // Q4
+		{"POST", "/api/journeys/J1/extract", `{"title":"Tea","quests":["Q2"]}`, 201},     // J2, crowned by Q5
+		{"POST", "/api/journeys/J1/extract", `{"title":"Nope","quests":["Q2"]}`, 400},    // no longer on J1
+		{"POST", "/api/needs/rewire", `{"from":"Q4","old":"Q1","new":"Q3"}`, 404},        // Q4 does not require Q1
+		{"POST", "/api/needs/rewire", `{"from":"Q3","old":"Q9"}`, 404},                   // no Q9
+		{"POST", "/api/cards/Q3/delete", `{}`, 400},                                      // no journey, no force
+		{"POST", "/api/cards/Q3/delete", `{"journey":"J2"}`, 409},                        // last journey
+		{"POST", "/api/cards/Q3/delete", `{"journey":"J2","force":true}`, 200},           // deleted
+		{"DELETE", "/api/journeys/J2", `{}`, 409},                                        // on J1's war table
+		{"DELETE", "/api/journeys/J1", `{}`, 409},                                        // would orphan Q1, Q4
+		{"DELETE", "/api/journeys/J1", `{"force":true}`, 200},
+	} {
+		req := httptest.NewRequest(st.method, st.path, strings.NewReader(st.body))
+		req.Host = "localhost"
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != st.want {
+			t.Errorf("%s %s %s: %d %s, want %d", st.method, st.path, st.body, rec.Code, rec.Body, st.want)
+		}
+	}
+}

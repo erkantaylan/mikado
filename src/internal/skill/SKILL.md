@@ -122,6 +122,30 @@ quests are abandoned with it. Strike only what should never have been there.
     mikado abandon Q10 --reason "split-screen co-op is cut from this update"
     mikado strike Q11 --reason "added to the wrong journey by mistake"
 
+**Reshape the chart.** Move a requirement in one step with `rewire` — never `unrequire` then
+`require`, which lets quests drop out of the journey in between:
+
+    mikado rewire Q5 Q3 Q9          # Q5 requires Q9 instead of Q3
+
+When part of a journey has grown into a goal of its own, extract it. The new journey is crowned
+by a new errand with its title, and the old chart shows it as one journey card where the quests
+were:
+
+    mikado journey extract J1 Q12 Q15 --title "Save format v2"
+
+**Delete** only when the user asks; abandon is usually what they mean. Nothing is left hanging:
+if the quest's side quests or prerequisites would leave a journey with it, say what happens to
+them — `--branch` takes them along, `--rewire Q` hands them to another quest (it requires the
+prerequisites and gets the side quests). A quest leaves the database only with `--force`.
+
+    mikado delete Q12 --journey J1 --rewire Q4      # out of J1 only; Q4 takes over what hung on it
+    mikado delete Q12 --journey J1 --force --branch # J1 was its last journey: gone, with its branch
+    mikado delete Q12 --force --rewire Q4           # out of every journey and the database
+    mikado journey delete J3 [--force]              # --force deletes the quests in no other journey
+
+mikado never asks yes or no: a refused delete changes nothing and names the flag it needs. Add
+that flag only when it matches what the user asked for; otherwise tell them what mikado said.
+
 **Look before you change.**
 
     mikado journey show J1          # the chart: quests, status, requirements, chronicle
@@ -142,12 +166,16 @@ paste into a reply.
 | `journey new "title" [--crown Q]` | start a journey |
 | `journey crown J Q` | make Q the journey's crowning quest |
 | `journey set J [--title T] [--crown Q]` | retitle or recrown a journey (its id stays) |
+| `journey extract J Q... --title T` | move quests into a new journey, shown on J as one journey card |
+| `journey delete J [--force]` | delete a journey; `--force` also deletes its quests in no other journey |
 | `add owner/repo#n` / `errand "title"` / `petition "title" --on WHO` | add a quest |
 | `require Q PREREQ` / `unrequire Q PREREQ` | Q requires PREREQ / no longer (either may be a journey id) |
+| `rewire Q OLD NEW` | Q requires NEW instead of OLD, in one step |
 | `fulfil Q` / `unfulfil Q` | errands and petitions only |
 | `take-up Q [--by WHO]` / `set-down Q` | underway / no longer |
 | `abandon Q --reason` / `unabandon Q` | won't do / undo that |
 | `strike Q --reason` | gone for good, stays only in the chronicle |
+| `delete Q (--journey J \| --force) [--branch \| --rewire Q]` | take Q out of J, or out of the database (`--force`; also needed when J is its last journey) |
 | `set Q --hero WHO` | set the hero (`-` for no hero) |
 
 Link flags on `add`, `errand` and `petition`: `--opens Q` (Q requires the new quest),
@@ -211,11 +239,16 @@ The words mikado uses, everywhere a person or an agent reads them.
 | G22 | Chronicle | The history: every change as one sentence. A journey's chronicle is its own events plus those of the quests on its chart. | `journey show J` |
 | G23 | NPC | A mark any quest can wear. It changes nothing about the quest's status, but NPC quests show in red on the chart; right-click a quest there to mark or unmark it. | `--npc`, `set Q --npc=true\|false` |
 | G24 | Archived | A journey put away: off the Atlas's shelves and out of `journey list` (unless `--all`), its chart, quests and chronicle untouched. Archive a journey only when the user asks. | `journey archive J`, `journey unarchive J` |
+| G25 | Extract | Moving quests of a journey into a new journey of their own, crowned by a new errand. The old chart shows the new journey as one card where they were. | `journey extract J Q... --title T` |
+| G26 | Deleted | Taken out of a journey, or with `--force` out of the database for good (only a line in the chronicle stays). Unlike struck, nothing is kept. Only when the user asks. | `delete Q --journey J`, `delete Q --force`, `journey delete J` |
 
 ## Rules
 
 - Record what you find with `--found-on` and `--reason`. Never add a found quest silently.
 - Prefer `abandon` over `strike`. Striking erases a quest from every journey it serves.
+- Delete (`delete`, `journey delete`) only when the user asks. Never add `--force`, `--branch`
+  or `--rewire` just to get past a refusal: pick the one that matches what the user wants, or ask.
+- To move a requirement, use `rewire`, not `unrequire` followed by `require`.
 - Do not assign or unassign people on GitHub (`mikado assign`) unless the user asked: it changes
   the issue for everyone. Setting a hero on GitHub is the user's call.
 - Do not create GitHub issues on your own to put them in a journey. If a step is worth an issue,

@@ -1342,3 +1342,213 @@ func TestMigrateQuestsToJourneys(t *testing.T) {
 		t.Errorf("journey after migration: %+v %v", j, err)
 	}
 }
+
+func (f *fixture) mustFail(err error, want string) {
+	f.t.Helper()
+	if err == nil || !strings.Contains(err.Error(), want) {
+		f.t.Fatalf("got error %v, want one mentioning %q", err, want)
+	}
+}
+
+func TestRewire(t *testing.T) {
+	f := setup(t)
+	a, b, c := f.errand("a"), f.errand("b"), f.errand("c")
+	top := f.errand("top", a.ID)
+	f.journey("q", top)
+	f.need(top.ID, b.ID)
+	r, err := f.s.Rewire(f.ctx, top.ID, a.ID, c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := f.members("q"), []int64{b.ID, c.ID, top.ID}; !slices.Equal(got, want) {
+		t.Errorf("members %v, want %v", got, want)
+	}
+	if !slices.Equal(r.Orphaned, []string{a.Key}) {
+		t.Errorf("orphaned %v, want %s", r.Orphaned, a.Key)
+	}
+	_, err = f.s.Rewire(f.ctx, top.ID, a.ID, c.ID)
+	f.mustFail(err, "does not require")
+	// A cycle is refused and nothing changes.
+	_, err = f.s.Rewire(f.ctx, c.ID, a.ID, top.ID)
+	f.mustFail(err, "does not require")
+	f.need(c.ID, a.ID)
+	_, err = f.s.Rewire(f.ctx, c.ID, a.ID, top.ID)
+	f.mustFail(err, "cycle")
+	if got := f.card(c.ID); got.OpenBefore != 1 {
+		t.Errorf("c should still require a after a refused rewire, openBefore %d", got.OpenBefore)
+	}
+}
+
+func TestExtract(t *testing.T) {
+	f := setup(t)
+	// top requires x and y; x requires x1; y requires x1 too; z is left alone.
+	x1 := f.errand("x1")
+	x := f.errand("x", x1.ID)
+	y := f.errand("y")
+	z := f.errand("z")
+	side := f.add(NewCard{Kind: KindErrand, Title: "x polish", SideOf: &x.ID})
+	top := f.errand("top", x.ID, y.ID, z.ID)
+	f.journey("q", top)
+
+	_, err := f.s.Extract(f.ctx, f.key("q"), []int64{top.ID}, "all")
+	f.mustFail(err, "crowns")
+	_, err = f.s.Extract(f.ctx, f.key("q"), []int64{side.ID}, "s")
+	f.mustFail(err, "side quest")
+
+	out, err := f.s.Extract(f.ctx, f.key("q"), []int64{x.ID, x1.ID, y.ID}, "Loader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	crown, _ := ParseCardID(out.Crown)
+	if got, want := f.members("q"), []int64{z.ID, top.ID, crown}; !slices.Equal(got, want) {
+		t.Errorf("old journey members %v, want %v", got, want)
+	}
+	f.keys["n"], f.names[out.Journey.Key] = out.Journey.Key, "n"
+	if got, want := f.members("n"), []int64{x1.ID, x.ID, y.ID, side.ID, crown}; !slices.Equal(got, want) {
+		t.Errorf("new journey members %v, want %v", got, want)
+	}
+	// The crown requires only the tops: x1 is reached through x.
+	if v, _ := f.s.CardView(f.ctx, crown); len(v.Needs) != 2 {
+		t.Errorf("crown requires %d quests, want 2 (x, y)", len(v.Needs))
+	}
+	if len(out.StillIn) != 0 {
+		t.Errorf("stillIn %v, want none", out.StillIn)
+	}
+	if s := f.summary("q"); len(s.BlockedBy) != 1 || s.BlockedBy[0].Key != out.Journey.Key {
+		t.Errorf("q blockedBy %+v", s.BlockedBy)
+	}
+}
+
+func TestDeleteQuestFromJourney(t *testing.T) {
+	f := setup(t)
+	pre := f.errand("pre")
+	q := f.errand("q", pre.ID)
+	sq := f.add(NewCard{Kind: KindErrand, Title: "side", SideOf: &q.ID})
+	other := f.errand("other")
+	top := f.errand("top", q.ID, other.ID)
+	f.journey("a", top)
+	top2 := f.errand("top2", q.ID)
+	f.journey("b", top2)
+
+	// Its prerequisite and side quest would leave a with it.
+	_, err := f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Journey: f.key("a")})
+	f.mustFail(err, "--branch")
+	_, err = f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{})
+	f.mustFail(err, "--journey")
+	_, err = f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Journey: f.key("a"), Force: true, Branch: true})
+	f.mustFail(err, "still in")
+
+	out, err := f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Journey: f.key("a"), Branch: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(out.Branch, []string{pre.Key, sq.Key}) || len(out.Deleted) != 0 {
+		t.Errorf("out %+v", out)
+	}
+	if got, want := f.members("a"), []int64{other.ID, top.ID}; !slices.Equal(got, want) {
+		t.Errorf("a members %v, want %v", got, want)
+	}
+	if got, want := f.members("b"), []int64{pre.ID, q.ID, sq.ID, top2.ID}; !slices.Equal(got, want) {
+		t.Errorf("b members %v, want %v", got, want)
+	}
+	// b is its last journey now.
+	_, err = f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Journey: f.key("b"), Rewire: &top2.ID})
+	f.mustFail(err, "--force")
+	out, err = f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Journey: f.key("b"), Force: true, Rewire: &top2.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(out.Deleted, []string{q.Key}) {
+		t.Errorf("deleted %v", out.Deleted)
+	}
+	if got, want := f.members("b"), []int64{pre.ID, sq.ID, top2.ID}; !slices.Equal(got, want) {
+		t.Errorf("b members %v, want %v", got, want)
+	}
+	if c := f.card(sq.ID); c.SideOf == nil || *c.SideOf != top2.ID {
+		t.Errorf("side quest should hang on top2 now, sideOf %v", c.SideOf)
+	}
+	var n int
+	f.s.db.QueryRow(`SELECT COUNT(*) FROM cards WHERE id = ?`, q.ID).Scan(&n)
+	if n != 0 {
+		t.Error("q is still in the database")
+	}
+	// The chronicle keeps a line for it.
+	found := false
+	for _, e := range f.view("b").Log {
+		found = found || strings.Contains(e.Text, q.Key+" “q” deleted")
+	}
+	if !found {
+		t.Error("b's chronicle has no line for the deleted quest")
+	}
+}
+
+func TestDeleteQuestEverywhere(t *testing.T) {
+	f := setup(t)
+	shared := f.errand("shared")
+	pre := f.errand("pre", shared.ID)
+	q := f.errand("q", pre.ID)
+	top := f.errand("top", q.ID)
+	f.journey("a", top)
+	top2 := f.errand("top2", shared.ID)
+	f.journey("b", top2)
+
+	_, err := f.s.DeleteQuest(f.ctx, top.ID, QuestDelete{Force: true})
+	f.mustFail(err, "crowns")
+	_, err = f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Force: true})
+	f.mustFail(err, "--branch")
+	out, err := f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Force: true, Branch: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// shared leaves a but stays in b, so it is not deleted.
+	if !slices.Equal(out.Deleted, []string{q.Key, pre.Key}) || !slices.Equal(out.Branch, []string{shared.Key, pre.Key}) {
+		t.Errorf("out %+v", out)
+	}
+	if got, want := f.members("a"), []int64{top.ID}; !slices.Equal(got, want) {
+		t.Errorf("a members %v, want %v", got, want)
+	}
+	if got, want := f.members("b"), []int64{shared.ID, top2.ID}; !slices.Equal(got, want) {
+		t.Errorf("b members %v, want %v", got, want)
+	}
+}
+
+func TestDeleteJourney(t *testing.T) {
+	f := setup(t)
+	shared := f.errand("shared")
+	own := f.errand("own")
+	top := f.errand("top", shared.ID, own.ID)
+	f.journey("a", top)
+	top2 := f.errand("top2", shared.ID)
+	f.journey("b", top2)
+	outer := f.errand("outer", top2.ID)
+	f.journey("c", outer)
+
+	_, err := f.s.DeleteJourney(f.ctx, f.key("b"), true)
+	f.mustFail(err, "war table")
+	_, err = f.s.DeleteJourney(f.ctx, f.key("a"), false)
+	f.mustFail(err, "--force")
+	out, err := f.s.DeleteJourney(f.ctx, f.key("a"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(out.Deleted, []string{own.Key, top.Key}) || !slices.Equal(out.Kept, []string{shared.Key}) {
+		t.Errorf("out %+v", out)
+	}
+	if _, err := f.s.Journey(f.ctx, f.key("a")); KindOf(err) != ErrNotFound {
+		t.Errorf("journey a still there: %v", err)
+	}
+}
+
+func TestDeleteRefusalNamesEveryMissingFlag(t *testing.T) {
+	f := setup(t)
+	pre := f.errand("pre")
+	q := f.errand("q", pre.ID)
+	top := f.errand("top", q.ID)
+	f.journey("a", top)
+	_, err := f.s.DeleteQuest(f.ctx, q.ID, QuestDelete{Journey: f.key("a")})
+	f.mustFail(err, "add --force")
+	f.mustFail(err, "--branch")
+	if got, want := f.members("a"), []int64{pre.ID, q.ID, top.ID}; !slices.Equal(got, want) {
+		t.Errorf("a refused delete changed the journey: %v, want %v", got, want)
+	}
+}

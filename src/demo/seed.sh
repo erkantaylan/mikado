@@ -5,7 +5,7 @@
 #   MIKADO_SERVER=http://127.0.0.1:47295 src/demo/seed.sh [path/to/mikado]
 #
 # Run it against a fresh data directory (make demo does): the keys it makes
-# (J1…J5, Q1…) depend on starting from nothing.
+# (J1…J6, Q1…) depend on starting from nothing.
 set -euo pipefail
 
 m=${1:-mikado}
@@ -62,7 +62,10 @@ quiet "$m" journey new "Host brunch for four on Sunday" 2>/dev/null
 brunch=$("$m" errand "Sit four people down to brunch at eleven" --crowns J4 --json | key)
 quiet "$m" require "$brunch" J3
 table=$("$m" errand "Set the table for four with the good plates" --opens "$brunch" --json | key)
-quiet "$m" errand "Brew a pot of Turkish tea" --opens "$brunch"
+tea=$("$m" errand "Pour everyone a glass of Turkish tea" --opens "$brunch" --json | key)
+steep=$("$m" errand "Let the tea steep on the çaydanlık for fifteen minutes" --opens "$tea" --json | key)
+water=$("$m" errand "Bring the water in the lower kettle to the boil" --opens "$steep" --json | key)
+leaves=$("$m" errand "Put four spoons of black tea in the upper pot" --opens "$steep" --json | key)
 quiet "$m" petition "Confirm who is coming" --on "the group chat" --opens "$brunch"
 simit=$("$m" errand "Bake simit the night before" --side-of "$brunch" --json | key)
 quiet "$m" abandon "$simit" --reason "the bakery on the corner sells them fresh"
@@ -83,5 +86,10 @@ github=$("$m" errand "Move the GitHub code behind the source interface" --opens 
 quiet "$m" require "$github" "$protocol"
 quiet "$m" errand "Write a beads source as the first outside example" --side-of "$release"
 quiet "$m" take-up "$protocol" --by claude
+
+# J6: extracted from J4 — the tea grew into a journey of its own, drawn on
+# J4's war table as one journey card.
+quiet "$m" journey extract J4 "$steep" "$water" "$leaves" --title "Brew Turkish tea in the çaydanlık"
+quiet "$m" fulfil "$water"
 
 "$m" journey list --all

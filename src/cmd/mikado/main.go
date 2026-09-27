@@ -278,6 +278,11 @@ side quests; J is a journey key, J7):
                                       requirements, chronicle
   journey crown J Q                   make Q the journey's crowning quest
   journey set J [--title T] [--crown Q]
+  journey extract J Q... --title T    move quests into a new journey, crowned by a new
+                                      errand T; J shows it as one journey card where they were
+  journey delete J [--force]          delete a journey (its quests in other journeys stay);
+                                      refused if quests would be left in no journey, unless
+                                      --force deletes those from the database too
   journey archive J / unarchive J     put a journey away (off the atlas, its war table
                                       and quests untouched) / bring it back
 
@@ -295,6 +300,7 @@ A quest is in a journey once it is linked in.
   show Q                              one quest: what it requires, what it opens, its journeys
   require Q PREREQ                    Q requires PREREQ fulfilled first (cycles are refused)
   unrequire Q PREREQ                  drop that requirement
+  rewire Q OLD NEW                    Q requires NEW instead of OLD, in one step
   fulfil Q / unfulfil Q               mark an errand or petition fulfilled / not
                                       (issues are fulfilled by closing them on GitHub)
   take-up Q [--by WHO] / set-down Q   someone is on it right now (underway) / no longer
@@ -303,6 +309,11 @@ A quest is in a journey once it is linked in.
   unabandon Q                         undo an abandon made here
   strike Q --reason "why"             gone for good, with its side quests (stays in the
                                       chronicle); prefer abandon
+  delete Q --journey J                take Q out of journey J (it stays in its others);
+                                      J being its last journey needs --force as well
+  delete Q --force                    delete Q from every journey and the database
+      what would leave with Q (side quests, prerequisites only it holds) must be named:
+      --branch takes it along (deleting what ends in no journey), --rewire X hands it to X
   set Q [--hero WHO] [--title T] [--npc=true|false]
   assign Q LOGIN... [--remove]        assign (or unassign) an issue on GitHub
   assignees owner/repo                who can be assigned in a repo
