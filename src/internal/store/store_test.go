@@ -1653,6 +1653,10 @@ func TestRegions(t *testing.T) {
 	if rs, _ := f.s.Regions(f.ctx); len(rs) != 2 || rs[1].Journeys != 2 {
 		t.Errorf("regions after delete: %+v", rs)
 	}
+	// Search finds a journey by its region's name.
+	if res, err := f.s.Search(f.ctx, "alternet"); err != nil || len(res.Journeys) != 2 || res.Journeys[0].Region.Key != "R2" {
+		t.Errorf("search by region: %+v %v", res, err)
+	}
 }
 
 func TestMigrateRegions(t *testing.T) {

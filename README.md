@@ -85,6 +85,12 @@ One global graph of quests and requirements; each journey is a view onto it, dra
   way. A journey's own crowning quest is always its own, even when another journey shares it. The
   Atlas says which journeys are blocked by which. This is not a side quest: a side quest is
   optional, while the other journey here blocks the quest that requires it.
+- **Regions** group journeys (`R2`, with a name). Every journey lives in exactly one; a new one
+  goes to R1, "Personal", unless `--region` names another. A quest stays inside one region: a
+  requirement, crown, shared issue or journey waiting on another that would put a quest on
+  journeys of two regions is refused. Journeys that share quests move together
+  (`region move R J...`). With more than one region, the Atlas shows one band per region, and
+  folding a band is remembered.
 - **Archiving** a journey puts it away. It leaves the Atlas's shelves for a closed "Archived"
   shelf at the bottom, and it leaves `journey list` unless you pass `--all`. Nothing else changes:
   its quests, chart and chronicle stay, and so does its URL. `journey unarchive` brings it back.
@@ -122,6 +128,9 @@ mikado serve &                                   # http://127.0.0.1:47291
 mikado journey new "The winter update ships to every player"   # -> journey J1
 mikado journey set J1 --title "Winter update"    # retitle; J1 stays J1
 mikado journey archive J4                        # off the Atlas and `journey list` (--all shows it)
+mikado region new "Work"                          # -> region R2 (R1 is "Personal")
+mikado journey new "Store page is live" --region Work
+mikado region move Work J3 J4                     # together, when they share quests
 mikado add studio/game#140 --crowns J1           # Q1, the crowning quest
 mikado add studio/saves#88 --opens Q1            # Q2: Q1 requires it
 mikado add studio/saves#91 --opens Q2 --found-on Q2 --reason "old saves crash the loader"
@@ -207,7 +216,7 @@ is left alone unless you pass `--force`. `mikado help` points agents at `mikado 
 
 ## API
 
-JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502. Bodies must be sent as
+JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502; any change that would put a quest on journeys of two regions is refused with 409. Bodies must be sent as
 `Content-Type: application/json`, and requests must be addressed to localhost, `*.localhost` or an
 accepted host (`mikado hosts`); a refused host gets 403. The routes and fields keep the machine names: a *card* is a quest, a *need* `{from, to}` is "from requires to",
 *final* is the crowning quest, *owner* the hero. A `{id}` in a path takes any quest id form (`142`,
@@ -217,13 +226,17 @@ accepted host (`mikado hosts`); a refused host gets 403. The routes and fields k
 | | |
 |---|---|
 | `GET /api/journeys` | the Atlas: journey summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header). `blockedBy` lists the journeys `[{key, title, state, archivedAt?}]` whose crowning quests are on this journey's chart as journey cards; `blocks` the journeys with this one's on theirs |
-| `POST /api/journeys` `{title, final?}` | create a journey; `final` (its crowning quest) is a quest id or reference string |
+| `POST /api/journeys` `{title, final?, region?}` | create a journey; `final` (its crowning quest) is a quest id or reference string; `region` a region key or name (default: R1) |
 | `GET /api/journeys/{key}` | `{journey, cards, needs, log, github?}`: its quests, requirements and chronicle; each quest has `key` and `alsoIn`. A quest that crowns another journey has `crowns: {key, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that journey, its main-quest progress counted as the Atlas counts it, how many of its quests are underway, and its quests still to do. Its own quests are not in `cards` |
-| `PATCH /api/journeys/{key}` `{title?, final?, archived?}` | retitle, crown, archive (`true`) or bring back (`false`); an archived journey has `archivedAt` |
+| `PATCH /api/journeys/{key}` `{title?, final?, archived?, region?}` | retitle, crown, archive (`true`) or bring back (`false`), or move to a region; an archived journey has `archivedAt`. Every journey has `region: {key, name}` |
 | `DELETE /api/journeys/{key}` `{force?}` | delete a journey: `{key, deleted, kept}`. 409 when it is on another journey's chart, or when quests would be left in no journey and `force` (delete them too) is not set |
 | `POST /api/journeys/{key}/extract` `{title, quests}` | move quests into a new journey crowned by a new errand (201): `{journey, crown, stillIn}`. Quests of `{key}` that required them require the new crown instead; `stillIn` are moved quests `{key}` still reaches another way |
 | `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a quest (201); `finalOf` is a journey id. An issue that is already a quest gives 200 with that quest, and the links are applied to it |
-| `GET /api/search?q=` | `{journeys, quests, exact?}`: journeys by id and title, quests by id, issue and title (every word, any case; issue titles from the cache). `exact` is the quest the query names by id or issue. Quests still to do come first |
+| `GET /api/regions` | `[{key, name, createdAt, journeys}]`, oldest first |
+| `POST /api/regions` `{name}` / `PATCH /api/regions/{key}` `{name}` | create (201) / rename a region; `{key}` is `R2` or its name. 409 for a name already taken |
+| `POST /api/regions/{key}/journeys` `{journeys}` | move journeys into the region together: their summaries. 409 when a quest on them is also on a journey that stays behind |
+| `DELETE /api/regions/{key}` | delete an empty region: `{region}`. 409 while it holds journeys, or when it is the last |
+| `GET /api/search?q=` | `{journeys, quests, exact?}`: journeys by id, title and region name, quests by id, issue and title (every word, any case; issue titles from the cache). `exact` is the quest the query names by id or issue. Quests still to do come first |
 | `GET /api/cards/{ref}` | `{card, journeys, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` or a journey id. A crowning quest's `card.crowns` names the journey it crowns, as above |
 | `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a quest: fulfil, hero, NPC, title, abandon, take up / set down |
 | `DELETE /api/cards/{id}` `{reason}` | strike a quest and its side quests |

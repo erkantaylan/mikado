@@ -52,12 +52,17 @@ local server.
 - **Underway** is separate from status: `mikado take-up Q` means someone is on it right now;
   `mikado set-down Q` means they stopped.
 - **Hero**: who is responsible for a quest — its GitHub assignee, else the hero set in mikado.
+- **Region**: a group of journeys (`R2`, with a name). Every journey lives in exactly one, and a
+  quest stays inside one: a link that would put a quest on journeys of two regions is refused,
+  whether it is a requirement, a crown, a shared issue or a journey waiting on another. A new
+  journey goes to the first region (R1, "Personal") unless you name one with `--region`.
 
 ## Ids — use them exactly
 
 - A **quest** has one global id, `Q` plus a number: `Q142`. The same quest has the same id in
   every journey. Commands also accept `Q-142`, `q142`, `142`, `owner/repo#n` or an issue URL.
 - A **journey** has one id, `J` plus a number: `J7`. It never changes, whatever the title.
+- A **region** has one id, `R` plus a number: `R2`; commands also take its name.
 - Wherever a quest is expected, a **journey id** names that journey's crowning quest:
   `mikado require Q5 J2`. A journey with no crowning quest yet names none, and the command says
   so.
@@ -133,6 +138,16 @@ were:
 
     mikado journey extract J1 Q12 Q15 --title "Save format v2"
 
+**Regions.** Start a journey where it belongs, and keep links inside its region. Journeys that
+share quests or wait on each other move together, or not at all:
+
+    mikado region list
+    mikado journey new "Ship the store page" --region Work
+    mikado region move Work J3 J4 J6
+
+If mikado refuses a link or a move because a quest would cross regions, tell the user what it
+said; do not cut links to get a move through.
+
 **Delete** only when the user asks; abandon is usually what they mean. Nothing is left hanging:
 if the quest's side quests or prerequisites would leave a journey with it, say what happens to
 them — `--branch` takes them along, `--rewire Q` hands them to another quest (it requires the
@@ -163,9 +178,13 @@ paste into a reply.
 
 | Command | What it does |
 |---|---|
-| `journey new "title" [--crown Q]` | start a journey |
+| `journey new "title" [--crown Q] [--region R]` | start a journey (in R1 unless a region is named) |
 | `journey crown J Q` | make Q the journey's crowning quest |
-| `journey set J [--title T] [--crown Q]` | retitle or recrown a journey (its id stays) |
+| `journey set J [--title T] [--crown Q] [--region R]` | retitle, recrown or move a journey (its id stays) |
+| `journey list [--all] [--region R]` | the Atlas as text; `--region` keeps one region's journeys |
+| `region list` / `region new "name"` / `region set R --name N` | the regions / a new one / rename (its id stays) |
+| `region move R J...` | move journeys into R together; refused while a quest on them stays behind on another |
+| `region delete R` | delete an empty region (never the last) |
 | `journey extract J Q... --title T` | move quests into a new journey, shown on J as one journey card |
 | `journey delete J [--force]` | delete a journey; `--force` also deletes its quests in no other journey |
 | `add owner/repo#n` / `errand "title"` / `petition "title" --on WHO` | add a quest |
@@ -207,6 +226,7 @@ Link flags on `add`, `errand` and `petition`: `--opens Q` (Q requires the new qu
 | `log` | the chronicle |
 | `id` / `key` | the quest (`key` is `Q142`); on a journey, `key` is `J7` |
 | `crowns` (`key`, `title`, `state`, `done`, `total`, `working`, `open`) | on a chart, a quest that crowns another journey and stands for all of it: that journey's main-quest progress, how many of its quests are underway, and its quests still to do |
+| journey `region` (`key`, `name`) | the region it lives in |
 | journey `blockedBy` / `blocks` | the journeys drawn on this one's chart as one card each / the journeys with this one on theirs |
 
 ## Glossary
@@ -241,6 +261,7 @@ The words mikado uses, everywhere a person or an agent reads them.
 | G24 | Archived | A journey put away: off the Atlas's shelves and out of `journey list` (unless `--all`), its chart, quests and chronicle untouched. Archive a journey only when the user asks. | `journey archive J`, `journey unarchive J` |
 | G25 | Extract | Moving quests of a journey into a new journey of their own, crowned by a new errand. The old chart shows the new journey as one card where they were. | `journey extract J Q... --title T` |
 | G26 | Deleted | Taken out of a journey, or with `--force` out of the database for good (only a line in the chronicle stays). Unlike struck, nothing is kept. Only when the user asks. | `delete Q --journey J`, `delete Q --force`, `journey delete J` |
+| G27 | Region | A group of journeys, named by its id, like R2. Every journey lives in one, and a quest stays inside one: no link crosses from one region to another. The Atlas shows one band per region. | `region new "name"`, `region move R J...`, `--region R` |
 
 ## Rules
 

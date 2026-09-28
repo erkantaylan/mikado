@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Ban, Check, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { JourneyState } from './model'
@@ -24,6 +24,7 @@ export type AtlasJourney = {
   archivedAt?: string // set while archived: kept off the shelves above
   blockedBy?: JourneyLink[] // journeys drawn on this one's chart as journey cards
   blocks?: JourneyLink[] // journeys with this one on their chart
+  region?: { key: string; name: string } // R2; the mock has none
 }
 
 /** Another journey, named on an atlas row. */
@@ -194,6 +195,108 @@ function Section({ title, hint, children }: { title: string; hint: string; child
   )
 }
 
+/** A set of journeys on their shelves: underway, main quest fulfilled, 100%, abandoned. An empty shelf is left out. */
+function Shelves({ journeys, row }: { journeys: AtlasJourney[]; row: (q: AtlasJourney) => ReactNode }) {
+  const active = journeys.filter((q) => !cancelled(q) && !mainDone(q))
+  const bonus = journeys.filter((q) => !cancelled(q) && mainDone(q) && !perfect(q))
+  const hundred = journeys.filter((q) => !cancelled(q) && perfect(q))
+  const gone = journeys.filter(cancelled)
+  return (
+    <>
+      {active.length > 0 && (
+        <Section title="Journeys underway" hint="the main quest still has quests to fulfil">
+          {active.map(row)}
+        </Section>
+      )}
+      {bonus.length > 0 && (
+        <Section title="Main quest fulfilled" hint="finished — achievements still there if you're into it">
+          {bonus.map(row)}
+        </Section>
+      )}
+      {hundred.length > 0 && (
+        <Section title="100%" hint="main quest and every achievement">
+          {hundred.map(row)}
+        </Section>
+      )}
+      {gone.length > 0 && (
+        <Section title="Abandoned" hint="the crowning quest won't be done, so neither will the journey">
+          {gone.map(row)}
+        </Section>
+      )}
+    </>
+  )
+}
+
+type RegionGroup = { key: string; name: string; journeys: AtlasJourney[] }
+
+/** Journeys grouped by region, in the order the regions were made (R1, R2, …). */
+function byRegion(journeys: AtlasJourney[]): RegionGroup[] {
+  const groups = new Map<string, RegionGroup>()
+  for (const q of journeys) {
+    const r = q.region ?? { key: '', name: '' }
+    const g = groups.get(r.key) ?? { ...r, journeys: [] }
+    g.journeys.push(q)
+    groups.set(r.key, g)
+  }
+  const n = (key: string) => Number(key.slice(1)) || 0
+  return [...groups.values()].sort((a, b) => n(a.key) - n(b.key))
+}
+
+const CLOSED = 'mikado.regions.closed'
+
+function closedRegions(): string[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLOSED) ?? '[]')
+    return Array.isArray(saved) ? saved : []
+  } catch {
+    return [] // storage may be unavailable or hold something else; show every region
+  }
+}
+
+/** One region on the Atlas: its name and tally, and its journeys' shelves. Folding one is remembered. */
+function RegionBand({ regionKey, name, journeys, children }: { regionKey: string; name: string; journeys: AtlasJourney[]; children: ReactNode }) {
+  const [open, setOpen] = useState(() => !closedRegions().includes(regionKey))
+  const underway = journeys.filter((q) => !cancelled(q) && !mainDone(q))
+  const done = underway.reduce((n, q) => n + q.main.done, 0)
+  const total = underway.reduce((n, q) => n + q.main.total, 0)
+  const pct = total ? Math.round((done / total) * 100) : 0
+  const toggle = (next: boolean) => {
+    if (next === open) return
+    setOpen(next)
+    try {
+      const rest = closedRegions().filter((k) => k !== regionKey)
+      localStorage.setItem(CLOSED, JSON.stringify(next ? rest : [...rest, regionKey]))
+    } catch {
+      // not remembering is fine
+    }
+  }
+  return (
+    <details open={open} onToggle={(e) => toggle(e.currentTarget.open)} className="quest-region group">
+      <summary className="quest-region-title flex cursor-pointer list-none items-center gap-3 border-b-2 border-[var(--plate-border)] pb-2 select-none">
+        <ChevronRight size={18} className="shrink-0 transition-transform group-open:rotate-90" />
+        <h2 className="quest-display truncate text-[22px] font-semibold">{name}</h2>
+        <span className="font-mono text-[13px] text-[var(--ink-faint)]">{regionKey}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-3 text-[14px] text-[var(--ink-soft)] tabular-nums">
+          <span>
+            {underway.length} underway · {journeys.length} {journeys.length === 1 ? 'journey' : 'journeys'}
+          </span>
+          {total > 0 && (
+            <span className="flex items-center gap-2" title="Main quests of the journeys underway: quests fulfilled">
+              <span className="h-2 w-28 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
+                <span className="block h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
+              </span>
+              <span className="font-semibold text-[var(--ink)]">
+                {done}/{total}
+              </span>
+            </span>
+          )}
+        </span>
+      </summary>
+      <div className="mt-6 space-y-8">{children}</div>
+    </details>
+  )
+}
+
 export type AtlasProps = {
   journeys: AtlasJourney[]
   hrefOf: (q: AtlasJourney) => string | undefined // undefined: the journey has no chart to open
@@ -210,9 +313,7 @@ export default function Atlas({ journeys, hrefOf, eyebrow, noMap, banner, empty,
   const shelved = journeys.filter((q) => !q.archivedAt)
   const archived = journeys.filter((q) => q.archivedAt)
   const active = shelved.filter((q) => !cancelled(q) && !mainDone(q))
-  const bonus = shelved.filter((q) => !cancelled(q) && mainDone(q) && !perfect(q))
-  const hundred = shelved.filter((q) => !cancelled(q) && perfect(q))
-  const gone = shelved.filter(cancelled)
+  const regions = byRegion(shelved)
   const sum = (f: (q: AtlasJourney) => number) => active.reduce((n, q) => n + f(q), 0)
   const row = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} chip={false} />
   // The archive mixes every state, so there each row says its own.
@@ -253,20 +354,13 @@ export default function Atlas({ journeys, hrefOf, eyebrow, noMap, banner, empty,
         <main className={`mx-auto max-w-7xl space-y-8 p-6 ${theme === 'wartable' ? 'wt-sheet' : ''}`}>
           {/* The war table's campaign map, spread under the shelves. */}
           {theme === 'wartable' && <div className="wt-map" aria-hidden />}
-          <Section title="Journeys underway" hint="the main quest still has quests to fulfil">
-            {active.map(row)}
-          </Section>
-          <Section title="Main quest fulfilled" hint="finished — achievements still there if you're into it">
-            {bonus.map(row)}
-          </Section>
-          <Section title="100%" hint="main quest and every achievement">
-            {hundred.map(row)}
-          </Section>
-          {gone.length > 0 && (
-            <Section title="Abandoned" hint="the crowning quest won't be done, so neither will the journey">
-              {gone.map(row)}
-            </Section>
-          )}
+          {regions.length > 1
+            ? regions.map((r) => (
+                <RegionBand key={r.key} name={r.name} regionKey={r.key} journeys={r.journeys}>
+                  <Shelves journeys={r.journeys} row={row} />
+                </RegionBand>
+              ))
+            : <Shelves journeys={shelved} row={row} />}
           {archived.length > 0 && (
             // Closed by default; the browser keeps it open across the 15 s refresh.
             <details className="group">

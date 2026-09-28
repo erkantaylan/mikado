@@ -92,4 +92,11 @@ quiet "$m" take-up "$protocol" --by claude
 quiet "$m" journey extract J4 "$steep" "$water" "$leaves" --title "Brew Turkish tea in the çaydanlık"
 quiet "$m" fulfil "$water"
 
+# Regions: the kitchen journeys wait on each other, so they move together; the
+# rest stay in R1, Personal.
+quiet "$m" region new "Kitchen"
+quiet "$m" region move Kitchen J3 J4 J6
+quiet "$m" region new "Side projects"
+quiet "$m" region move "Side projects" J5
+
 "$m" journey list --all

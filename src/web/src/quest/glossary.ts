@@ -2,7 +2,7 @@
 // SKILL.md carries the same table for agents (src/internal/skill/SKILL.md), so change both together.
 
 export type Term = {
-  id: string // G1…G26, as SKILL.md numbers them; G21 (Hero) is left off the dashboard for now, which shows no heroes
+  id: string // G1…G27, as SKILL.md numbers them; G21 (Hero) is left off the dashboard for now, which shows no heroes
   term: string
   also?: string // a synonym that means exactly the same
   text: string // what it means, in a sentence or two
@@ -155,5 +155,11 @@ export const glossary: Term[] = [
     term: 'Deleted',
     text: 'Taken out of a journey, or with --force out of the database for good: only a line in the chronicle stays. Unlike struck, nothing is kept.',
     cli: 'mikado delete Q --journey J · mikado delete Q --force · mikado journey delete J',
+  },
+  {
+    id: 'G27',
+    term: 'Region',
+    text: 'A group of journeys, named by its key, like R2. Every journey lives in one, and a quest stays inside one: no link crosses from one region to another. The Atlas shows one band per region.',
+    cli: 'mikado region new "name" · mikado region move R J… · mikado journey new "title" --region R',
   },
 ]

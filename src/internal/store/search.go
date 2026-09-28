@@ -21,7 +21,7 @@ const (
 	searchQuests   = 20
 )
 
-// Search finds journeys (by key and title) and live quests (by key, issue
+// Search finds journeys (by key, title and region name) and live quests (by key, issue
 // and title) whose text holds every word of q, ignoring case. It runs on
 // every keystroke, so issue titles come from the GitHub cache only, never
 // live. Quests still to do come before finished ones; each quest's AlsoIn
@@ -74,10 +74,11 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 		if len(words) == 0 && jr.ArchivedAt != "" {
 			continue
 		}
-		if !has(jr.Key() + " " + jr.Title) {
+		region := g.regionRef(jr.Region)
+		if !has(jr.Key() + " " + jr.Title + " " + region.Name) {
 			continue
 		}
-		info := JourneyInfo{Key: jr.Key(), Title: jr.Title, FinalCardID: jr.Final, State: JourneyActive, ArchivedAt: jr.ArchivedAt}
+		info := JourneyInfo{Key: jr.Key(), Title: jr.Title, FinalCardID: jr.Final, State: JourneyActive, ArchivedAt: jr.ArchivedAt, Region: region}
 		if jr.Final != nil {
 			if c, ok := cards[*jr.Final]; ok {
 				info.State = journeyState(&c)

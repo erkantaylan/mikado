@@ -8,10 +8,14 @@ export type JourneyState = 'active' | 'complete' | 'cancelled'
 
 export type Progress = { done: number; total: number }
 
+/** A region named on a journey (store.RegionRef): every journey lives in one. */
+export type RegionRef = { key: string; name: string } // R2
+
 /** One journey on the atlas (store.JourneySummary). */
 export type JourneySummary = {
   key: string // J7
   title: string
+  region: RegionRef
   main: Progress
   achievements: Progress
   state: JourneyState
@@ -100,6 +104,7 @@ export type JourneyInfo = {
   finalCardId: number | null
   state: JourneyState
   archivedAt?: string // RFC 3339, set while archived
+  region: RegionRef
 }
 
 /** Everything the war table needs (store.JourneyView). */
