@@ -116,11 +116,10 @@ function Cart({ p, seed, loaded }: { p: number[]; seed: number; loaded: boolean 
 const hash = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
 
 /** One length of track along `path` (a cubic bezier, as React Flow draws it). */
-function Track({ path, flow, powered, dim, torn, seed = 0, carts = true }: {
+function Track({ path, flow, powered, torn, seed = 0, carts = true }: {
   path: string
   flow: Flow
   powered: boolean
-  dim?: boolean
   torn?: boolean
   seed?: number
   carts?: boolean
@@ -140,7 +139,6 @@ function Track({ path, flow, powered, dim, torn, seed = 0, carts = true }: {
       className="wt-rail"
       data-flow={flow}
       data-track={laid ? 'laid' : planned ? 'planned' : undefined}
-      data-dim={dim || undefined}
       data-torn={torn || undefined}
     >
       <path d={path} className="wt-rail-halo" />
@@ -160,7 +158,7 @@ function Track({ path, flow, powered, dim, torn, seed = 0, carts = true }: {
           <path d={geo.right} className="wt-rail-stub" />
         </>
       )}
-      {carts && (flow === 'done' || flow === 'spent') && !dim && <Cart p={geo.p} seed={seed} loaded={flow === 'done'} />}
+      {carts && (flow === 'done' || flow === 'spent') && <Cart p={geo.p} seed={seed} loaded={flow === 'done'} />}
     </g>
   )
 }
@@ -169,7 +167,7 @@ function Track({ path, flow, powered, dim, torn, seed = 0, carts = true }: {
 export function RailwayLine(props: EdgeProps<QuestEdge>) {
   const { data } = props
   const { path } = questEdgePath(props, useWarTable())
-  return <Track path={path} flow={data!.flow} powered={data!.powered} dim={data!.dim} torn={data!.torn} seed={hash(props.id)} />
+  return <Track path={path} flow={data!.flow} powered={data!.powered} torn={data!.torn} seed={hash(props.id)} />
 }
 
 /** A short straight length of track for the Legend, without carts. */

@@ -50,7 +50,7 @@ export default function Line(props: EdgeProps<QuestEdge>) {
   const powered = flow === 'done' || flow === 'held'
 
   return (
-    <g className="ln-road" data-flow={flow} data-dim={data!.dim || undefined}>
+    <g className="ln-road" data-flow={flow}>
       {/* the paper verge: a faint wash under every road so it lifts off the map's ink */}
       <path d={path} className="ln-road-verge" />
       <path d={path} className="ln-road-casing" />
@@ -84,7 +84,6 @@ export default function Line(props: EdgeProps<QuestEdge>) {
           <svg
             className="ln-road-milestone"
             data-flow={flow}
-            data-dim={data!.dim || undefined}
             width={18}
             height={18}
             viewBox="-9 -9 18 18"

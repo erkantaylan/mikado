@@ -13,11 +13,3 @@
 .quest-theme[data-theme='wartable'] .ln-chain-chain .ln-chain-halo {
   stroke: rgba(251, 244, 224, 0.35);
 }
-/* off the selected deed's path: far back */
-.quest-theme[data-theme='wartable'] .ln-chain-dim {
-  opacity: 0.15;
-}
-.quest-theme[data-theme='wartable'] .ln-chain-dim .ln-chain-shadow,
-.quest-theme[data-theme='wartable'] .ln-chain-dim .ln-chain-halo {
-  display: none;
-}

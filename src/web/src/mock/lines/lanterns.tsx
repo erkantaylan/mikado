@@ -33,7 +33,7 @@ export default function Line(props: EdgeProps<QuestEdge>) {
   const cls = (part: string) => `ln-lanterns-${part}`
   const p = (part: string) => <path d={path} fill="none" className={cls(part)} />
   return (
-    <g className="ln-lanterns" data-flow={flow} data-dim={data!.dim || undefined}>
+    <g className="ln-lanterns" data-flow={flow}>
       {p('halo')}
       {p('pool')}
       {p('glow')}

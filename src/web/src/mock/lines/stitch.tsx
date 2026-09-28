@@ -106,7 +106,7 @@ const round: SVGProps<SVGPathElement> = { fill: 'none', strokeLinecap: 'round', 
 export default function Line(props: EdgeProps<QuestEdge>) {
   const wt = useWarTable()
   const { path } = questEdgePath(props, wt)
-  const { flow, dim, torn } = props.data!
+  const { flow, torn } = props.data!
   const look = LOOK[flow]
 
   const g = useMemo(() => {
@@ -141,7 +141,7 @@ export default function Line(props: EdgeProps<QuestEdge>) {
 
     if (flow === 'done' || flow === 'held') {
       const r = look.w / 2
-      if (!dim) for (const s of every(s0 + 3, s1, 2.8)) {
+      for (const s of every(s0 + 3, s1, 2.8)) {
         const p = F(s)
         out.twist += seg(off(p, -1.1, -r + 0.7), off(p, 1.1, r - 0.7))
       }
@@ -193,15 +193,14 @@ export default function Line(props: EdgeProps<QuestEdge>) {
       flyAt(6, 5)
     }
     return out
-  }, [path, flow, dim, torn, wt, look])
+  }, [path, flow, torn, wt, look])
 
   if (!g) return <></>
-  const opacity = dim ? 0.15 : 1
   const shadow = 'translate(0.8 1.3)'
   const k = g.knot
 
   return (
-    <g className="ln-stitch" data-flow={flow} style={{ opacity, pointerEvents: 'none' }}>
+    <g className="ln-stitch" data-flow={flow} style={{ pointerEvents: 'none' }}>
       {/* a pale lift of paper under every line, so it parts from the ink of the map */}
       <path
         d={path}

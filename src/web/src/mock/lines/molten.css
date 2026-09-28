@@ -191,10 +191,3 @@
   fill: var(--ln-molten-gold);
 }
 
-/* dimmed: off the selected deed's path, only the bare channel, far back */
-.quest-theme[data-theme='wartable'] .ln-molten[data-dim] {
-  opacity: 0.16;
-}
-.quest-theme[data-theme='wartable'] .ln-molten[data-dim] .ln-molten-lip {
-  display: none;
-}

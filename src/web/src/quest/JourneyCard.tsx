@@ -52,10 +52,10 @@ export function journeyCardWord(q: JourneyCard, status: Status): string {
   return words[status]
 }
 
-type Props = { item: Item; q: JourneyCard; status: Status; dim: boolean; selected: boolean; covered?: boolean }
+type Props = { item: Item; q: JourneyCard; status: Status; selected: boolean; covered?: boolean }
 
 /** The journey card node. */
-export function JourneyCardView({ item, q, status, dim, selected, covered }: Props) {
+export function JourneyCardView({ item, q, status, selected, covered }: Props) {
   const wt = useWarTable()
   const done = status === 'done'
   const over = done || status === 'cancelled'
@@ -66,9 +66,8 @@ export function JourneyCardView({ item, q, status, dim, selected, covered }: Pro
     <div
       style={{ width: CARD_WIDTH + STACK * 2, paddingRight: STACK * 2, paddingBottom: STACK * 2 }}
       data-status={status}
-      data-dim={dim || undefined}
       data-covered={covered || undefined}
-      className={`quest-item quest-stack relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
+      className="quest-item quest-stack relative cursor-pointer"
     >
       <Handle type="target" position={Position.Left} className={hidden} />
       {/* The tile covers the front card; the journey's folded quests still peek out behind it. */}

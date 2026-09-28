@@ -29,7 +29,7 @@ const SIDE_WIDTH = 290
 
 // Node data carries everything a node draws, so node components read no journey state of their own.
 type GoalData = { title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
-export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; dim: boolean; selected: boolean; covered: boolean }
+export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; selected: boolean; covered: boolean }
 type GoalNode = Node<GoalData, 'goal'>
 type CardNode = Node<CardData, 'card'>
 export type QuestNode = GoalNode | CardNode
@@ -121,10 +121,10 @@ function npcPlate(status: Status): CSSProperties {
 }
 
 function CardView({ data }: NodeProps<CardNode>) {
-  const { item, tag, status, openBefore, days, dim, selected, covered } = data
+  const { item, tag, status, openBefore, days, selected, covered } = data
   const wt = useWarTable()
   // A quest that crowns another journey stands for that whole journey here.
-  if (item.crowns) return <JourneyCardView item={item} q={item.crowns} status={status} dim={dim} selected={selected} covered={covered} />
+  if (item.crowns) return <JourneyCardView item={item} q={item.crowns} status={status} selected={selected} covered={covered} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   const underway = item.working && !item.done
@@ -140,9 +140,8 @@ function CardView({ data }: NodeProps<CardNode>) {
       data-status={status}
       data-side={side || undefined}
       data-npc={item.npc || undefined}
-      data-dim={dim || undefined}
       data-covered={covered || undefined}
-      className={`quest-item relative cursor-pointer transition-opacity ${dim ? 'opacity-25' : ''}`}
+      className="quest-item relative cursor-pointer"
     >
       <Handle type="target" position={Position.Left} className={hidden} />
       {covered && <Cover status={status} name={item.key ?? tag} />}
@@ -232,7 +231,7 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 export type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
 // torn: the line comes from an abandoned quest; the war table draws its track torn up where it leaves the card.
 // powered: the quest the line comes from is fulfilled (for a side quest's line: the side quest is).
-export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean; powered: boolean }, 'quest'>
+export type QuestEdge = Edge<{ flow: Flow; live: boolean; torn: boolean; powered: boolean }, 'quest'>
 
 // How each kind of line is drawn in the parchment and midnight themes, from the theme's own palette.
 export const stroke: Record<Flow, CSSProperties> = {
@@ -275,11 +274,10 @@ export function QuestEdgeView(props: EdgeProps<QuestEdge>) {
   const { data } = props
   const { path } = questEdgePath(props, false)
   const style = stroke[data!.flow]
-  const opacity = data!.dim ? 0.15 : ((style.opacity as number | undefined) ?? 1)
   return (
     <>
-      <BaseEdge path={path} style={{ ...style, opacity }} />
-      {data!.live && <path d={path} fill="none" stroke="var(--gold-ink)" strokeWidth={2} className="quest-flow" style={{ opacity }} />}
+      <BaseEdge path={path} style={style} />
+      {data!.live && <path d={path} fill="none" stroke="var(--gold-ink)" strokeWidth={2} className="quest-flow" />}
     </>
   )
 }
@@ -391,7 +389,6 @@ export function buildGraph(
   covered: Set<string> = new Set(),
 ): { nodes: QuestNode[]; edges: QuestEdge[] } {
   const { goal, items, sideQuests, needs, byId } = m
-  const onPath = selected ? m.pathToGoal(selected) : null
   const done = items.filter((i) => i.done && m.counted(i)).length
   const reached = !!byId.get(goal.doneWhen)?.done
 
@@ -423,7 +420,6 @@ export function buildGraph(
           status: m.statusOf(item),
           openBefore: m.openBefore(item),
           days: m.daysSince(item),
-          dim: !!onPath && !onPath.has(item.id),
           selected: item.id === selected,
           covered: covered.has(item.id) && item.id !== selected,
         },
@@ -431,7 +427,6 @@ export function buildGraph(
     ),
   ]
 
-  const dim = (a: string, b: string) => !!onPath && !(onPath.has(a) && onPath.has(b))
   const torn = (id: string) => {
     const i = byId.get(id)
     return !!i && m.statusOf(i) === 'cancelled'
@@ -459,7 +454,6 @@ export function buildGraph(
                   : 'held',
         live: !side && powered && !!to && m.statusOf(to) === 'available',
         powered,
-        dim: dim(source, target),
         torn: torn(source),
       },
     }
@@ -472,7 +466,7 @@ export function buildGraph(
     source,
     target,
     type: 'quest',
-    data: { flow: 'bridge', live: false, dim: dim(source, target), torn: torn(source), powered: false },
+    data: { flow: 'bridge', live: false, torn: torn(source), powered: false },
   })
   return {
     nodes,

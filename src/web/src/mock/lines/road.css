@@ -15,9 +15,6 @@
   stroke-linecap: butt;
   stroke-linejoin: round;
 }
-.quest-theme[data-theme='wartable'] .ln-road[data-dim] {
-  opacity: 0.15;
-}
 
 /* The verge: a pale wash wider than the road, so the casing never sits straight on the map's ink. */
 .quest-theme[data-theme='wartable'] .ln-road-verge {
@@ -85,9 +82,6 @@
 /* ---- cancelled: a washed-out road, broken and faded, crossed out where it gave way ---- */
 .quest-theme[data-theme='wartable'] .ln-road[data-flow='cancelled'] {
   opacity: 0.6;
-}
-.quest-theme[data-theme='wartable'] .ln-road[data-flow='cancelled'][data-dim] {
-  opacity: 0.12;
 }
 .quest-theme[data-theme='wartable'] [data-flow='cancelled'] .ln-road-verge {
   stroke-width: 12px;
@@ -171,9 +165,6 @@
   top: 0;
   pointer-events: none;
   overflow: visible;
-}
-.quest-theme[data-theme='wartable'] .ln-road-milestone[data-dim] {
-  opacity: 0.15;
 }
 .quest-theme[data-theme='wartable'] .ln-road-milestone .ln-road-ring {
   fill: var(--ln-road-gilt);

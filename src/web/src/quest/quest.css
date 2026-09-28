@@ -1186,11 +1186,6 @@
   --wt-under-inset: -4px -5px;
   border-color: transparent !important;
 }
-/* Off the selected quest's path: paler, greyer paper, still opaque. */
-.quest-theme[data-theme='wartable'] .quest-item[data-dim] {
-  opacity: 1 !important;
-  filter: grayscale(0.85) contrast(0.42) brightness(1.28);
-}
 
 /* Underway: a small blue pennant instead of the pill, just left of the kind marks. */
 .quest-theme[data-theme='wartable'] .quest-working {

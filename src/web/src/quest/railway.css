@@ -5,9 +5,6 @@
   fill: none;
   stroke-linejoin: round;
 }
-.quest-theme[data-theme='wartable'] .wt-rail[data-dim] {
-  opacity: 0.15;
-}
 
 /* The pale bed of ballast the track is laid on, parting it from the map. */
 .quest-theme[data-theme='wartable'] .wt-rail-halo {

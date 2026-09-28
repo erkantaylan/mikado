@@ -143,7 +143,7 @@ export default function Line(props: EdgeProps<QuestEdge>): JSX.Element {
   const start = sourceX - (wt && data!.torn ? TORN_TUCK : tuck)
   const pin: Pt = [sourceX + PIN, sourceY]
   const end: Pt = [targetX, targetY]
-  const cls = `ln-pins${data!.dim ? ' ln-pins-dim' : ''}`
+  const cls = 'ln-pins'
 
   if (flow === 'cancelled') {
     // The thread is cut: a frayed stub hangs from the pin, another from the card it once opened,

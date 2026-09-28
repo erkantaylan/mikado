@@ -310,7 +310,7 @@ export default function Line(props: EdgeProps<QuestEdge>): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceX, sourceY, targetX, targetY, flow, torn, wt])
 
-  const cls = `ln-chain ln-chain-${look.kind}${data!.dim ? ' ln-chain-dim' : ''}`
+  const cls = `ln-chain ln-chain-${look.kind}`
   const all = g.runs[g.runs.length - 1].d
 
   if (look.kind === 'rope') {

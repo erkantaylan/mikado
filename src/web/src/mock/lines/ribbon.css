@@ -11,20 +11,12 @@
   fill: rgba(30, 16, 6, 0.4);
 }
 
-/* Off the selected deed's path the ribbon steps far back; its seal keeps a little more, so the
-   destinations still read. */
-.quest-theme[data-theme='wartable'] .ln-ribbon[data-dim] .ln-ribbon-band {
-  opacity: 0.15;
-}
 .quest-theme[data-theme='wartable'] .ln-ribbon-end {
   position: absolute;
   left: 0;
   top: 0;
   overflow: visible;
   pointer-events: none;
-}
-.quest-theme[data-theme='wartable'] .ln-ribbon-end[data-dim] {
-  opacity: 0.3;
 }
 
 /* done: bright gold silk, pressed under a red seal. */

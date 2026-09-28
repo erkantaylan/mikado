@@ -79,8 +79,6 @@ export type JourneyModel = JourneyData & {
   byId: Map<string, Item>
   statusOf: (i: Item) => Status
   openBefore: (i: Item) => number
-  /** Everything on the way from `id` to the goal: the cards that (transitively) need it. */
-  pathToGoal: (id: string) => Set<string>
   /** How an item is named in running text: repo#n for issues, the title for cards. */
   short: (id: string) => string
   /** The issue ref to show on an item, if it is an issue. */
@@ -109,18 +107,6 @@ export function journeyModel(data: JourneyData): JourneyModel {
     return i.kind === 'wait' ? 'awaiting' : 'available'
   }
 
-  function pathToGoal(id: string): Set<string> {
-    const seen = new Set<string>([id, 'goal'])
-    const parent = byId.get(id)?.sideOf
-    if (parent) seen.add(parent)
-    const stack = [parent ?? id]
-    while (stack.length) {
-      const cur = stack.pop()!
-      for (const n of needs) if (n.to === cur && !seen.has(n.from)) (seen.add(n.from), stack.push(n.from))
-    }
-    return seen
-  }
-
   const refOf = (i: Item) => i.ref ?? (i.kind === 'issue' ? i.id : undefined)
 
   function urlOf(i: Item): string | undefined {
@@ -136,5 +122,5 @@ export function journeyModel(data: JourneyData): JourneyModel {
     return ref ? afterOwner(ref) : i.title
   }
 
-  return { ...data, byId, statusOf, openBefore, pathToGoal, short, refOf, urlOf, daysSince: (i) => i.sinceDays ?? 0, counted }
+  return { ...data, byId, statusOf, openBefore, short, refOf, urlOf, daysSince: (i) => i.sinceDays ?? 0, counted }
 }

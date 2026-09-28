@@ -25,28 +25,23 @@ export default function Line(props: EdgeProps<QuestEdge>) {
   const { data, sourceX, sourceY, targetX, targetY } = props
   const { path } = questEdgePath(props, wt)
   const flow = data!.flow
-  const dim = data!.dim
   // Held: the fill stops short of the target; measured in pathLength units, so it scales with the line.
   const fillLen = flow === 'held' ? '68 100' : undefined
   const ends = flow !== 'cancelled'
   return (
-    <g className="ln-molten" data-flow={flow} data-dim={dim || undefined}>
+    <g className="ln-molten" data-flow={flow}>
       <path d={path} className="ln-molten-lip" />
       <path d={path} className="ln-molten-rim" />
-      {!dim && (
-        <>
-          <path d={path} className="ln-molten-wall" />
-          <path d={path} className="ln-molten-bed" transform="translate(0 0.7)" />
-          <path d={path} className="ln-molten-fill" pathLength={fillLen ? 100 : undefined} strokeDasharray={fillLen} />
-          <path d={path} className="ln-molten-sheen" pathLength={fillLen ? 100 : undefined} strokeDasharray={fillLen} transform="translate(0 0.9)" />
-          <path d={path} className="ln-molten-core" transform="translate(0 -0.6)" />
-        </>
-      )}
+      <path d={path} className="ln-molten-wall" />
+      <path d={path} className="ln-molten-bed" transform="translate(0 0.7)" />
+      <path d={path} className="ln-molten-fill" pathLength={fillLen ? 100 : undefined} strokeDasharray={fillLen} />
+      <path d={path} className="ln-molten-sheen" pathLength={fillLen ? 100 : undefined} strokeDasharray={fillLen} transform="translate(0 0.9)" />
+      <path d={path} className="ln-molten-core" transform="translate(0 -0.6)" />
       {ends && (
         <>
           <circle cx={sourceX + 5} cy={sourceY} r={4.6} className="ln-molten-well" />
           <path d={DROP} transform={`translate(${targetX + 1} ${targetY})`} className="ln-molten-drop" />
-          {!dim && <path d="M-9.6,-2.2 C-8.6,-3.2 -7,-3.2 -5.8,-2.6" transform={`translate(${targetX + 1} ${targetY})`} className="ln-molten-glint" />}
+          <path d="M-9.6,-2.2 C-8.6,-3.2 -7,-3.2 -5.8,-2.6" transform={`translate(${targetX + 1} ${targetY})`} className="ln-molten-glint" />
         </>
       )}
     </g>

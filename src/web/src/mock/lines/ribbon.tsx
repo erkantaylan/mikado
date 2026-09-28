@@ -131,7 +131,7 @@ export default function Line(props: EdgeProps<QuestEdge>) {
   }
 
   return (
-    <g className="ln-ribbon" data-flow={flow} data-dim={data!.dim || undefined}>
+    <g className="ln-ribbon" data-flow={flow}>
       <g className="ln-ribbon-band">
         {/* past the cut, only a faint trace of where the ribbon ran */}
         {flow === 'cancelled' && <path d={path} fill="none" className="ln-ribbon-ghost" />}
@@ -144,7 +144,6 @@ export default function Line(props: EdgeProps<QuestEdge>) {
           <svg
             className="ln-ribbon-end"
             data-flow={flow}
-            data-dim={data!.dim || undefined}
             width={MARK}
             height={MARK}
             viewBox={`${-MARK / 2} ${-MARK / 2} ${MARK} ${MARK}`}

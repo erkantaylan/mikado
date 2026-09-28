@@ -221,11 +221,3 @@
   stroke-width: 8px;
 }
 
-/* dimmed: off the selected deed's path. The pools go out and the whole road steps far back. */
-.quest-theme[data-theme='wartable'] .ln-lanterns[data-dim] {
-  opacity: 0.15;
-}
-.quest-theme[data-theme='wartable'] .ln-lanterns[data-dim] .ln-lanterns-pool,
-.quest-theme[data-theme='wartable'] .ln-lanterns[data-dim] .ln-lanterns-glow {
-  display: none;
-}

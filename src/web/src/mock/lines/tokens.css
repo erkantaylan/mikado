@@ -123,13 +123,6 @@
 .quest-theme[data-theme='wartable'] .ln-tokens.ln-tokens {
   opacity: 1; /* doubled class: outranks broader [data-flow] rules from other stylesheets */
 }
-.quest-theme[data-theme='wartable'] .ln-tokens.ln-tokens[data-dim] {
-  opacity: 0.16;
-}
-.quest-theme[data-theme='wartable'] .ln-tokens[data-dim] .ln-tokens-token,
-.quest-theme[data-theme='wartable'] .ln-tokens[data-dim] .ln-tokens-seal {
-  display: none;
-}
 
 /* ---- the broken seal (abandoned) ---- */
 .quest-theme[data-theme='wartable'] .ln-tokens-wax {

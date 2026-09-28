@@ -144,11 +144,10 @@ export default function Line(props: EdgeProps<QuestEdge>) {
   const path = `M${sx},${sourceY} L${curve.slice(1)} L${targetX + tuck},${ty}`
   const [kx, ky] = [targetX - (R + GAP) * scale, ty]
   const [px, py] = [sourceX + (flow === 'bridge' ? (R + GAP) * scale : 5), sourceY]
-  const dim = data!.dim
   const uid = safe(id)
 
   return (
-    <g className="ln-tokens" data-flow={flow} data-dim={dim || undefined} data-far={far || undefined} id={`ln-tokens-${uid}`}>
+    <g className="ln-tokens" data-flow={flow} data-far={far || undefined} id={`ln-tokens-${uid}`}>
       <path d={path} fill="none" className="ln-tokens-halo" />
       <path d={path} fill="none" stroke="currentColor" className="ln-tokens-body" />
       {/* the port: where the line leaves its source */}
