@@ -11,6 +11,9 @@ export type Progress = { done: number; total: number }
 /** A region named on a journey (store.RegionRef): every journey lives in one. */
 export type RegionRef = { key: string; name: string } // R2
 
+/** A region as the region list has it (store.Region). */
+export type Region = RegionRef & { createdAt: string; journeys: number }
+
 /** One journey on the atlas (store.JourneySummary). */
 export type JourneySummary = {
   key: string // J7
@@ -188,6 +191,10 @@ export async function fetchHealth(): Promise<Health> {
 export async function fetchJourneys(): Promise<{ journeys: JourneySummary[]; github?: string }> {
   const { body, res } = await get<JourneySummary[]>('/api/journeys')
   return { journeys: body, github: res.headers.get('X-Mikado-GitHub') ?? undefined }
+}
+
+export async function fetchRegions(): Promise<Region[]> {
+  return (await get<Region[]>('/api/regions')).body
 }
 
 /** What the search popup finds (store.SearchResult). `exact` is the quest the query names by key or issue. */

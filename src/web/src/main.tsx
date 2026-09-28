@@ -14,6 +14,8 @@ function route(path: string) {
   if (path === '/mock') return <MockBoard />
   if (path.startsWith('/mock/quest/')) return <MockPage />
   if (path === '/') return <AtlasPage />
+  const region = path.match(/^\/region\/([^/]+)\/?$/)
+  if (region) return <AtlasPage regionKey={decodeURIComponent(region[1])} />
   const journey = path.match(/^\/journey\/([^/]+)\/?$/)
   if (journey) return <JourneyPage journeyKey={decodeURIComponent(journey[1])} />
   return (

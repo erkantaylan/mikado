@@ -38,7 +38,8 @@ export default function JourneyPage({ journeyKey }: { journeyKey: string }) {
         await setNpc(Number(item.id.slice(1)), npc) // node ids are c<card id> (adapt.ts)
         await refresh()
       }}
-      atlasHref="/"
+      atlasHref={`/region/${encodeURIComponent(data.journey.region.key)}`}
+      atlasLabel={data.journey.region.name}
       version={version}
       banner={
         <>

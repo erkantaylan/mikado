@@ -543,6 +543,7 @@ export type JourneyMapProps = {
   onRetitle?: (title: string) => Promise<void> // renames the journey; its key stays. The mock has none
   onSetNpc?: (item: Item, npc: boolean) => Promise<void> // turns on the quest's right-click menu. The mock has none
   atlasHref: string
+  atlasLabel?: string // what the back link names: the journey's region, else the Atlas
   banner?: ReactNode // e.g. a GitHub warning, shown under the header
   version?: string // the running server's version, shown small under the side panel; the mock has none
   lineTypes?: typeof edgeTypes // other line designs to draw instead; only the mock tries them
@@ -818,7 +819,7 @@ function cardFromUrl(m: JourneyModel): string | null {
   return [...m.items, ...m.sideQuests].find((i) => i.key?.toLowerCase() === `q${n}`)?.id ?? null
 }
 
-function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onSetNpc, atlasHref, banner, version, lineTypes }: JourneyMapProps) {
+function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onSetNpc, atlasHref, atlasLabel = 'Atlas', banner, version, lineTypes }: JourneyMapProps) {
   const { goal, items, sideQuests, log } = m
   const [theme, setTheme] = useTheme()
   // `?quest=Q142` (as `mikado open Q142` links) opens the chart with that quest selected.
@@ -1038,7 +1039,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
             </span>
             <div className="min-w-0">
               <a href={atlasHref} className="quest-crumb text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
-                ← Atlas{journeyKey && <span className="ml-2 font-mono tracking-normal text-[var(--ink-soft)] normal-case">{journeyKey}</span>}
+                ← {atlasLabel}{journeyKey && <span className="ml-2 font-mono tracking-normal text-[var(--ink-soft)] normal-case">{journeyKey}</span>}
               </a>
               <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
                 <JourneyTitle title={goal.title} journeyKey={journeyKey} onRetitle={onRetitle} />

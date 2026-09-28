@@ -330,8 +330,8 @@ A quest is in a journey once it is linked in.
   assignees owner/repo                who can be assigned in a repo
 
 dashboard:
-  open [J | Q] [--journey J] [--print]
-                                      open the atlas, a journey's war table, or the war
+  open [R | J | Q] [--journey J] [--print]
+                                      open the atlas, a region, a journey's war table, or the war
                                       table of a journey holding Q with it selected
                                       (--print: URL)
 

@@ -167,8 +167,9 @@ that flag only when it matches what the user asked for; otherwise tell them what
     mikado show Q3                  # one quest: what it requires, what it opens, its journeys
     mikado journey show J1 --json   # the same, for you to parse
 
-**Show the user.** `mikado open` opens the dashboard in their browser: the Atlas, a journey's
-chart (the war table), or the chart with one quest selected. `--print` gives just the URL, to
+**Show the user.** `mikado open` opens the dashboard in their browser: the Atlas (its regions), a
+region's journeys (`open R2`), a journey's chart (the war table), or the chart with one quest
+selected. `--print` gives just the URL, to
 paste into a reply.
 
     mikado open J1
@@ -261,7 +262,7 @@ The words mikado uses, everywhere a person or an agent reads them.
 | G24 | Archived | A journey put away: off the Atlas's shelves and out of `journey list` (unless `--all`), its chart, quests and chronicle untouched. Archive a journey only when the user asks. | `journey archive J`, `journey unarchive J` |
 | G25 | Extract | Moving quests of a journey into a new journey of their own, crowned by a new errand. The old chart shows the new journey as one card where they were. | `journey extract J Q... --title T` |
 | G26 | Deleted | Taken out of a journey, or with `--force` out of the database for good (only a line in the chronicle stays). Unlike struck, nothing is kept. Only when the user asks. | `delete Q --journey J`, `delete Q --force`, `journey delete J` |
-| G27 | Region | A group of journeys, named by its id, like R2. Every journey lives in one, and a quest stays inside one: no link crosses from one region to another. The Atlas shows one band per region. | `region new "name"`, `region move R J...`, `--region R` |
+| G27 | Region | A group of journeys, named by its id, like R2. Every journey lives in one, and a quest stays inside one: no link crosses from one region to another. The Atlas shows the regions; each opens a page of its journeys. | `region new "name"`, `region move R J...`, `--region R` |
 
 ## Rules
 

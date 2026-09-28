@@ -9,14 +9,14 @@ import (
 	"mikado/internal/store"
 )
 
-// openCmd opens the dashboard in the browser: the atlas, a journey's war
-// table, or the war table of a journey holding a quest, with that quest
-// selected.
+// openCmd opens the dashboard in the browser: the atlas, a region's page, a
+// journey's war table, or the war table of a journey holding a quest, with
+// that quest selected.
 func openCmd(args []string) error {
 	cmd := newCommand("open")
 	journey := cmd.fs.String("journey", "", "for a quest in several journeys: which journey's war table to open")
 	printOnly := cmd.fs.Bool("print", false, "print the URL instead of opening a browser")
-	pos, err := cmd.parse(args, 0, 1, "[J | Q] [--journey J] [--print]")
+	pos, err := cmd.parse(args, 0, 1, "[R | J | Q] [--journey J] [--print]")
 	if err != nil {
 		return err
 	}
@@ -44,8 +44,22 @@ func openCmd(args []string) error {
 	return nil
 }
 
-// openTarget turns a journey key or a quest reference into a dashboard path.
+// openTarget turns a region key, a journey key or a quest reference into a
+// dashboard path.
 func openTarget(cl *client, target, journey string) (string, error) {
+	if id, ok := store.ParseRegionID(target); ok {
+		var rs []store.Region
+		if _, err := cl.do("GET", "/api/regions", nil, &rs); err != nil {
+			return "", err
+		}
+		key := store.RegionKey(id)
+		for _, r := range rs {
+			if r.Key == key {
+				return "/region/" + key, nil
+			}
+		}
+		return "", fmt.Errorf("no region %s", key)
+	}
 	if id, ok := store.ParseJourneyID(target); ok {
 		key := store.JourneyKey(id)
 		if _, err := cl.do("GET", journeyPath(key), nil, nil); err != nil {

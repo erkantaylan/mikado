@@ -159,7 +159,7 @@ export const glossary: Term[] = [
   {
     id: 'G27',
     term: 'Region',
-    text: 'A group of journeys, named by its key, like R2. Every journey lives in one, and a quest stays inside one: no link crosses from one region to another. The Atlas shows one band per region.',
+    text: 'A group of journeys, named by its key, like R2. Every journey lives in one, and a quest stays inside one: no link crosses from one region to another. The Atlas shows the regions; each opens a page of its journeys.',
     cli: 'mikado region new "name" · mikado region move R J… · mikado journey new "title" --region R',
   },
 ]
