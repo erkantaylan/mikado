@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { fetchJourney, retitleJourney, setNpc } from '../api'
 import JourneyMap from '../quest/JourneyMap'
 import { journeyModel } from '../quest/model'
@@ -14,6 +14,11 @@ export default function JourneyPage({ journeyKey }: { journeyKey: string }) {
   const { data, error, refresh } = usePoll(load)
   const model = useMemo(() => (data ? journeyModel(toJourneyData(data)) : undefined), [data])
   const version = useVersion()
+  const title = data?.journey.title
+  const key = data?.journey.key
+  useEffect(() => {
+    document.title = title ? `${title} · ${key} · mikado` : 'mikado'
+  }, [title, key])
 
   if (error?.status === 404 || error?.status === 400)
     return (

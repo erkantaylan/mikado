@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react'
-import { Ban, Check, Gem, Layers } from 'lucide-react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Ban, Check, Gem, Layers, Pencil } from 'lucide-react'
 import type { Item, Status } from './model'
 
 // Every colour is a theme variable (quest.css).
@@ -202,6 +202,84 @@ export function JourneyStateChip({ state }: { state?: string }) {
       }
     >
       {complete ? 'Fulfilled' : 'Abandoned'}
+    </span>
+  )
+}
+
+/** A title that can be renamed in place: a journey's on its chart, a region's on its page. Enter saves, Escape leaves it. */
+export function Renamable({ title, noun, idKey, onRename }: { title: string; noun: 'journey' | 'region'; idKey?: string; onRename?: (title: string) => Promise<void> }) {
+  const [draft, setDraft] = useState<string | null>(null) // null: not editing
+  const [error, setError] = useState<string>()
+  const saving = useRef(false)
+  const save = async () => {
+    if (draft === null || saving.current) return
+    const t = draft.trim()
+    if (t === title) return setDraft(null)
+    if (!t) return setError(noun === 'journey' ? 'A journey needs a title' : 'A region needs a name')
+    saving.current = true
+    try {
+      await onRename!(t)
+      setDraft(null)
+      setError(undefined)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      saving.current = false
+    }
+  }
+  if (draft === null)
+    return (
+      <span className="group flex min-w-0 items-center gap-1">
+        <span className="truncate" title={title}>
+          {title}
+        </span>
+        {onRename && (
+          <button
+            onClick={() => {
+              setDraft(title)
+              setError(undefined)
+            }}
+            aria-label={`Rename ${noun}`}
+            title={`Rename ${noun} (its key${idKey ? `, ${idKey},` : ''} and links stay)`}
+            className="shrink-0 rounded p-1 text-[var(--ink-faint)] opacity-0 group-hover:opacity-100 hover:text-[var(--ink)] focus:opacity-100"
+          >
+            <Pencil size={15} />
+          </button>
+        )}
+      </span>
+    )
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save()
+          if (e.key === 'Escape') {
+            setDraft(null)
+            setError(undefined)
+          }
+        }}
+        onBlur={() => void save()}
+        aria-label={noun === 'journey' ? 'Journey title' : 'Region name'}
+        aria-invalid={!!error}
+        className="quest-display w-[min(40rem,100%)] min-w-0 rounded border-2 border-[var(--avail)] bg-[var(--plate)] px-2 py-0.5 text-xl font-semibold outline-none"
+      />
+      {error && <span className="shrink-0 font-sans text-[13px] font-normal text-[#e11d48]">{error}</span>}
+    </span>
+  )
+}
+
+/** Says the page is a region's: its key, beside the region's name. */
+export function RegionChip({ regionKey }: { regionKey: string }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-[var(--plate-border)] px-2 py-0.5 font-sans text-[12px] font-semibold text-[var(--ink-soft)]"
+      title="A region: a group of journeys"
+    >
+      Region <span className="font-mono">{regionKey}</span>
     </span>
   )
 }

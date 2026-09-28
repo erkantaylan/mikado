@@ -193,6 +193,10 @@ export async function fetchJourneys(): Promise<{ journeys: JourneySummary[]; git
   return { journeys: body, github: res.headers.get('X-Mikado-GitHub') ?? undefined }
 }
 
+export async function renameRegion(key: string, name: string): Promise<Region> {
+  return send<Region>('PATCH', `/api/regions/${encodeURIComponent(key)}`, { name })
+}
+
 export async function fetchRegions(): Promise<Region[]> {
   return (await get<Region[]>('/api/regions')).body
 }

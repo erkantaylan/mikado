@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { fetchJourneys, fetchRegions } from '../api'
+import { useEffect, useMemo } from 'react'
+import { fetchJourneys, fetchRegions, renameRegion } from '../api'
 import Atlas, { type AtlasRegion } from '../quest/Atlas'
 import { Banner, Cli, Notice, NoticePage } from '../quest/Notice'
 import { toAtlasJourney } from './adapt'
@@ -19,13 +19,17 @@ const regionHref = (key: string) => `/region/${encodeURIComponent(key)}`
  * region's journeys on their shelves. Both refresh every 15 s.
  */
 export default function AtlasPage({ regionKey }: { regionKey?: string }) {
-  const { data, error } = usePoll(load)
+  const { data, error, refresh } = usePoll(load)
   const journeys = useMemo(() => data?.journeys.map(toAtlasJourney), [data])
   const regions = useMemo<AtlasRegion[] | undefined>(
     () => data?.regions.map((r) => ({ key: r.key, name: r.name, journeys: journeys?.filter((q) => q.region?.key === r.key) ?? [] })),
     [data, journeys],
   )
   const version = useVersion()
+  const regionName = regionKey ? regions?.find((r) => r.key.toLowerCase() === regionKey.toLowerCase())?.name : undefined
+  useEffect(() => {
+    document.title = regionName ? `${regionName} · mikado` : regionKey ? 'mikado' : 'Atlas · mikado'
+  }, [regionKey, regionName])
   if (!data || !journeys || !regions) return error ? <Failed error={error} what="the Atlas" /> : <Loading what="the Atlas" />
   const region = regionKey ? regions.find((r) => r.key.toLowerCase() === regionKey.toLowerCase()) : undefined
   if (regionKey && !region)
@@ -45,13 +49,21 @@ export default function AtlasPage({ regionKey }: { regionKey?: string }) {
       eyebrow={
         region ? (
           <a href="/" className="hover:underline">
-            ← Atlas<span className="ml-2 font-mono tracking-normal normal-case">{region.key}</span>
+            ← Atlas
           </a>
         ) : (
           'mikado'
         )
       }
       title={region?.name}
+      regionKey={region?.key}
+      onRename={
+        region &&
+        (async (name) => {
+          await renameRegion(region.key, name)
+          await refresh()
+        })
+      }
       search
       version={version}
       banner={

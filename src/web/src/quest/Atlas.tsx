@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { Ban, Check, ChevronRight, Hourglass, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, ChevronRight, Compass, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { JourneyState } from './model'
-import { JourneyStateChip, Tally } from './look'
+import { JourneyStateChip, RegionChip, Renamable, Tally } from './look'
 import { Search } from './Search'
 import { ThemeMenu, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
@@ -230,8 +230,8 @@ function Shelves({ journeys, row }: { journeys: AtlasJourney[]; row: (q: AtlasJo
 /** A region on the Atlas's home page (store.Region with its journeys). */
 export type AtlasRegion = { key: string; name: string; journeys: AtlasJourney[] }
 
-/** One region as a card: its name, its journeys underway and how far their main quests are. */
-function RegionCard({ region, href }: { region: AtlasRegion; href: string }) {
+/** One region as a row on the Atlas's home page: its journeys, and how far the main quests underway are. */
+function RegionRow({ region, href }: { region: AtlasRegion; href: string }) {
   const shelved = region.journeys.filter((q) => !q.archivedAt)
   const underway = shelved.filter((q) => !cancelled(q) && !mainDone(q))
   const finished = shelved.filter((q) => !cancelled(q) && mainDone(q))
@@ -243,34 +243,37 @@ function RegionCard({ region, href }: { region: AtlasRegion; href: string }) {
   const working = underway.reduce((n, q) => n + (q.inProgress ?? 0), 0)
   const archived = region.journeys.length - shelved.length
   return (
-    <a
-      href={href}
-      className="quest-plate quest-region flex flex-col gap-3 rounded-xl border-2 border-[var(--plate-border)] bg-[var(--plate)] px-5 py-4 transition-colors hover:bg-[var(--panel)]"
-    >
-      <div className="flex items-baseline gap-2">
-        <h2 className="quest-display truncate text-[22px] leading-tight font-semibold">{region.name}</h2>
-        <span className="font-mono text-[13px] text-[var(--ink-faint)]">{region.key}</span>
+    <div className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 bg-[var(--plate)] px-4 py-2.5 transition-colors hover:bg-[var(--panel)] ${columns}`}>
+      <span className="grid size-9 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+        <Compass size={17} />
+      </span>
+      <div className="min-w-0 basis-[calc(100%-3.25rem)] md:basis-auto">
+        {/* The name is the row's link, stretched over the whole row. */}
+        <a href={href} className="quest-display block truncate text-[16px] leading-snug font-semibold after:absolute after:inset-0 after:content-['']" title={region.name}>
+          {region.name}
+        </a>
+        <div className="truncate text-[13px] text-[var(--ink-soft)]">
+          <span className="font-mono">{region.key}</span>
+          {(region.journeys.length === 0
+            ? ['no journeys yet']
+            : [
+                `${underway.length} underway`,
+                finished.length > 0 && `${finished.length} fulfilled`,
+                archived > 0 && `${archived} archived`,
+              ].filter(Boolean)
+          ).map((part) => ` · ${part}`)}
+        </div>
       </div>
-      <div className="text-[14px] text-[var(--ink-soft)]">
-        {region.journeys.length === 0
-          ? 'no journeys yet'
-          : [
-              `${underway.length} underway`,
-              finished.length > 0 && `${finished.length} fulfilled`,
-              archived > 0 && `${archived} archived`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-      </div>
-      <div className="mt-auto flex items-center gap-2" title="Main quests of the journeys underway: quests fulfilled">
+      <div className="flex min-w-[150px] flex-1 items-center gap-2 md:w-[170px] md:flex-none" title="Main quests of the journeys underway: quests fulfilled">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
           <div className="h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-[14px] font-semibold tabular-nums">
+        <span className="w-12 text-right text-[14px] font-semibold tabular-nums">
           {done}/{total}
         </span>
       </div>
-      <div className="flex min-h-5 flex-wrap gap-x-3 text-[14px] font-medium">
+      <span />
+      <div className="flex flex-wrap gap-x-3 text-[14px] font-medium">
         {working > 0 && (
           <span className="flex items-center gap-1.5 text-[var(--avail)]" title="underway">
             <span className="quest-working-dot size-2 rounded-full bg-[var(--avail)]" /> {working}
@@ -287,7 +290,7 @@ function RegionCard({ region, href }: { region: AtlasRegion; href: string }) {
           </span>
         )}
       </div>
-    </a>
+    </div>
   )
 }
 
@@ -296,6 +299,8 @@ export type AtlasProps = {
   hrefOf: (q: AtlasJourney) => string | undefined // undefined: the journey has no chart to open
   eyebrow: ReactNode // the small line above the title
   title?: string // the page's title: "Atlas" unless it shows one region
+  regionKey?: string // set on a region's page: its title is the region's name, marked as a region
+  onRename?: (name: string) => Promise<void> // renames the region, on its page
   regions?: AtlasRegion[] // set on the home page: the regions as cards instead of the journeys' shelves
   regionHref?: (r: AtlasRegion) => string
   noMap?: string // what a journey without a chart says about it
@@ -305,7 +310,7 @@ export type AtlasProps = {
   version?: string // the running server's version, shown small at the bottom; the mock has none
 }
 
-export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regions, regionHref, noMap, banner, empty, search, version }: AtlasProps) {
+export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regionKey, onRename, regions, regionHref, noMap, banner, empty, search, version }: AtlasProps) {
   const [theme, setTheme] = useTheme()
   const shelved = journeys.filter((q) => !q.archivedAt)
   const archived = journeys.filter((q) => q.archivedAt)
@@ -320,7 +325,10 @@ export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regi
       <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
         <div className="quest-nameplate">
           <div className="quest-crumb text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
-          <h1 className="quest-display text-2xl font-semibold">{title}</h1>
+          <h1 className="quest-display flex min-w-0 items-center gap-2 text-2xl font-semibold">
+            {regionKey ? <Renamable title={title} noun="region" idKey={regionKey} onRename={onRename} /> : title}
+            {regionKey && <RegionChip regionKey={regionKey} />}
+          </h1>
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
           {/* The main quests of every journey underway, as one tally. */}
@@ -351,11 +359,11 @@ export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regi
           {/* The war table's campaign map, spread under the shelves. */}
           {theme === 'wartable' && <div className="wt-map" aria-hidden />}
           {regions ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Section title="Regions" hint="each holds its own journeys">
               {regions.map((r) => (
-                <RegionCard key={r.key} region={r} href={regionHref?.(r) ?? '#'} />
+                <RegionRow key={r.key} region={r} href={regionHref?.(r) ?? '#'} />
               ))}
-            </div>
+            </Section>
           ) : (
             <Shelves journeys={shelved} row={row} />
           )}

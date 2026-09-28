@@ -11,10 +11,10 @@ import {
   useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import { titleOf, type Item, type JourneyCard, type JourneyModel, type JourneyState, type Status } from './model'
-import { ArchivedChip, Gate, Jester, Key, KindMark, Label, Npc, Tally, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { ArchivedChip, Gate, Renamable, Jester, Key, KindMark, Label, Npc, Tally, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
   AlsoIn,
@@ -468,72 +468,6 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
 }
 
 // ---- page ------------------------------------------------------------------
-
-/** The journey's title, renamed in place: Enter or leaving the field saves, Esc puts it back. */
-function JourneyTitle({ title, journeyKey, onRetitle }: { title: string; journeyKey?: string; onRetitle?: (title: string) => Promise<void> }) {
-  const [draft, setDraft] = useState<string | null>(null) // null: not editing
-  const [error, setError] = useState<string>()
-  const saving = useRef(false)
-  const save = async () => {
-    if (draft === null || saving.current) return
-    const t = draft.trim()
-    if (t === title) return setDraft(null)
-    if (!t) return setError('A journey needs a title')
-    saving.current = true
-    try {
-      await onRetitle!(t)
-      setDraft(null)
-      setError(undefined)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      saving.current = false
-    }
-  }
-  if (draft === null)
-    return (
-      <span className="group flex min-w-0 items-center gap-1">
-        <span className="truncate" title={title}>
-          {title}
-        </span>
-        {onRetitle && (
-          <button
-            onClick={() => {
-              setDraft(title)
-              setError(undefined)
-            }}
-            aria-label="Rename journey"
-            title={`Rename journey (its key${journeyKey ? `, ${journeyKey},` : ''} and links stay)`}
-            className="shrink-0 rounded p-1 text-[var(--ink-faint)] opacity-0 group-hover:opacity-100 hover:text-[var(--ink)] focus:opacity-100"
-          >
-            <Pencil size={15} />
-          </button>
-        )}
-      </span>
-    )
-  return (
-    <span className="flex min-w-0 flex-1 items-center gap-2">
-      <input
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onFocus={(e) => e.target.select()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void save()
-          if (e.key === 'Escape') {
-            setDraft(null)
-            setError(undefined)
-          }
-        }}
-        onBlur={() => void save()}
-        aria-label="Journey title"
-        aria-invalid={!!error}
-        className="quest-display w-[min(40rem,100%)] min-w-0 rounded border-2 border-[var(--avail)] bg-[var(--plate)] px-2 py-0.5 text-xl font-semibold outline-none"
-      />
-      {error && <span className="shrink-0 font-sans text-[13px] font-normal text-[#e11d48]">{error}</span>}
-    </span>
-  )
-}
 
 export type JourneyMapProps = {
   model: JourneyModel
@@ -1042,7 +976,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                 ← {atlasLabel}{journeyKey && <span className="ml-2 font-mono tracking-normal text-[var(--ink-soft)] normal-case">{journeyKey}</span>}
               </a>
               <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
-                <JourneyTitle title={goal.title} journeyKey={journeyKey} onRetitle={onRetitle} />
+                <Renamable title={goal.title} noun="journey" idKey={journeyKey} onRename={onRetitle} />
                 <JourneyStateChip state={state} />
                 {archived && <ArchivedChip />}
               </h1>

@@ -89,8 +89,9 @@ One global graph of quests and requirements; each journey is a view onto it, dra
   goes to R1, "Personal", unless `--region` names another. A quest stays inside one region: a
   requirement, crown, shared issue or journey waiting on another that would put a quest on
   journeys of two regions is refused. Journeys that share quests move together
-  (`region move R J...`). The Atlas's home page shows the regions as cards;
-  each opens its own page (`/region/R2`, `mikado open R2`) with its journeys on their shelves.
+  (`region move R J...`). The Atlas's home page lists the regions; each
+  opens its own page (`/region/R2`, `mikado open R2`) with its journeys on their shelves, where
+  the region can be renamed in place (or with `region set R --name`).
 - **Archiving** a journey puts it away. It leaves the Atlas's shelves for a closed "Archived"
   shelf at the bottom, and it leaves `journey list` unless you pass `--all`. Nothing else changes:
   its quests, chart and chronicle stay, and so does its URL. `journey unarchive` brings it back.
