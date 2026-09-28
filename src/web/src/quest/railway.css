@@ -92,7 +92,7 @@
   stroke-dasharray: 34 100000;
 }
 .quest-theme[data-theme='wartable'] .wt-rail[data-torn] .wt-rail-stub {
-  stroke-dasharray: 0 22 22 100000;
+  stroke-dasharray: 0 28 22 100000;
 }
 
 /* bridge: through the hidden quests the track runs in a tunnel, drawn as pale rails in a dashed dark casing. */
@@ -111,10 +111,12 @@
   stroke-width: 1.3px;
 }
 
-/* From an abandoned quest the rails were pulled up first: they begin a little way out from the card. */
+/* From an abandoned quest the rails were pulled up first: they begin a little way out from the card. The
+   line starts 12px under the card (graph.tsx's tuck) and the burned sheet reaches 10px past it, so its
+   edge is some 22px along. */
 .quest-theme[data-theme='wartable'] .wt-rail[data-torn] .wt-rail-rail,
 .quest-theme[data-theme='wartable'] .wt-rail[data-torn] .wt-rail-rail-under {
-  stroke-dasharray: 0 26 100000;
+  stroke-dasharray: 0 32 100000;
 }
 
 /* The carts: a small ore cart, iron-banded wood; where power is arriving it carries gold ore. */

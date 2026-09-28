@@ -786,7 +786,7 @@
 /* ---- the quests: parchment notes laid on the map ----
    Each quest is a sheet of paper on the map. Whether it can be started is told
    by one small mark on its top-left corner (a whole seal, a broken seal, an
-   hourglass, a planted flag), what sort of card it is by small marks on its
+   hourglass, a gold medal), what sort of card it is by small marks on its
    top-right, and whether it is still in play by the paper itself (stepped
    back when fulfilled, burned when abandoned); nothing else competes with the
    title. The plates' colours come from inline styles (look.tsx), so the
@@ -891,32 +891,24 @@
   background: #8a4b12;
   mask: url('../assets/wartable/icons/hourglass.svg') center / contain no-repeat;
 }
-/* Fulfilled: a brass flag planted in the corner, its short pole stuck into the paper. Large enough to
-   spot at a glance, and never faded with the card: it is the one bright thing a finished quest keeps. */
+/* Fulfilled: a gold medal hung over the top-left corner (the only mark it gets), larger than the seals and glowing, to celebrate the
+   finished quest; it may reach past the card onto the table. Never faded with the card: it is the one
+   bright thing a finished quest keeps. Its glow is part of the picture, so it needs no filter. --wt-medal
+   is the whole picture's size, glow included (the medal itself is about 82% of it). */
 .quest-theme[data-theme='wartable'] .wt-gate[data-gate='done'] {
-  width: 36px;
-  height: 29px;
-  top: -24px;
-  left: -2px;
-  background: url('../assets/wartable/flag.svg') center / contain no-repeat;
-  filter: drop-shadow(1.5px 1.5px 1px rgba(40, 24, 8, 0.4));
+  --wt-medal: 58px;
+  width: var(--wt-medal);
+  height: var(--wt-medal);
+  top: calc(var(--wt-medal) * -0.5); /* centred on the corner */
+  left: calc(var(--wt-medal) * -0.5);
+  background: url('../assets/wartable/medal.webp') center / contain no-repeat;
 }
 .quest-theme[data-theme='wartable'] .wt-gate[data-gate='done'][data-small] {
-  width: 28px;
-  height: 23px;
-  top: -18px;
-  left: 0;
+  --wt-medal: 48px;
 }
-/* Where the pole goes into the paper. */
-.quest-theme[data-theme='wartable'] .wt-gate[data-gate='done']::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  bottom: 0;
-  width: 6px;
-  height: 2.5px;
-  border-radius: 50%;
-  background: rgba(50, 30, 10, 0.55);
+/* In the Legend it stands in a row, at the seals' size. */
+.quest-theme[data-theme='wartable'] .wt-legend .wt-gate[data-gate='done'] {
+  --wt-medal: 42px;
 }
 
 /* The kind: small marks at the end of the first line, in muted ink. A plain quest has none. */
@@ -956,25 +948,86 @@
 }
 
 /* ---- the paper, per state ---- */
-/* Open: warm candlelight on the paper instead of the blue pulse. */
+/* Every quest but an awaiting or an abandoned one is written on a clean, hand-cut sheet (paper-quest.webp),
+   a picture with a softly deckled, transparent outline. As on the burned sheet below, the card has no
+   background colour, border or box-shadow of its own: the paper is a layer behind the writing (::before),
+   and its shadow a blurred, blackened copy of the picture under it (::after), so both follow the deckle; a
+   drop-shadow filter would too, but Chromium smears it when the chart is zoomed. The borders are gone, so
+   each state's cue is carried by that layer: a tint over the paper (cut to the sheet by the picture's own
+   outline), a filter on the paper alone, a coloured edge just inside it, or a glow in place of the shadow.
+   A journey card's sheets behind it are the same paper. */
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) {
+  --wt-paper: none; /* a filter on the paper alone, never on the writing */
+  --wt-edge: none; /* inset shadows on the paper, cut to its deckled outline */
+  --wt-under: brightness(0) blur(3px); /* the copy under the paper: a shadow, or a glow */
+  --wt-under-opacity: 0.5;
+  --wt-under-y: 3px;
+  --wt-under-inset: -2px -3px;
+  --wt-flip: ; /* a sheet behind a journey card is turned round, so its edge is not the front's again */
+}
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind) {
+  isolation: isolate; /* keeps the paper layers behind the writing but on the card */
+  background: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::before,
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
+  content: '';
+  position: absolute;
+  inset: -2px -3px; /* the deckle falls just outside where the card's edge was */
+  z-index: -1;
+  border-radius: 0;
+  background: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::before {
+  background:
+    linear-gradient(var(--wt-tint), var(--wt-tint)),
+    url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
+  mask: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
+  box-shadow: var(--wt-edge);
+  filter: var(--wt-paper);
+  transform: var(--wt-flip);
+}
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
+  inset: var(--wt-under-inset);
+  z-index: -2;
+  box-shadow: none;
+  filter: var(--wt-under);
+  opacity: var(--wt-under-opacity);
+  transform: translateY(var(--wt-under-y)) var(--wt-flip);
+}
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) .quest-behind {
+  --wt-flip: scale(-1, -1);
+}
+/* Open: warm candlelight round the sheet instead of the blue pulse, and a little on the paper. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='available']:not([data-side]) {
   --wt-tint: rgba(255, 236, 190, 0.28);
-  --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.35), 0 5px 12px -2px rgba(40, 24, 8, 0.4), 0 0 14px 2px rgba(255, 184, 82, 0.45);
+  --wt-under: brightness(0) invert(0.7) sepia(1) saturate(3.5) hue-rotate(-16deg) blur(8px);
+  --wt-under-opacity: 0.6;
+  --wt-under-y: 1px;
+  --wt-under-inset: -6px -8px;
 }
 /* Sealed: a touch cooler and greyer. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='locked']:not([data-side]) {
   --wt-tint: rgba(150, 150, 146, 0.2);
+  --wt-paper: saturate(0.6);
 }
 /* Fulfilled: its light is out. The paper sinks into shadow, so the eye goes to what is still lit and still
-   to do; a static filter, drawn once. Selected, it lights up again to be read. */
+   to do; a static filter, drawn once, on the paper alone: the medal pinned on it keeps its colour, and the
+   writing turns a darker ink to stay readable. Selected, it lights up again to be read. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='done'] {
-  --wt-tint: rgba(250, 246, 236, 0);
-  --wt-ink-rule: rgba(40, 26, 12, 0.55);
-  --wt-shadow: 0 1px 1px rgba(20, 12, 4, 0.3), 0 2px 6px -2px rgba(20, 12, 4, 0.35);
+  --wt-paper: sepia(0.45) brightness(0.58) saturate(0.8);
+  --wt-under: brightness(0) blur(2px);
+  --wt-under-opacity: 0.45;
+  --wt-under-y: 2px;
 }
-/* On the paper only: the flag planted on it keeps its colour. */
-.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) {
-  filter: brightness(0.58) saturate(0.7);
+.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate.quest-lit {
+  --wt-paper: none;
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-key, .quest-kind, .quest-nohero) {
+  color: #2a1a0c !important;
 }
 /* Awaiting reply: the paper is stained red from its edges in, as if the wait has bled into it, so a quest
    held up by someone else stands out from across the table. The sheet is stretched to each card, so the
@@ -1057,37 +1110,53 @@
   box-shadow: none;
   filter: none;
 }
-/* Covered: a brass plaque over a fulfilled quest, a slab of dark oak over an abandoned one. */
+/* Covered: the tile is the card's own paper, laid over it with the same outline, so a covered quest looks
+   like a quieter version of itself: a fulfilled quest's darkened sheet, an abandoned quest's burned one,
+   with only its key and how it ended, in dark brown ink. The card underneath casts the shadow. The tile's
+   border stays (transparent) as wide as the card's, so the paper lines up with the card's to the pixel. */
 .quest-theme[data-theme='wartable'] .quest-cover {
   border-width: 1.5px;
-  border-radius: 4px 7px 5px 8px / 7px 4px 8px 5px;
-  box-shadow: 0 1px 1px rgba(20, 12, 4, 0.45), 0 4px 10px -2px rgba(20, 12, 4, 0.5);
+  border-color: transparent;
+  background: none;
+  box-shadow: none;
+  color: #2a1a0c;
+  text-shadow: 0 0 3px rgba(226, 208, 176, 0.8);
 }
-.quest-theme[data-theme='wartable'] .quest-cover[data-cover='done'] {
-  background: linear-gradient(180deg, #c9ac6c 0%, #9c7836 50%, #75561f 100%);
-  border-color: #5a3708;
-  color: #3b2506;
-  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.45);
+.quest-theme[data-theme='wartable'] .quest-item[data-npc] .quest-cover {
+  border-width: 2px;
 }
-.quest-theme[data-theme='wartable'] .quest-cover[data-cover='cancelled'] {
-  background: #1e130a url('../assets/wartable/oak-dark.webp') center / 640px;
-  border-color: #0e0904;
-  color: #b9a888;
+.quest-theme[data-theme='wartable'] .quest-item[data-side] .quest-cover {
+  border-width: 1px;
+}
+.quest-theme[data-theme='wartable'] .quest-cover::before {
+  content: '';
+  position: absolute;
+  inset: -2px -3px;
+  z-index: -1;
+  background: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
+  filter: sepia(0.45) brightness(0.58) saturate(0.8);
+  pointer-events: none;
+}
+.quest-theme[data-theme='wartable'] .quest-cover[data-cover='cancelled']::before {
+  inset: -5px -10px;
+  background-image: url('../assets/wartable/paper-abandoned.webp');
+  filter: sepia(0.35) saturate(0.8) brightness(0.72);
 }
 .quest-theme[data-theme='wartable'] .quest-cover-word {
   font-family: 'Cinzel', 'EB Garamond', serif;
 }
 
-/* NPC: a red ink border and a faint red wash, whatever its state. */
+/* NPC: a faint red wash on the paper and a red edge just inside its deckle, whatever its state. */
 .quest-theme[data-theme='wartable'] .quest-item[data-npc] {
   --wt-ink-rule: var(--npc);
   --wt-tint: rgba(214, 60, 40, 0.1);
+  --wt-edge: inset 0 0 3px 2px rgba(195, 23, 29, 0.85), inset 0 0 12px 3px rgba(195, 23, 29, 0.22);
 }
 .quest-theme[data-theme='wartable'] .quest-item[data-npc] .quest-plate {
   border-width: 2px;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-npc]:is([data-status='done'], [data-status='cancelled']) {
-  --wt-ink-rule: color-mix(in srgb, var(--npc) 55%, #f3e9cf);
+.quest-theme[data-theme='wartable'] .quest-item[data-npc][data-status='done'] {
+  --wt-edge: inset 0 0 3px 2px rgba(215, 30, 34, 0.9);
 }
 /* Side quest: a smaller, lighter scrap. */
 .quest-theme[data-theme='wartable'] .quest-item[data-side] {
@@ -1095,15 +1164,27 @@
   --wt-ink-rule: color-mix(in srgb, var(--side) 55%, rgba(62, 40, 18, 0.5));
   --wt-shadow: 0 1px 1px rgba(40, 24, 8, 0.25), 0 3px 8px -2px rgba(40, 24, 8, 0.3);
 }
+.quest-theme[data-theme='wartable'] .quest-item[data-side]:not([data-status='cancelled']) {
+  --wt-under-opacity: 0.35;
+  --wt-under-y: 2px;
+}
 .quest-theme[data-theme='wartable'] .quest-item[data-side] .quest-plate {
   border-width: 1px;
   padding-top: 6px;
   padding-bottom: 6px;
   gap: 4px;
 }
-/* Selected: the warm rim of light, on brass. */
+/* Selected: the warm rim of light, on brass. On the paper sheets there is no border to light, so the glow
+   follows the deckle instead, as on the burned sheet. */
 .quest-theme[data-theme='wartable'] .quest-item .quest-plate.quest-lit {
   border-color: #c98a1e !important;
+}
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) .quest-plate.quest-lit {
+  --wt-under: brightness(0) invert(0.62) sepia(1) saturate(4) hue-rotate(-12deg) blur(5px);
+  --wt-under-opacity: 0.85;
+  --wt-under-y: 0px;
+  --wt-under-inset: -4px -5px;
+  border-color: transparent !important;
 }
 /* Off the selected quest's path: paler, greyer paper, still opaque. */
 .quest-theme[data-theme='wartable'] .quest-item[data-dim] {
@@ -1206,58 +1287,50 @@
   position: relative;
   inset: auto;
 }
-.quest-theme[data-theme='wartable'] .wt-legend .wt-gate[data-gate='done'] {
-  left: 3px; /* the flag leans right; centre it by its bulk */
-}
-.quest-theme[data-theme='wartable'] .wt-scrap {
-  position: relative;
-  width: 42px;
-  height: 28px;
-  filter: sepia(0.35) saturate(0.6) var(--wt-tear-shadow); /* like the torn cards */
-  /* the same tear, at the sample's scale */
-  --wt-tear-shadow: drop-shadow(0 1px 1px rgba(40, 24, 8, 0.3)) drop-shadow(0 3px 4px rgba(40, 24, 8, 0.25));
-  --wt-tear: polygon(0 0, calc(100% - 2.4px) 0%, calc(100% - 1.2px) 4%, calc(100% - 3.6px) 9%, calc(100% - 2.0px) 14%, calc(100% - 4.8px) 19%, calc(100% - 3.2px) 25%, calc(100% - 6.0px) 31%, calc(100% - 4.0px) 37%, calc(100% - 6.8px) 43%, calc(100% - 4.8px) 49%, calc(100% - 8.0px) 55%, calc(100% - 6.0px) 61%, calc(100% - 8.8px) 67%, calc(100% - 6.8px) 73%, calc(100% - 10.0px) 79%, calc(100% - 7.6px) 85%, calc(100% - 10.4px) 91%, calc(100% - 8.4px) 96%, calc(100% - 10.8px) 100%, 0 100%);
-  --wt-tear-rim: polygon(calc(100% - 2.4px) 0%, calc(100% - 1.2px) 4%, calc(100% - 3.6px) 9%, calc(100% - 2.0px) 14%, calc(100% - 4.8px) 19%, calc(100% - 3.2px) 25%, calc(100% - 6.0px) 31%, calc(100% - 4.0px) 37%, calc(100% - 6.8px) 43%, calc(100% - 4.8px) 49%, calc(100% - 8.0px) 55%, calc(100% - 6.0px) 61%, calc(100% - 8.8px) 67%, calc(100% - 6.8px) 73%, calc(100% - 10.0px) 79%, calc(100% - 7.6px) 85%, calc(100% - 10.4px) 91%, calc(100% - 8.4px) 96%, calc(100% - 10.8px) 100%, calc(100% - 12.3px) 100%, calc(100% - 9.9px) 96%, calc(100% - 11.9px) 91%, calc(100% - 9.1px) 85%, calc(100% - 11.5px) 79%, calc(100% - 8.3px) 73%, calc(100% - 10.3px) 67%, calc(100% - 7.5px) 61%, calc(100% - 9.5px) 55%, calc(100% - 6.3px) 49%, calc(100% - 8.3px) 43%, calc(100% - 5.5px) 37%, calc(100% - 7.5px) 31%, calc(100% - 4.7px) 25%, calc(100% - 6.3px) 19%, calc(100% - 3.5px) 14%, calc(100% - 5.1px) 9%, calc(100% - 2.7px) 4%, calc(100% - 3.9px) 0%);
-}
-.quest-theme[data-theme='wartable'] .wt-scrap::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1.5px solid rgba(62, 40, 18, 0.35);
-  border-radius: 3px;
-  background:
-    linear-gradient(rgba(214, 204, 186, 0.45), rgba(214, 204, 186, 0.45)),
-    #f3e9cf url('../assets/wartable/paper-card.webp') center / 256px;
-  clip-path: var(--wt-tear);
-}
-.quest-theme[data-theme='wartable'] .wt-scrap::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  background: #fbf7ec;
-  clip-path: var(--wt-tear-rim);
-}
-/* The Legend's paper samples, drawn like the cards they stand for. */
+/* The Legend's paper samples, drawn like the cards they stand for: the sheet on one layer, a blurred dark
+   copy of it under it for the shadow. */
 .quest-theme[data-theme='wartable'] .wt-paper {
+  position: relative;
+  isolation: isolate;
   display: block;
   width: 42px;
   height: 28px;
-  border: 1.5px solid rgba(62, 40, 18, 0.72);
-  border-radius: 3px 5px 4px 6px / 5px 3px 6px 4px;
-  background: #f3e9cf url('../assets/wartable/paper-card.webp') center / 256px;
-  box-shadow: 0 1px 1px rgba(40, 24, 8, 0.35), 0 3px 6px -2px rgba(40, 24, 8, 0.4);
 }
-.quest-theme[data-theme='wartable'] .wt-paper[data-paper='done'] {
-  border-color: rgba(40, 26, 12, 0.55);
-  filter: brightness(0.58) saturate(0.7);
+.quest-theme[data-theme='wartable'] .wt-paper::before,
+.quest-theme[data-theme='wartable'] .wt-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
 }
+.quest-theme[data-theme='wartable'] .wt-paper::after {
+  z-index: -2;
+  filter: brightness(0) blur(2px);
+  opacity: 0.5;
+  transform: translateY(2px);
+}
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='done']::before {
+  filter: sepia(0.45) brightness(0.58) saturate(0.8);
+}
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='burnt']::before,
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='burnt']::after {
+  inset: -2px -3px;
+  background-image: url('../assets/wartable/paper-abandoned.webp');
+}
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='burnt']::before {
+  filter: sepia(0.35) saturate(0.8) brightness(0.72);
+}
+/* Awaiting keeps its stained rectangle, as on its card. */
 .quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting'] {
-  border-color: #6e1410;
+  border: 1.5px solid #6e1410;
+  border-radius: 3px 5px 4px 6px / 5px 3px 6px 4px;
   background: #efdcc4 url('../assets/wartable/paper-awaiting.webp') center / 100% 100% no-repeat;
   box-shadow: 0 1px 1px rgba(60, 8, 4, 0.4), 0 0 8px 1px rgba(150, 30, 18, 0.35);
+}
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting']::before,
+.quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting']::after {
+  display: none;
 }
 .quest-theme[data-theme='wartable'] .wt-crown {
   width: 32px;

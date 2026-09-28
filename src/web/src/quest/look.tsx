@@ -245,7 +245,7 @@ const gateTitle: Record<Exclude<Status, 'cancelled'>, string> = {
   done: 'Fulfilled',
 }
 
-/** The gate mark: a whole seal with the count still to go, a broken seal, an hourglass or a planted flag. An abandoned quest has none. */
+/** The gate mark: a whole seal with the count still to go, a broken seal, an hourglass or a gold medal. An abandoned quest has none. */
 export function Gate({ status, count, small = false }: { status: Status; count?: number; small?: boolean }) {
   if (status === 'cancelled') return null
   const title = status === 'locked' && count !== undefined ? `Sealed: ${count} still to go` : gateTitle[status]

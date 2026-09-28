@@ -230,7 +230,7 @@ export const nodeTypes = { goal: GoalView, card: CardView }
 // waits on others; spent joins two fulfilled quests, so it steps back.
 // A bridge stands in for a chain that runs through hidden quests.
 export type Flow = 'done' | 'held' | 'spent' | 'locked' | 'side' | 'cancelled' | 'bridge'
-// torn: the line comes from an abandoned quest, whose paper the war table draws with a strip torn off its right side.
+// torn: the line comes from an abandoned quest; the war table draws its track torn up where it leaves the card.
 // powered: the quest the line comes from is fulfilled (for a side quest's line: the side quest is).
 export type QuestEdge = Edge<{ flow: Flow; live: boolean; dim: boolean; torn: boolean; powered: boolean }, 'quest'>
 
@@ -248,21 +248,21 @@ export const stroke: Record<Flow, CSSProperties> = {
 // A line starts and ends a little under the cards, so it comes out from under the card rather than
 // stopping at its edge, and card and line read as separate things; the cards are opaque there, so the
 // extra length is hidden. Lines always leave a card's right side and enter the next card's left side.
-// From an abandoned card on the war table the line tucks deeper, past the torn strip, so it does not
-// stop in the tear.
 const TUCK = 12
-const TORN_TUCK = 32
 
-/** The curve a line follows, tucked under the cards. Shared with the mock's trial line designs. */
+/**
+ * The curve a line follows, tucked under the cards. Shared with the mock's trial line designs. Every theme
+ * tucks the same now (the war table's burned sheet reaches past its card, so it hides the tuck too); the
+ * theme argument stays for the mock's callers.
+ */
 export function questEdgePath(
-  { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<QuestEdge>,
-  wt: boolean,
+  { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition }: EdgeProps<QuestEdge>,
+  _wt: boolean,
 ) {
-  const tuck = TUCK
   const [path, labelX, labelY] = getBezierPath({
-    sourceX: sourceX - (wt && data!.torn ? TORN_TUCK : tuck),
+    sourceX: sourceX - TUCK,
     sourceY,
-    targetX: targetX + tuck,
+    targetX: targetX + TUCK,
     targetY,
     sourcePosition,
     targetPosition,

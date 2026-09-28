@@ -169,8 +169,8 @@ function WarLegend() {
           {row(<Gate status="locked" count={2} />, 'Sealed: the whole seal counts the quests it still requires')}
           {row(<Gate status="available" />, 'Open: the seal is broken; everything it requires is fulfilled')}
           {row(<Gate status="awaiting" />, 'Awaiting reply: a petition waiting on someone')}
-          {row(<Gate status="done" />, 'Fulfilled: a flag planted')}
-          {row(<span className="wt-scrap" data-torn />, "Abandoned: torn paper, no mark — won't be done, blocks nothing, counts for nothing")}
+          {row(<Gate status="done" />, 'Fulfilled: a gold medal')}
+          {row(<span className="wt-paper" data-paper="burnt" />, "Abandoned: burned paper, no mark — won't be done, blocks nothing, counts for nothing")}
         </ul>
       </Panel>
       <Panel title="Top line: what is it?">
@@ -188,7 +188,7 @@ function WarLegend() {
           {row(<span className="wt-paper" />, 'Lit: still to do')}
           {row(<span className="wt-paper" data-paper="done" />, 'Dark, its light out: fulfilled')}
           {row(<span className="wt-paper" data-paper="awaiting" />, 'Stained red from the edges: awaiting a reply')}
-          {row(<span className="wt-scrap" data-torn />, 'Torn: abandoned')}
+          {row(<span className="wt-paper" data-paper="burnt" />, 'Burned: abandoned')}
         </ul>
       </Panel>
       <Panel title="Top-right: what sort of card?">
