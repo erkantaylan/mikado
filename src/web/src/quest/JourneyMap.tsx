@@ -185,9 +185,9 @@ function WarLegend() {
       </Panel>
       <Panel title="The paper">
         <ul className="space-y-2.5">
-          {row(<span className="wt-paper" />, 'Lit: still to do')}
-          {row(<span className="wt-paper" data-paper="done" />, 'Dark, its light out: fulfilled')}
-          {row(<span className="wt-paper" data-paper="awaiting" />, 'Stained red from the edges: awaiting a reply')}
+          {row(<span className="wt-paper" />, 'Clean: still to do')}
+          {row(<span className="wt-paper" data-paper="done" />, 'Darkened: fulfilled')}
+          {row(<span className="wt-paper" data-paper="awaiting" />, 'Drops of blood soaked in: awaiting a reply')}
           {row(<span className="wt-paper" data-paper="burnt" />, 'Burned: abandoned')}
         </ul>
       </Panel>

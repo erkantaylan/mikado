@@ -954,25 +954,25 @@
    and its shadow a blurred, blackened copy of the picture under it (::after), so both follow the deckle; a
    drop-shadow filter would too, but Chromium smears it when the chart is zoomed. The borders are gone, so
    each state's cue is carried by that layer: a tint over the paper (cut to the sheet by the picture's own
-   outline), a filter on the paper alone, a coloured edge just inside it, or a glow in place of the shadow.
-   A journey card's sheets behind it are the same paper. */
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) {
+   outline), a filter on the paper alone, a coloured edge just inside it, or another sheet (awaiting). Only
+   the selected card swaps its shadow for a glow. A journey card's sheets behind it are the same paper. */
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) {
   --wt-paper: none; /* a filter on the paper alone, never on the writing */
   --wt-edge: none; /* inset shadows on the paper, cut to its deckled outline */
-  --wt-under: brightness(0) blur(3px); /* the copy under the paper: a shadow, or a glow */
+  --wt-under: brightness(0) blur(3px); /* the copy under the paper: a shadow, or the selected card's glow */
   --wt-under-opacity: 0.5;
   --wt-under-y: 3px;
   --wt-under-inset: -2px -3px;
   --wt-flip: ; /* a sheet behind a journey card is turned round, so its edge is not the front's again */
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind) {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind) {
   isolation: isolate; /* keeps the paper layers behind the writing but on the card */
   background: none !important;
   border-color: transparent !important;
   box-shadow: none !important;
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::before,
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::before,
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
   content: '';
   position: absolute;
   inset: -2px -3px; /* the deckle falls just outside where the card's edge was */
@@ -981,7 +981,7 @@
   background: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
   pointer-events: none;
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::before {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::before {
   background:
     linear-gradient(var(--wt-tint), var(--wt-tint)),
     url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
@@ -990,7 +990,7 @@
   filter: var(--wt-paper);
   transform: var(--wt-flip);
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
   inset: var(--wt-under-inset);
   z-index: -2;
   box-shadow: none;
@@ -998,16 +998,13 @@
   opacity: var(--wt-under-opacity);
   transform: translateY(var(--wt-under-y)) var(--wt-flip);
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) .quest-behind {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-behind {
   --wt-flip: scale(-1, -1);
 }
-/* Open: warm candlelight round the sheet instead of the blue pulse, and a little on the paper. */
+/* Open: a little warmth on the paper, instead of the blue pulse. It casts the plain shadow: on the war table
+   only the selected card glows. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='available']:not([data-side]) {
   --wt-tint: rgba(255, 236, 190, 0.28);
-  --wt-under: brightness(0) invert(0.7) sepia(1) saturate(3.5) hue-rotate(-16deg) blur(8px);
-  --wt-under-opacity: 0.6;
-  --wt-under-y: 1px;
-  --wt-under-inset: -6px -8px;
 }
 /* Sealed: a touch cooler and greyer. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='locked']:not([data-side]) {
@@ -1029,26 +1026,34 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-key, .quest-kind, .quest-nohero) {
   color: #2a1a0c !important;
 }
-/* Awaiting reply: the paper is stained red from its edges in, as if the wait has bled into it, so a quest
-   held up by someone else stands out from across the table. The sheet is stretched to each card, so the
-   stains stay at its edges; a wash of clean paper over the middle keeps the writing readable on a short card,
-   where the stained border would otherwise reach under the text. */
+/* Awaiting reply: a petition held up by someone else. It is written on the same hand-cut sheet as the
+   others, but with a few big drops of blood soaked into it (paper-petition.webp), away from its edges, and a
+   thin dark-red line just inside the deckle, so it stands out from across the table without shouting or
+   glowing. (An NPC's edge is a brighter, wider red with a wash inside it; this one is thin and dark.) */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] {
-  --wt-ink-rule: #6e1410;
-  --wt-shadow: 0 1px 1px rgba(60, 8, 4, 0.4), 0 4px 12px -2px rgba(90, 12, 6, 0.45), 0 0 10px 1px rgba(150, 30, 18, 0.35);
+  --wt-edge: inset 0 0 1.5px 1.5px rgba(110, 18, 14, 0.7);
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] .quest-plate {
-  background:
-    radial-gradient(ellipse 72% 62% at center, rgba(246, 236, 214, 0.9) 35%, rgba(246, 236, 214, 0.55) 70%, rgba(246, 236, 214, 0) 100%),
-    #efdcc4 url('../assets/wartable/paper-awaiting.webp') center / 100% 100% no-repeat !important;
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-plate, .quest-behind)::before {
+  background-image:
+    linear-gradient(var(--wt-tint), var(--wt-tint)),
+    url('../assets/wartable/paper-petition.webp');
+  mask-image: url('../assets/wartable/paper-petition.webp');
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-plate, .quest-behind)::after {
+  background-image: url('../assets/wartable/paper-petition.webp');
 }
 /* The paper carries the red, so the small red words on it (Petition, the status, No hero) turn dark brown,
-   with a pale halo that lifts them off the stains at the card's edges. */
+   and the title too, all with a pale halo that lifts them off a drop where they cross one. */
 .quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-kind, .quest-status, .quest-nohero) {
   color: #3d1a0c !important;
   text-shadow:
     0 0 2px rgba(246, 236, 214, 0.95),
     0 0 5px rgba(246, 236, 214, 0.8);
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] .quest-title {
+  text-shadow:
+    0 0 2px rgba(246, 236, 214, 0.9),
+    0 0 6px rgba(246, 236, 214, 0.7);
 }
 /* Abandoned: the sheet was burned. Its edges are charred black and ragged, with a few holes burned
    through, so it reads as dead from across the table; live work is lit, fulfilled work has its light out,
@@ -1179,7 +1184,7 @@
 .quest-theme[data-theme='wartable'] .quest-item .quest-plate.quest-lit {
   border-color: #c98a1e !important;
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='awaiting'], [data-status='cancelled']) .quest-plate.quest-lit {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate.quest-lit {
   --wt-under: brightness(0) invert(0.62) sepia(1) saturate(4) hue-rotate(-12deg) blur(5px);
   --wt-under-opacity: 0.85;
   --wt-under-y: 0px;
@@ -1316,16 +1321,9 @@
 .quest-theme[data-theme='wartable'] .wt-paper[data-paper='burnt']::before {
   filter: sepia(0.35) saturate(0.8) brightness(0.72);
 }
-/* Awaiting keeps its stained rectangle, as on its card. */
-.quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting'] {
-  border: 1.5px solid #6e1410;
-  border-radius: 3px 5px 4px 6px / 5px 3px 6px 4px;
-  background: #efdcc4 url('../assets/wartable/paper-awaiting.webp') center / 100% 100% no-repeat;
-  box-shadow: 0 1px 1px rgba(60, 8, 4, 0.4), 0 0 8px 1px rgba(150, 30, 18, 0.35);
-}
 .quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting']::before,
 .quest-theme[data-theme='wartable'] .wt-paper[data-paper='awaiting']::after {
-  display: none;
+  background-image: url('../assets/wartable/paper-petition.webp');
 }
 .quest-theme[data-theme='wartable'] .wt-crown {
   width: 32px;
