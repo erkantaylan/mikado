@@ -66,7 +66,7 @@ function GoalView({ data }: NodeProps<GoalNode>) {
         {data.state === 'cancelled' ? <Ban size={24} /> : <Trophy size={24} />}
       </span>
       <span
-        className="text-[12px] font-bold tracking-[0.25em] uppercase"
+        className="text-[12px] font-bold"
         style={{ color: data.state === 'cancelled' ? stateColour.cancelled : stateColour.done }}
       >
         {journeyWord[data.state ?? 'active']}
@@ -89,7 +89,7 @@ function GoalView({ data }: NodeProps<GoalNode>) {
 export function AlsoIn({ journeys, label = true }: { journeys: JourneyRef[]; label?: boolean }) {
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-1 text-[11px] font-semibold text-[var(--ink-faint)]">
-      {label && <span className="tracking-wider uppercase">also in:</span>}
+      {label && <span>Also in:</span>}
       {journeys.map((q) => (
         <a
           key={q.key}
@@ -178,7 +178,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         <div className={`flex min-w-0 items-center gap-1.5 ${item.key ? (side ? 'pl-1.5' : 'pl-2.5') : ''}`}>
           <Label item={item} tag={tag} />
           {item.final && (
-            <span className="shrink-0 text-[12px] font-bold tracking-wider whitespace-nowrap uppercase" style={{ color: stateColour.done }}>
+            <span className="shrink-0 text-[12px] font-bold whitespace-nowrap" style={{ color: stateColour.done }}>
               · Crowning quest
             </span>
           )}
@@ -189,12 +189,12 @@ function CardView({ data }: NodeProps<CardNode>) {
           ) : (
             <>
               {side && (
-                <span className="shrink-0 text-[12px] font-semibold tracking-wider whitespace-nowrap text-[var(--side)] uppercase">· Side quest</span>
+                <span className="shrink-0 text-[12px] font-semibold whitespace-nowrap text-[var(--side)]">· Side quest</span>
               )}
               {item.npc && <Npc />}
               {item.foundWhile && (
-                <span className="ml-auto shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase" title={item.reason}>
-                  found
+                <span className="ml-auto shrink-0 text-[11px] font-semibold text-[var(--ink-faint)]" title={item.reason}>
+                  Found
                 </span>
               )}
             </>
@@ -210,7 +210,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         {!!item.alsoIn?.length && <AlsoIn journeys={item.alsoIn} />}
         <div className="flex items-center">
           <span
-            className="quest-status text-[12px] font-bold tracking-wider uppercase"
+            className="quest-status text-[12px] font-bold"
             style={{ color: side && status !== 'done' ? 'var(--side)' : status === 'done' ? spentText : stateColour[status] }}
           >
             {label}

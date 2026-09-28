@@ -98,7 +98,7 @@ export function JourneyCardView({ item, q, status, selected, covered }: Props) {
         <div className="flex min-w-0 items-center gap-1.5 pl-2.5">
           <Key id={item.key} />
           <span
-            className="flex shrink-0 items-center gap-1 text-[12px] font-bold tracking-[0.2em] uppercase"
+            className="flex shrink-0 items-center gap-1 text-[12px] font-bold"
             style={{ color: over ? spentText : stateColour.done }}
           >
             <Layers size={13} /> Journey
@@ -107,7 +107,7 @@ export function JourneyCardView({ item, q, status, selected, covered }: Props) {
             {q.key}
           </span>
           {q.archived && (
-            <span className="shrink-0 text-[11px] font-semibold tracking-wide text-[var(--ink-faint)] uppercase">archived</span>
+            <span className="shrink-0 text-[11px] font-semibold text-[var(--ink-faint)]">Archived</span>
           )}
           {wt && <Kinds kinds={['journey']}>{underway && working}</Kinds>}
         </div>
@@ -120,7 +120,7 @@ export function JourneyCardView({ item, q, status, selected, covered }: Props) {
         </span>
         <JourneyProgress q={q} done={over} />
         <div className="flex items-center justify-between">
-          <span className="text-[12px] font-bold tracking-wider uppercase" style={{ color: done ? spentText : stateColour[status] }}>
+          <span className="text-[12px] font-bold" style={{ color: done ? spentText : stateColour[status] }}>
             {journeyCardWord(q, status)}
           </span>
           <a

@@ -53,7 +53,7 @@ export const spentText = 'color-mix(in srgb, var(--gold) 55%, var(--ink-faint))'
 export function Npc() {
   return (
     <span
-      className="shrink-0 rounded border border-[var(--npc)] bg-[var(--npc)] px-1 text-[11px] font-bold tracking-wider text-[var(--npc-ink)]"
+      className="shrink-0 rounded border border-[var(--npc)] bg-[var(--npc)] px-1 text-[11px] font-bold text-[var(--npc-ink)]"
       title="NPC (right-click the quest on the chart to change)"
     >
       NPC
@@ -72,7 +72,7 @@ export function Label({ item, tag }: { item: Item; tag: string }) {
   const kind = item.crowns ? (
     // A journey card: named by the journey it stands for.
     <span className="flex min-w-0 items-center gap-1">
-      <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.done }}>
+      <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold" style={{ color: stateColour.done }}>
         <Layers size={12} /> Journey
       </span>
       <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.key}>
@@ -80,9 +80,9 @@ export function Label({ item, tag }: { item: Item; tag: string }) {
       </span>
     </span>
   ) : item.kind === 'wait' ? (
-      <span className="quest-kind shrink-0 text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>
+      <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--await)]">Petition</span>
     ) : item.kind === 'task' ? (
-      <span className="quest-kind shrink-0 text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>
+      <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--ink-soft)]">Errand</span>
     ) : (
       // A long repo name is what gives way when the row is tight, never the labels after it.
       <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={tag}>
@@ -123,12 +123,12 @@ export function Working({ compact = false, by }: { compact?: boolean; by?: strin
   return (
     <span
       title={by ? `taken up by ${by}` : undefined}
-      className={`${compact ? '' : 'quest-working'} inline-flex shrink-0 items-center gap-1 rounded-full font-bold tracking-wider whitespace-nowrap uppercase ${
+      className={`${compact ? '' : 'quest-working'} inline-flex shrink-0 items-center gap-1 rounded-full font-bold whitespace-nowrap ${
         compact ? 'text-[11px] text-[var(--avail)]' : 'bg-[var(--avail)] px-2 py-0.5 text-[11px] text-white shadow'
       }`}
     >
       <span className={`quest-working-dot size-2 rounded-full ${compact ? 'bg-[var(--avail)]' : 'bg-white'}`} />
-      underway
+      Underway
     </span>
   )
 }
@@ -153,7 +153,7 @@ export function Tally({ title, done, total, shares, extra = [] }: { title: strin
   )
   return (
     <div className="quest-tally flex min-w-[360px] flex-col gap-1.5 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-3 py-1.5">
-      <div className="flex items-baseline gap-2 text-[12px] font-bold tracking-wider uppercase">
+      <div className="flex items-baseline gap-2 text-[12px] font-bold">
         <span className="quest-tally-title text-[var(--ink-soft)]">{title}</span>
         <span className="quest-tally-count text-[15px] text-[var(--ink)] tabular-nums">
           {done}/{total}
@@ -170,7 +170,7 @@ export function Tally({ title, done, total, shares, extra = [] }: { title: strin
         {/* What is still sealed stays the empty groove. */}
         {!!sealed && <span className="h-full" style={{ flexGrow: sealed, flexBasis: 0 }} />}
       </div>
-      <div className="quest-tally-legend flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12px] font-semibold tracking-wide text-[var(--ink-soft)] uppercase">
+      <div className="quest-tally-legend flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12px] font-semibold text-[var(--ink-soft)]">
         {shares.map(item)}
       </div>
     </div>
@@ -183,7 +183,7 @@ export function Stat({ n, label, colour }: { n: number; label: string; colour: s
       <div className="text-xl leading-none font-bold" style={{ color: colour }}>
         {n}
       </div>
-      <div className="text-[11px] font-semibold tracking-wider text-[var(--ink-soft)] uppercase">{label}</div>
+      <div className="text-[11px] font-semibold text-[var(--ink-soft)]">{label}</div>
     </div>
   )
 }
@@ -194,7 +194,7 @@ export function JourneyStateChip({ state }: { state?: string }) {
   const complete = state === 'complete'
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded-full border-2 px-2 py-0.5 text-[11px] font-bold tracking-[0.15em] uppercase"
+      className="inline-flex shrink-0 items-center rounded-full border-2 px-2 py-0.5 text-[11px] font-bold"
       style={
         complete
           ? { background: 'var(--gold)', borderColor: 'var(--gold)', color: 'var(--gold-ink)' }
@@ -288,7 +288,7 @@ export function RegionChip({ regionKey }: { regionKey: string }) {
 export function ArchivedChip() {
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded-full border-2 border-[var(--edge-off)] px-2 py-0.5 text-[11px] font-bold tracking-[0.15em] text-[var(--ink-soft)] uppercase"
+      className="inline-flex shrink-0 items-center rounded-full border-2 border-[var(--edge-off)] px-2 py-0.5 text-[11px] font-bold text-[var(--ink-soft)]"
       title="Archived: off the Atlas's shelves (mikado journey unarchive brings it back)"
     >
       Archived
@@ -374,7 +374,7 @@ export function Cover({ status, name, style }: { status: Status; name?: string; 
     >
       {done ? <Check size={18} strokeWidth={3} /> : <Ban size={18} />}
       {name && <span className="quest-cover-key font-mono text-[14px] font-bold">{name}</span>}
-      <span className="quest-cover-word text-[11px] font-bold tracking-[0.2em] uppercase">{words[status]}</span>
+      <span className="quest-cover-word text-[11px] font-bold">{words[status]}</span>
     </div>
   )
 }

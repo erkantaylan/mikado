@@ -51,7 +51,7 @@ function LinePicker({ current }: { current?: string }) {
     <nav className="fixed bottom-3 left-1/2 z-50 flex -translate-x-1/2 gap-1 rounded-lg border border-[#8f6a26] bg-[#f3e9cf] px-2 py-1 text-[13px] text-[#3a2812] shadow-lg">
       {link(undefined, 'Today', 'the lines as they are now')}
       {lineDesigns.filter((d) => d.shortlist).map((d) => link(d.id, d.name, d.idea))}
-      <span className="ml-2 self-center border-l border-[#8f6a26] pl-2 text-[11px] tracking-wider text-[#8f6a26] uppercase">ideas</span>
+      <span className="ml-2 self-center border-l border-[#8f6a26] pl-2 text-[11px] text-[#8f6a26]">Ideas</span>
       {lineDesigns.filter((d) => !d.shortlist).map((d) => link(d.id, d.name, d.idea))}
     </nav>
   )

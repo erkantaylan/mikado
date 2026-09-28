@@ -1,12 +1,11 @@
 /* Themes. Every colour the atlas and the war table use is a variable here, so a theme
    is one block. Lengths carry units, even in keyframes. */
 
-/* Cinzel and EB Garamond: the war table's display and body faces. */
-@import '@fontsource/cinzel/600.css';
-@import '@fontsource/cinzel/700.css';
+/* EB Garamond: the war table's face, for headings and body alike. */
 @import '@fontsource/eb-garamond/400.css';
 @import '@fontsource/eb-garamond/500.css';
 @import '@fontsource/eb-garamond/600.css';
+@import '@fontsource/eb-garamond/700.css';
 
 .quest-theme {
   --font-body: inherit;
@@ -182,7 +181,7 @@
   --npc-ink: #fff6dc;
   --npc-plate: #f6d6c8;
   --font-body: 'EB Garamond', Georgia, serif;
-  --font-display: 'Cinzel', 'EB Garamond', serif;
+  --font-display: 'EB Garamond', Georgia, serif;
   --bg: #e2d1a8;
   --glow: transparent;
   --panel: #f2e8cf;
@@ -297,6 +296,7 @@
     0 4px 10px -2px rgba(40, 24, 8, 0.4);
 }
 .quest-theme[data-theme='wartable'] .wt-sheet .quest-shelf-title h2 {
+  font-size: 16px;
   color: #6b4812;
 }
 
@@ -402,12 +402,12 @@
     var(--wt-inset);
 }
 .quest-theme[data-theme='wartable'] .quest-header .quest-nameplate h1 {
-  letter-spacing: 0.02em;
   color: #1d1208;
   text-shadow: 0 1px 0 rgba(255, 250, 230, 0.7);
 }
 /* Above the title, the way back in rubric red; below it, what the journey holds. */
 .quest-theme[data-theme='wartable'] .quest-header .quest-crumb {
+  font-size: 14px;
   color: #8e2414 !important;
   text-shadow: none;
 }
@@ -439,15 +439,16 @@
 }
 /* Engraved: dark ink cut into the brass, its lower edge catching the light. */
 .quest-theme[data-theme='wartable'] .quest-header .quest-tally :is(.quest-tally-title, .quest-tally-legend, .quest-tally-count) {
-  font-family: 'Cinzel', 'EB Garamond', serif;
+  font-family: 'EB Garamond', Georgia, serif;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  font-size-adjust: 0.47; /* the ledger's x-height, so the small counts read */
   color: #2a1a06;
   text-shadow: 0 1px 0 rgba(255, 246, 215, 0.8);
 }
 .quest-theme[data-theme='wartable'] .quest-header .quest-tally .quest-tally-count {
   font-family: 'EB Garamond', Georgia, serif;
   font-size: 17px;
+  font-size-adjust: none;
 }
 .quest-theme[data-theme='wartable'] .quest-header .quest-tally .quest-tally-pct {
   color: #6b4a14;
@@ -547,7 +548,7 @@
   outline: 1px dashed rgba(226, 196, 146, 0.35); /* the stitching */
   outline-offset: -4px;
   /* EB Garamond sets small for its size: scale every face in the page to one
-     x-height, so 14px reads like a 16px book face. Cinzel opts out below. */
+     x-height, so 14px reads like a 16px book face. Headings opt out below. */
   --wt-adjust: 0.47;
   font-size-adjust: var(--wt-adjust);
   box-shadow:
@@ -586,8 +587,7 @@
 }
 .quest-theme[data-theme='wartable'] .quest-tab {
   font-family: var(--font-display);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  font-size: 13.5px;
   padding-left: 10px;
   padding-right: 10px;
   color: var(--ink-soft);
@@ -608,16 +608,15 @@
   box-shadow: none;
 }
 /* Section headings (Open now, Awaiting reply, the legend's parts): brass ink
-   in Cinzel, air above, and under each a single brass sword laid along the
+   in the display face, air above, and under each a single brass sword laid along the
    page, a double rule ending in a hilt (Kenney's divider as a mask). Nothing
    else in the ledger is ruled, so the heading is the only line on the page. */
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-section-title {
   position: relative;
   margin-bottom: 8px;
   padding-bottom: 12px;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.14em;
   color: #6b4812;
 }
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-section-title::after {
@@ -678,7 +677,7 @@
   margin-top: 10px;
 }
 
-/* Reading the ledger. Headings and tabs keep Cinzel, and commands their
+/* Reading the ledger. Headings and tabs keep their own size, and commands their
    monospace, at their own size. */
 .quest-theme[data-theme='wartable'] .quest-ledger :is(.quest-display, .quest-tab, .font-mono) {
   font-size-adjust: none;
@@ -747,7 +746,6 @@
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-kind {
   font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
 }
 /* ---- the quests: parchment notes laid on the map ----
    Each quest is a sheet of paper on the map. Whether it can be started is told
@@ -779,6 +777,14 @@
      animation makes Firefox repaint the whole board on every frame. */
   animation: none;
 }
+/* The small lines on a card (key, kind, status) at the ledger's x-height; the
+   title keeps its own size. */
+.quest-theme[data-theme='wartable'] .quest-item .quest-plate {
+  font-size-adjust: 0.47;
+}
+.quest-theme[data-theme='wartable'] .quest-item .quest-plate :is(.quest-title, .font-mono) {
+  font-size-adjust: none;
+}
 .quest-theme[data-theme='wartable'] .quest-item .quest-title {
   font-size: 16.5px;
   line-height: 1.3;
@@ -788,7 +794,7 @@
   font-size: 15px;
 }
 .quest-theme[data-theme='wartable'] .quest-stack .quest-title {
-  font-size: 15.5px; /* set in Cinzel capitals, which read larger */
+  font-size: 16.5px;
 }
 
 /* ---- one question per spot ----
@@ -1115,7 +1121,7 @@
   filter: sepia(0.35) saturate(0.8) brightness(0.72);
 }
 .quest-theme[data-theme='wartable'] .quest-cover-word {
-  font-family: 'Cinzel', 'EB Garamond', serif;
+  font-family: var(--font-display);
 }
 
 /* NPC: a faint red wash on the paper and a red edge just inside its deckle, whatever its state. */
@@ -1230,8 +1236,7 @@
   box-shadow: 0 1px 2px rgba(20, 12, 4, 0.45);
   clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%);
   font-family: 'EB Garamond', Georgia, serif;
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-size: 12.5px;
 }
 .quest-theme[data-theme='wartable'] .quest-working > .quest-working-dot {
   background: #f6d98a;

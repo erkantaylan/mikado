@@ -22,7 +22,7 @@ export function Notice({ title, children, back }: { title: string; children: Rea
       <h1 className="quest-display text-xl font-semibold">{title}</h1>
       <div className="space-y-2 text-[15px] text-[var(--ink-soft)]">{children}</div>
       {back && (
-        <a href={back.href} className="inline-block text-[12px] font-bold tracking-[0.2em] text-[var(--gold)] uppercase hover:underline">
+        <a href={back.href} className="inline-block text-[12px] font-bold text-[var(--gold)] hover:underline">
           ← {back.label}
         </a>
       )}

@@ -184,7 +184,7 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mb-1">
-      <div className="px-3 pt-2 pb-1 text-[11px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{title}</div>
+      <div className="px-3 pt-2 pb-1 text-[11px] font-bold text-[var(--ink-soft)]">{title}</div>
       {children}
     </div>
   )
@@ -228,7 +228,7 @@ function QuestHit({ d, exact, here }: { d: Card; exact: boolean; here?: string }
             : journeys.map((j) => (j.key === here ? `${j.key} ${j.title} (this chart)` : `${j.key} ${j.title}`)).join(', ')}
         </span>
       </span>
-      <span className="shrink-0 text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour[d.status] }}>
+      <span className="shrink-0 text-[12px] font-bold" style={{ color: stateColour[d.status] }}>
         {words[d.status]}
       </span>
     </>

@@ -187,7 +187,7 @@ function Section({ title, hint, children }: { title: string; hint: string; child
   return (
     <section>
       <div className="quest-shelf-title mb-3 flex items-baseline gap-3">
-        <h2 className="quest-display text-[13px] font-bold tracking-[0.2em] uppercase">{title}</h2>
+        <h2 className="quest-display text-[13px] font-bold">{title}</h2>
         <span className="text-[14px] text-[var(--ink-soft)]">{hint}</span>
       </div>
       {children.length > 0 && <Rows>{children}</Rows>}
@@ -324,7 +324,7 @@ export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regi
     <div data-theme={theme} className="quest-theme min-h-screen">
       <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
         <div className="quest-nameplate">
-          <div className="quest-crumb text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{eyebrow}</div>
+          <div className="quest-crumb text-[12px] font-bold text-[var(--ink-soft)]">{eyebrow}</div>
           <h1 className="quest-display flex min-w-0 items-center gap-2 text-2xl font-semibold">
             {regionKey ? <Renamable title={title} noun="region" idKey={regionKey} onRename={onRename} /> : title}
             {regionKey && <RegionChip regionKey={regionKey} />}
@@ -371,7 +371,7 @@ export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regi
             // Closed by default; the browser keeps it open across the 15 s refresh.
             <details className="group">
               <summary className="quest-shelf-title mb-3 flex cursor-pointer list-none items-baseline gap-3 select-none">
-                <h2 className="quest-display text-[13px] font-bold tracking-[0.2em] whitespace-nowrap uppercase">
+                <h2 className="quest-display text-[13px] font-bold whitespace-nowrap">
                   <ChevronRight size={14} className="mr-1 inline align-[-2px] transition-transform group-open:rotate-90" />
                   Archived ({archived.length})
                 </h2>

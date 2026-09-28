@@ -81,7 +81,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="quest-section">
-      <h2 className="quest-display quest-section-title mb-2 text-[12px] font-bold tracking-[0.2em] text-[var(--ink-soft)] uppercase">{title}</h2>
+      <h2 className="quest-display quest-section-title mb-2 text-[12px] font-bold text-[var(--ink-soft)]">{title}</h2>
       {children}
     </section>
   )
@@ -179,8 +179,8 @@ function WarLegend() {
             <span className="quest-ref rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]">repo#12</span>,
             'Issue: a GitHub issue, by its repo and number',
           )}
-          {row(<span className="quest-kind text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>, 'Errand: a real step, not worth an issue')}
-          {row(<span className="quest-kind text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>, 'Petition: waiting on a reply from someone')}
+          {row(<span className="quest-kind text-[12px] font-bold text-[var(--ink-soft)]">Errand</span>, 'Errand: a real step, not worth an issue')}
+          {row(<span className="quest-kind text-[12px] font-bold text-[var(--await)]">Petition</span>, 'Petition: waiting on a reply from someone')}
           {row(<Jester />, 'A jester: a petition — someone else must answer it')}
         </ul>
       </Panel>
@@ -205,7 +205,7 @@ function WarLegend() {
       <Panel title="Along the bottom">
         <ul className="space-y-2.5">
           {row(
-            <span className="text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.available }}>
+            <span className="text-[12px] font-bold" style={{ color: stateColour.available }}>
               {words.available}
             </span>,
             'The status, in words',
@@ -267,7 +267,7 @@ function QuestRow({ m, i, onPick }: { m: JourneyModel; i: Item; onPick: (id: str
           </span>{' '}
           {titleOf(i)}
         </span>{' '}
-        <span className="shrink-0 pt-px text-[12px] font-bold uppercase" style={{ color: stateColour[m.statusOf(i)] }}>
+        <span className="shrink-0 pt-px text-[12px] font-bold" style={{ color: stateColour[m.statusOf(i)] }}>
           {words[m.statusOf(i)]}
         </span>
       </button>
@@ -286,7 +286,7 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
   const opens = m.needs.filter((n) => n.to === item.id).flatMap((n) => m.byId.get(n.from) ?? [])
   const over = status === 'done' || status === 'cancelled'
   const others = (item.alsoIn ?? []).filter((r) => r.key !== q.key)
-  const heading = 'mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase'
+  const heading = 'mb-1 text-[12px] font-bold text-[var(--ink-faint)]'
   const crownedBy = m.refOf(item) ? m.short(item.id) : (item.key ?? item.title)
   return (
     <section className="quest-details space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
@@ -309,7 +309,7 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
         </button>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-[13px] font-bold tracking-wider uppercase" style={{ color: stateColour[status] }}>
+        <span className="text-[13px] font-bold" style={{ color: stateColour[status] }}>
           {journeyCardWord(q, status)}
         </span>
         {q.underway > 0 && !over && <Working compact />}
@@ -338,7 +338,7 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
                   <Key id={d.key} /> {d.title}
                 </span>
                 {d.working && <Working compact />}
-                <span className="shrink-0 pt-px text-[12px] font-bold uppercase" style={{ color: stateColour[d.status] }}>
+                <span className="shrink-0 pt-px text-[12px] font-bold" style={{ color: stateColour[d.status] }}>
                   {words[d.status]}
                 </span>
               </li>
@@ -412,7 +412,7 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
         </button>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-[13px] font-bold tracking-wider uppercase" style={{ color: stateColour[status] }}>
+        <span className="text-[13px] font-bold" style={{ color: stateColour[status] }}>
           {words[status]}
         </span>
       </div>
@@ -441,18 +441,18 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
       )}
       {!!item.alsoIn?.length && (
         <div>
-          <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Also in</div>
+          <div className="mb-1 text-[12px] font-bold text-[var(--ink-faint)]">Also in</div>
           <AlsoIn journeys={item.alsoIn} label={false} />
         </div>
       )}
       {before.length > 0 && (
         <div>
-          <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Requires</div>
+          <div className="mb-1 text-[12px] font-bold text-[var(--ink-faint)]">Requires</div>
           <ul className="space-y-0.5 text-[14px]">{before.map((i) => <QuestRow key={i.id} m={m} i={i} onPick={onPick} />)}</ul>
         </div>
       )}
       <div>
-        <div className="mb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Opens</div>
+        <div className="mb-1 text-[12px] font-bold text-[var(--ink-faint)]">Opens</div>
         <ul className="space-y-0.5 text-[14px]">
           {item.sideOf ? (
             <li>Nothing — optional polish on {m.short(item.sideOf)}.</li>
@@ -612,7 +612,7 @@ function PanelTabs({ tab, onChange, logCount }: { tab: PanelTab; onChange: (t: P
           role="tab"
           aria-selected={tab === id}
           onClick={() => onChange(id)}
-          className={`quest-tab -mb-px rounded-t-md border px-3 py-1.5 text-[13px] font-semibold tracking-wide transition ${
+          className={`quest-tab -mb-px rounded-t-md border px-3 py-1.5 text-[13px] font-semibold transition ${
             tab === id
               ? 'border-[var(--panel-border)] border-b-[var(--panel)] bg-[var(--panel)] text-[var(--ink)]'
               : 'border-transparent text-[var(--ink-soft)] hover:text-[var(--ink)]'
@@ -734,7 +734,7 @@ function ShowMenu({
       aria-label="Show"
       className="absolute bottom-[15px] left-[58px] z-20 w-56 rounded-lg border border-[var(--panel-border)] bg-[var(--panel)] p-1 shadow-lg"
     >
-      <div className="px-2 pt-1 pb-1 text-[12px] font-bold tracking-wider text-[var(--ink-faint)] uppercase">Show</div>
+      <div className="px-2 pt-1 pb-1 text-[12px] font-bold text-[var(--ink-faint)]">Show</div>
       {row('done', 'Fulfilled')}
       {row('cancelled', 'Abandoned')}
       <div className="px-2 pt-1 pb-1.5 text-[12px] leading-snug text-[var(--ink-faint)]">
@@ -972,8 +972,8 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
               <Trophy size={20} />
             </span>
             <div className="min-w-0">
-              <a href={atlasHref} className="quest-crumb text-[12px] font-bold tracking-[0.2em] uppercase hover:underline" style={{ color: stateColour.done }}>
-                ← {atlasLabel}{journeyKey && <span className="ml-2 font-mono tracking-normal text-[var(--ink-soft)] normal-case">{journeyKey}</span>}
+              <a href={atlasHref} className="quest-crumb text-[12px] font-bold hover:underline" style={{ color: stateColour.done }}>
+                ← {atlasLabel}{journeyKey && <span className="ml-2 font-mono text-[var(--ink-soft)]">{journeyKey}</span>}
               </a>
               <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
                 <Renamable title={goal.title} noun="journey" idKey={journeyKey} onRename={onRetitle} />
