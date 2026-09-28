@@ -269,15 +269,26 @@ agents:
   skill install [--dir DIR] [--force] install it for Claude Code (~/.claude/skills/mikado)
   skill path [--dir DIR]              where install puts it
 
+regions (a region groups journeys; every journey lives in one, and no link crosses
+from one region to another; R is a region key, R2, or its name):
+  region list                         every region and how many journeys it holds
+  region new "name"                   create a region
+  region set R --name NAME            rename a region (its key stays)
+  region move R J...                  move journeys into R, together; refused while a
+                                      quest on them is also on a journey that stays behind
+  region delete R                     delete an empty region
+
 journeys (a journey is its crowning quest, every quest that one requires, and their
 side quests; J is a journey key, J7):
-  journey new "title" [--crown Q]     start a journey
-  journey list [--all]                every journey at a glance (the atlas);
+  journey new "title" [--crown Q] [--region R]
+                                      start a journey (in the first region unless named)
+  journey list [--all] [--region R]   every journey at a glance (the atlas);
                                       --all includes archived journeys
   journey show J                      its war table: quests, their status and
                                       requirements, chronicle
   journey crown J Q                   make Q the journey's crowning quest
-  journey set J [--title T] [--crown Q]
+  journey set J [--title T] [--crown Q] [--region R]
+                                      --region moves it (as region move R J)
   journey extract J Q... --title T    move quests into a new journey, crowned by a new
                                       errand T; J shows it as one journey card where they were
   journey delete J [--force]          delete a journey (its quests in other journeys stay);

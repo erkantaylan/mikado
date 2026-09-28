@@ -140,11 +140,12 @@ type Event struct {
 
 // JourneyInfo is the journey's own fields.
 type JourneyInfo struct {
-	Key         string `json:"key"`
-	Title       string `json:"title"`
-	FinalCardID *int64 `json:"finalCardId"`
-	State       string `json:"state"`                // active, complete or cancelled
-	ArchivedAt  string `json:"archivedAt,omitempty"` // set while the journey is archived
+	Key         string    `json:"key"`
+	Title       string    `json:"title"`
+	FinalCardID *int64    `json:"finalCardId"`
+	State       string    `json:"state"`                // active, complete or cancelled
+	ArchivedAt  string    `json:"archivedAt,omitempty"` // set while the journey is archived
+	Region      RegionRef `json:"region"`
 }
 
 // Journey states, from the final card.
@@ -172,18 +173,19 @@ type Progress struct {
 
 // JourneySummary is one journey on the atlas.
 type JourneySummary struct {
-	Key          string   `json:"key"`
-	Title        string   `json:"title"`
-	Main         Progress `json:"main"`
-	Achievements Progress `json:"achievements"`
-	State        string   `json:"state"`
-	Available    int      `json:"available"`
-	Awaiting     int      `json:"awaiting"`
-	Cancelled    int      `json:"cancelled"`
-	InProgress   int      `json:"inProgress"`
-	Heroes       []string `json:"heroes"`
-	Repos        []string `json:"repos"`
-	LastActivity string   `json:"lastActivity"`
+	Key          string    `json:"key"`
+	Title        string    `json:"title"`
+	Region       RegionRef `json:"region"`
+	Main         Progress  `json:"main"`
+	Achievements Progress  `json:"achievements"`
+	State        string    `json:"state"`
+	Available    int       `json:"available"`
+	Awaiting     int       `json:"awaiting"`
+	Cancelled    int       `json:"cancelled"`
+	InProgress   int       `json:"inProgress"`
+	Heroes       []string  `json:"heroes"`
+	Repos        []string  `json:"repos"`
+	LastActivity string    `json:"lastActivity"`
 	// ArchivedAt is set while the journey is archived: put away, off the
 	// atlas's shelves, otherwise unchanged.
 	ArchivedAt string `json:"archivedAt,omitempty"`
@@ -265,6 +267,9 @@ type JourneyPatch struct {
 	Final *int64  `json:"final"`
 	// Archived puts the journey away (true) or brings it back (false).
 	Archived *bool `json:"archived"`
+	// Region moves the journey to that region (key or name), if nothing on it
+	// is also on a journey that stays behind.
+	Region *string `json:"region"`
 }
 
 // Key is how a card id is shown: Q142. A card is a quest.

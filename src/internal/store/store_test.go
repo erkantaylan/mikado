@@ -110,7 +110,7 @@ func (f *fixture) journey(name string, final *Card) {
 	if final != nil {
 		id = &final.ID
 	}
-	j, err := f.s.CreateJourney(f.ctx, "Journey "+name, id)
+	j, err := f.s.CreateJourney(f.ctx, "Journey "+name, id, "")
 	if err != nil {
 		f.t.Fatal(err)
 	}
@@ -270,11 +270,11 @@ func TestResolve(t *testing.T) {
 
 func TestJourneys(t *testing.T) {
 	f := setup(t)
-	j, err := f.s.CreateJourney(f.ctx, "  The winter update  ", nil)
+	j, err := f.s.CreateJourney(f.ctx, "  The winter update  ", nil, "")
 	if err != nil || j.Key != "J1" || j.Title != "The winter update" || j.State != JourneyActive {
 		t.Fatalf("create: %+v %v", j, err)
 	}
-	if _, err := f.s.CreateJourney(f.ctx, " ", nil); KindOf(err) != ErrInvalid {
+	if _, err := f.s.CreateJourney(f.ctx, " ", nil, ""); KindOf(err) != ErrInvalid {
 		t.Errorf("no title: %v", err)
 	}
 	if v, err := f.s.Journey(f.ctx, "j-1"); err != nil || v.Journey.Key != "J1" {
@@ -1337,7 +1337,7 @@ func TestMigrateQuestsToJourneys(t *testing.T) {
 		t.Errorf("migrated atlas: %+v %v", js, err)
 	}
 	// New journeys and events go on from there.
-	j, err := s.CreateJourney(context.Background(), "Next", nil)
+	j, err := s.CreateJourney(context.Background(), "Next", nil, "")
 	if err != nil || j.Key != "J10" {
 		t.Errorf("journey after migration: %+v %v", j, err)
 	}
@@ -1550,5 +1550,136 @@ func TestDeleteRefusalNamesEveryMissingFlag(t *testing.T) {
 	f.mustFail(err, "--branch")
 	if got, want := f.members("a"), []int64{pre.ID, q.ID, top.ID}; !slices.Equal(got, want) {
 		t.Errorf("a refused delete changed the journey: %v, want %v", got, want)
+	}
+}
+
+func TestRegions(t *testing.T) {
+	f := setup(t)
+	rs, err := f.s.Regions(f.ctx)
+	if err != nil || len(rs) != 1 || rs[0].Key != "R1" || rs[0].Name != "Personal" {
+		t.Fatalf("a new database has R1 Personal: %+v %v", rs, err)
+	}
+	work, err := f.s.CreateRegion(f.ctx, "  Work ")
+	if err != nil || work.Key != "R2" || work.Name != "Work" {
+		t.Fatalf("create: %+v %v", work, err)
+	}
+	_, err = f.s.CreateRegion(f.ctx, "work")
+	f.mustFail(err, "already called")
+	_, err = f.s.CreateRegion(f.ctx, "R7")
+	f.mustFail(err, "reads as a region key")
+
+	// A journey goes to the default region unless one is named, by key or name.
+	a := f.errand("a")
+	f.journey("home", a)
+	if s := f.summary("home"); s.Region.Key != "R1" || s.Region.Name != "Personal" {
+		t.Errorf("default region %+v", s.Region)
+	}
+	j, err := f.s.CreateJourney(f.ctx, "Ship", nil, "work")
+	if err != nil || j.Region.Key != "R2" {
+		t.Fatalf("journey in work: %+v %v", j, err)
+	}
+	f.keys["ship"], f.names[j.Key] = j.Key, "ship"
+	if v := f.view("ship"); v.Journey.Region.Key != "R2" {
+		t.Errorf("journey view region %+v", v.Journey.Region)
+	}
+	_, err = f.s.CreateJourney(f.ctx, "Nowhere", nil, "R9")
+	f.mustFail(err, "no region R9")
+
+	// Nothing links across the border: not a requirement, a crown, a shared
+	// issue, nor a journey waiting on another.
+	b := f.errand("b")
+	_, err = f.s.UpdateJourney(f.ctx, f.key("ship"), JourneyPatch{Final: &a.ID})
+	f.mustFail(err, "stays inside one region")
+	if _, err := f.s.UpdateJourney(f.ctx, f.key("ship"), JourneyPatch{Final: &b.ID}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.s.AddNeed(f.ctx, b.ID, a.ID)
+	f.mustFail(err, "stays inside one region")
+	_, err = f.s.AddNeed(f.ctx, a.ID, b.ID)
+	f.mustFail(err, "stays inside one region")
+	// The same issue added again for a journey across the border.
+	f.gh.put("studio/game#7", "Crash on load", "open")
+	f.issue("studio/game#7", NewCard{NeededBy: []int64{a.ID}})
+	_, _, err = f.s.AddCard(f.ctx, NewCard{Kind: KindIssue, Ref: "studio/game#7", NeededBy: []int64{b.ID}}, "")
+	f.mustFail(err, "stays inside one region")
+	// The refused change left nothing behind.
+	if got := f.members("ship"); !slices.Equal(got, []int64{b.ID}) {
+		t.Errorf("ship members after refusals %v", got)
+	}
+
+	// Inside one region links work as ever, and extract keeps the region.
+	c := f.errand("c")
+	if _, err := f.s.AddNeed(f.ctx, b.ID, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	out, err := f.s.Extract(f.ctx, f.key("ship"), []int64{c.ID}, "C part")
+	if err != nil || out.Journey.Region.Key != "R2" {
+		t.Fatalf("extract: %+v %v", out, err)
+	}
+
+	// A journey moves only when nothing on it stays behind on another.
+	_, err = f.s.UpdateJourney(f.ctx, f.key("ship"), JourneyPatch{Region: ptr("Personal")})
+	f.mustFail(err, "move the journeys that share it together")
+	// Together they can: ship waits on the journey extracted from it.
+	both, err := f.s.MoveJourneys(f.ctx, "R1", []string{f.key("ship"), out.Journey.Key})
+	if err != nil || len(both) != 2 || both[0].Region.Key != "R1" || both[1].Region.Key != "R1" {
+		t.Fatalf("move together: %+v %v", both, err)
+	}
+	if _, err := f.s.MoveJourneys(f.ctx, "R2", []string{f.key("ship"), out.Journey.Key}); err != nil {
+		t.Fatal(err)
+	}
+	lone, err := f.s.CreateJourney(f.ctx, "Lone", nil, "R2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved, err := f.s.UpdateJourney(f.ctx, lone.Key, JourneyPatch{Region: ptr("R1")})
+	if err != nil || moved.Region.Key != "R1" {
+		t.Fatalf("move: %+v %v", moved, err)
+	}
+
+	// Rename keeps the key; delete takes only an empty region, never the last.
+	if r, err := f.s.UpdateRegion(f.ctx, "R2", RegionPatch{Name: ptr("Alternet")}); err != nil || r.Name != "Alternet" || r.Key != "R2" {
+		t.Fatalf("rename: %+v %v", r, err)
+	}
+	_, err = f.s.DeleteRegion(f.ctx, "Alternet")
+	f.mustFail(err, "still holds")
+	empty, err := f.s.CreateRegion(f.ctx, "Empty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.DeleteRegion(f.ctx, empty.Key); err != nil {
+		t.Fatal(err)
+	}
+	if rs, _ := f.s.Regions(f.ctx); len(rs) != 2 || rs[1].Journeys != 2 {
+		t.Errorf("regions after delete: %+v", rs)
+	}
+}
+
+func TestMigrateRegions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mikado.db")
+	s, err := Open(path, newFake())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Rewind to before regions, with a journey in it, and migrate again.
+	for _, q := range []string{
+		`INSERT INTO journeys (title, created_at) VALUES ('Old', '2026-01-01T00:00:00Z')`,
+		`DROP INDEX journeys_region`,
+		`ALTER TABLE journeys DROP COLUMN region_id`,
+		`DROP TABLE regions`,
+		`UPDATE schema_version SET version = 4`,
+	} {
+		if _, err := s.db.Exec(q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	s.Close()
+	if s, err = Open(path, newFake()); err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	js, _, err := s.Journeys(context.Background())
+	if err != nil || len(js) != 1 || js[0].Region != (RegionRef{Key: "R1", Name: "Personal"}) {
+		t.Errorf("migrated journey region: %+v %v", js, err)
 	}
 }

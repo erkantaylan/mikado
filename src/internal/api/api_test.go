@@ -73,6 +73,17 @@ func TestAPI(t *testing.T) {
 		{"PATCH", "/api/journeys/J2", `{"slug":"other-two"}`, local, js, 400},
 		{"DELETE", "/api/journeys/J1/needs", `{"from":1,"to":2}`, local, js, 204},
 		{"DELETE", "/api/cards/q2", `{"reason":"parked"}`, local, js, 204},
+		{"GET", "/api/regions", "", local, "", 200},
+		{"POST", "/api/regions", `{"name":"Work"}`, local, js, 201}, // R2
+		{"POST", "/api/regions", `{"name":"work"}`, local, js, 409},
+		{"PATCH", "/api/regions/R2", `{"name":"Alternet"}`, local, js, 200},
+		{"POST", "/api/journeys", `{"title":"Elsewhere","region":"Alternet"}`, local, js, 201}, // J3
+		{"POST", "/api/journeys", `{"title":"x","region":"R9"}`, local, js, 404},
+		{"POST", "/api/regions/R2/journeys", `{"journeys":["J2"]}`, local, js, 200},
+		{"POST", "/api/regions/R1/journeys", `{"journeys":["J3"]}`, local, js, 200},
+		{"DELETE", "/api/regions/R2", "", local, "", 409},
+		{"PATCH", "/api/journeys/J2", `{"region":"R1"}`, local, js, 200},
+		{"DELETE", "/api/regions/R2", "", local, "", 200},
 		{"GET", "/api/journeys/J99", "", local, "", 404},
 		{"GET", "/api/journeys/nope", "", local, "", 400},
 		{"GET", "/api/nope", "", local, "", 404},

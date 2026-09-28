@@ -38,16 +38,21 @@ func quoted(t string) string {
 	return "“" + t + "”"
 }
 
-// CreateJourney creates a journey, optionally with its final card.
-func (s *Store) CreateJourney(ctx context.Context, title string, final *int64) (*JourneySummary, error) {
+// CreateJourney creates a journey in a region (by key or name; empty: the
+// default one), optionally with its final card.
+func (s *Store) CreateJourney(ctx context.Context, title string, final *int64, region string) (*JourneySummary, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return nil, errf(ErrInvalid, "a journey needs a title")
 	}
 	var id int64
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
-		if err := tx.QueryRowContext(ctx, `INSERT INTO journeys (title, created_at) VALUES (?, ?) RETURNING id`,
-			title, s.stamp()).Scan(&id); err != nil {
+		rid, err := regionFor(ctx, tx, region)
+		if err != nil {
+			return err
+		}
+		if err := tx.QueryRowContext(ctx, `INSERT INTO journeys (title, created_at, region_id) VALUES (?, ?, ?) RETURNING id`,
+			title, s.stamp(), rid).Scan(&id); err != nil {
 			return err
 		}
 		if err := s.event(ctx, tx, &id, nil, "create", "journey created"); err != nil {
@@ -77,8 +82,8 @@ func (s *Store) summary(ctx context.Context, id int64) (*JourneySummary, error) 
 	return nil, errf(ErrNotFound, "no journey %s", JourneyKey(id))
 }
 
-// UpdateJourney retitles a journey, archives or unarchives it, or sets its
-// final card.
+// UpdateJourney retitles a journey, archives or unarchives it, moves it to
+// another region, or sets its final card.
 func (s *Store) UpdateJourney(ctx context.Context, key string, p JourneyPatch) (*JourneySummary, error) {
 	j, err := getJourney(ctx, s.db, key)
 	if err != nil {
@@ -112,12 +117,20 @@ func (s *Store) UpdateJourney(ctx context.Context, key string, p JourneyPatch) (
 				return err
 			}
 		}
+		if p.Region != nil {
+			if err := s.moveJourney(ctx, tx, j, *p.Region); err != nil {
+				return err
+			}
+		}
 		if p.Final != nil {
 			return s.setFinal(ctx, tx, j, *p.Final)
 		}
 		return nil
 	})
 	if err != nil {
+		if p.Region != nil {
+			err = s.movedTogether(ctx, err)
+		}
 		return nil, err
 	}
 	return s.summary(ctx, j.ID)

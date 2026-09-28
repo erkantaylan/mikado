@@ -51,6 +51,12 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	mux.HandleFunc("DELETE /api/journeys/{key}", h.deleteJourney)
 	mux.HandleFunc("POST /api/journeys/{key}/extract", h.extract)
 
+	mux.HandleFunc("GET /api/regions", h.listRegions)
+	mux.HandleFunc("POST /api/regions", h.createRegion)
+	mux.HandleFunc("PATCH /api/regions/{key}", h.patchRegion)
+	mux.HandleFunc("DELETE /api/regions/{key}", h.deleteRegion)
+	mux.HandleFunc("POST /api/regions/{key}/journeys", h.moveJourneys)
+
 	mux.HandleFunc("POST /api/cards", h.addCard)
 	mux.HandleFunc("GET /api/cards/{ref...}", h.getCard)
 	mux.HandleFunc("PATCH /api/cards/{id}", h.patchCard)
@@ -315,8 +321,9 @@ func (h *handler) listJourneys(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) createJourney(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Title string   `json:"title"`
-		Final *cardRef `json:"final"`
+		Title  string   `json:"title"`
+		Final  *cardRef `json:"final"`
+		Region string   `json:"region"` // key or name; empty: the default region
 	}
 	if !decode(w, r, &in) {
 		return
@@ -326,7 +333,7 @@ func (h *handler) createJourney(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	q, err := h.s.CreateJourney(r.Context(), in.Title, final)
+	q, err := h.s.CreateJourney(r.Context(), in.Title, final, in.Region)
 	if err != nil {
 		fail(w, err)
 		return
@@ -348,6 +355,7 @@ func (h *handler) patchJourney(w http.ResponseWriter, r *http.Request) {
 		Title    *string  `json:"title"`
 		Final    *cardRef `json:"final"`
 		Archived *bool    `json:"archived"`
+		Region   *string  `json:"region"`
 	}
 	if !decode(w, r, &in) {
 		return
@@ -357,12 +365,75 @@ func (h *handler) patchJourney(w http.ResponseWriter, r *http.Request) {
 		fail(w, err)
 		return
 	}
-	q, err := h.s.UpdateJourney(r.Context(), r.PathValue("key"), store.JourneyPatch{Title: in.Title, Final: final, Archived: in.Archived})
+	q, err := h.s.UpdateJourney(r.Context(), r.PathValue("key"), store.JourneyPatch{Title: in.Title, Final: final, Archived: in.Archived, Region: in.Region})
 	if err != nil {
 		fail(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, q)
+}
+
+func (h *handler) listRegions(w http.ResponseWriter, r *http.Request) {
+	rs, err := h.s.Regions(r.Context())
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rs)
+}
+
+func (h *handler) createRegion(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name string `json:"name"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	rg, err := h.s.CreateRegion(r.Context(), in.Name)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, rg)
+}
+
+func (h *handler) patchRegion(w http.ResponseWriter, r *http.Request) {
+	var in store.RegionPatch
+	if !decode(w, r, &in) {
+		return
+	}
+	rg, err := h.s.UpdateRegion(r.Context(), r.PathValue("key"), in)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rg)
+}
+
+// moveJourneys moves journeys into the region, together.
+func (h *handler) moveJourneys(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Journeys []string `json:"journeys"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.s.MoveJourneys(r.Context(), r.PathValue("key"), in.Journeys)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// deleteRegion deletes an empty region.
+func (h *handler) deleteRegion(w http.ResponseWriter, r *http.Request) {
+	out, err := h.s.DeleteRegion(r.Context(), r.PathValue("key"))
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // deleteJourney deletes a journey; force also deletes the quests it alone held.

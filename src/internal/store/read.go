@@ -85,6 +85,7 @@ type journeyRow struct {
 	Final      *int64
 	CreatedAt  string
 	ArchivedAt string // empty: not archived
+	Region     int64
 }
 
 func (j *journeyRow) Key() string     { return JourneyKey(j.ID) }
@@ -111,9 +112,9 @@ func getJourney(ctx context.Context, q querier, key string) (*journeyRow, error)
 	}
 	var r journeyRow
 	var final sql.NullInt64
-	err := q.QueryRowContext(ctx, `SELECT j.id, j.title, c.id, j.created_at, COALESCE(j.archived_at, '')
+	err := q.QueryRowContext(ctx, `SELECT j.id, j.title, c.id, j.created_at, COALESCE(j.archived_at, ''), j.region_id
 		FROM journeys j LEFT JOIN cards c ON c.id = j.final_card AND c.removed_at IS NULL
-		WHERE j.id = ?`, id).Scan(&r.ID, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt)
+		WHERE j.id = ?`, id).Scan(&r.ID, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt, &r.Region)
 	if err == sql.ErrNoRows {
 		return nil, errf(ErrNotFound, "no journey %s", JourneyKey(id))
 	}
@@ -131,6 +132,7 @@ type graph struct {
 	sides    map[int64][]int64 // card → its side quests
 	needs    []Need
 	journeys []*journeyRow
+	regions  map[int64]*regionRow
 	// crowned maps each card that crowns a journey to those journeys (by id).
 	crowned map[int64][]*journeyRow
 }
@@ -179,7 +181,10 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rows, err = q.QueryContext(ctx, `SELECT id, title, final_card, created_at, COALESCE(archived_at, '') FROM journeys ORDER BY id`)
+	if g.regions, err = loadRegions(ctx, q); err != nil {
+		return nil, err
+	}
+	rows, err = q.QueryContext(ctx, `SELECT id, title, final_card, created_at, COALESCE(archived_at, ''), region_id FROM journeys ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +192,7 @@ func loadGraph(ctx context.Context, q querier) (*graph, error) {
 	for rows.Next() {
 		var r journeyRow
 		var final sql.NullInt64
-		if err := rows.Scan(&r.ID, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Title, &final, &r.CreatedAt, &r.ArchivedAt, &r.Region); err != nil {
 			return nil, err
 		}
 		if final.Valid && g.cards[final.Int64] != nil {
@@ -597,7 +602,7 @@ func (s *Store) Journey(ctx context.Context, key string) (*JourneyView, error) {
 	}
 	in := g.membership()
 	v := &JourneyView{
-		Journey: JourneyInfo{Key: j.Key(), Title: j.Title, FinalCardID: j.Final, State: JourneyActive, ArchivedAt: j.ArchivedAt},
+		Journey: JourneyInfo{Key: j.Key(), Title: j.Title, FinalCardID: j.Final, State: JourneyActive, ArchivedAt: j.ArchivedAt, Region: g.regionRef(j.Region)},
 		Cards:   make([]Card, 0, len(ids)),
 		Needs:   g.needsAmong(ids),
 		GitHub:  warning,
@@ -752,7 +757,7 @@ func (s *Store) Journeys(ctx context.Context) ([]JourneySummary, string, error) 
 				at = t
 			}
 		}
-		out = append(out, summarize(JourneySummary{Key: j.Key(), Title: j.Title, LastActivity: at, ArchivedAt: j.ArchivedAt,
+		out = append(out, summarize(JourneySummary{Key: j.Key(), Title: j.Title, Region: g.regionRef(j.Region), LastActivity: at, ArchivedAt: j.ArchivedAt,
 			BlockedBy: []JourneyLink{}, Blocks: []JourneyLink{}}, cards))
 	}
 	// A journey whose crowning quest is folded into another's chart blocks it.

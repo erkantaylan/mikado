@@ -225,8 +225,8 @@ func (s *Store) Extract(ctx context.Context, key string, ids []int64, title stri
 			KindErrand, title, stamp).Scan(&crown); err != nil {
 			return err
 		}
-		if err := tx.QueryRowContext(ctx, `INSERT INTO journeys (title, created_at) VALUES (?, ?) RETURNING id`,
-			title, stamp).Scan(&newID); err != nil {
+		if err := tx.QueryRowContext(ctx, `INSERT INTO journeys (title, created_at, region_id) VALUES (?, ?, ?) RETURNING id`,
+			title, stamp, j.Region).Scan(&newID); err != nil {
 			return err
 		}
 		var tops []int64

@@ -129,13 +129,22 @@ type querier interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// inTx runs fn in a transaction, committing only if it returns nil.
+// inTx runs fn in a transaction, committing only if it returns nil and every
+// quest is still inside one region: whatever fn linked, moved or crowned, no
+// link crosses a region's border.
 func (s *Store) inTx(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if err := fn(tx); err != nil {
+	err = fn(tx)
+	if err == nil {
+		var g *graph
+		if g, err = loadGraph(ctx, tx); err == nil {
+			err = g.checkRegions()
+		}
+	}
+	if err != nil {
 		tx.Rollback()
 		return err
 	}

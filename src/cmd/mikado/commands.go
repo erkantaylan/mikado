@@ -49,6 +49,7 @@ var commands = map[string]func([]string) error{
 	"assignees": assigneesCmd,
 	"open":      openCmd,
 	"hosts":     hostsCmd,
+	"region":    regionCmd,
 }
 
 // aliases are the commands' earlier names (and a spelling or two). They still
@@ -161,12 +162,13 @@ func journeyCmd(args []string) error {
 	case "new":
 		cmd := newCommand("journey new")
 		crown := cmd.fs.String("crown", "", "its crowning quest Q")
-		pos, err := cmd.parse(args, 1, 1, `"title" [--crown Q]`)
+		region := cmd.fs.String("region", "", "the region it lives in (R2 or its name; default: the first region)")
+		pos, err := cmd.parse(args, 1, 1, `"title" [--crown Q] [--region R]`)
 		if err != nil {
 			return err
 		}
 		cl := cmd.client()
-		body := map[string]any{"title": pos[0]}
+		body := map[string]any{"title": pos[0], "region": *region}
 		if *crown != "" {
 			id, err := resolve(cl, *crown)
 			if err != nil {
@@ -181,7 +183,7 @@ func journeyCmd(args []string) error {
 		if *cmd.json {
 			return printJSON(j)
 		}
-		fmt.Printf("journey %s created: %s\n", j.Key, j.Title)
+		fmt.Printf("journey %s created in region %s %s: %s\n", j.Key, j.Region.Key, j.Region.Name, j.Title)
 		if *crown == "" {
 			fmt.Fprintf(os.Stderr, "it has no crowning quest yet — crown one with `mikado journey crown %s Q` or `mikado add … --crowns %s`\n", j.Key, j.Key)
 		}
@@ -189,7 +191,8 @@ func journeyCmd(args []string) error {
 	case "list", "ls":
 		cmd := newCommand("journey list")
 		all := cmd.fs.Bool("all", false, "include archived journeys")
-		if _, err := cmd.parse(args, 0, 0, "[--all] [--json]"); err != nil {
+		region := cmd.fs.String("region", "", "only the journeys of this region (R2 or its name)")
+		if _, err := cmd.parse(args, 0, 0, "[--all] [--region R] [--json]"); err != nil {
 			return err
 		}
 		var every []store.JourneySummary
@@ -197,26 +200,36 @@ func journeyCmd(args []string) error {
 		if err != nil {
 			return err
 		}
-		qs := every
+		inRegion := every
+		if *region != "" {
+			r := strings.TrimSpace(*region)
+			inRegion = slices.DeleteFunc(slices.Clone(every), func(j store.JourneySummary) bool {
+				return !strings.EqualFold(j.Region.Key, r) && !strings.EqualFold(j.Region.Name, r)
+			})
+		}
+		qs := inRegion
 		if !*all {
-			qs = slices.DeleteFunc(slices.Clone(every), func(j store.JourneySummary) bool { return j.ArchivedAt != "" })
+			qs = slices.DeleteFunc(slices.Clone(inRegion), func(j store.JourneySummary) bool { return j.ArchivedAt != "" })
 		}
 		if *cmd.json {
 			return printJSON(qs)
 		}
-		if hidden := len(every) - len(qs); hidden > 0 {
+		if hidden := len(inRegion) - len(qs); hidden > 0 {
 			defer fmt.Fprintf(os.Stderr, "%d archived journey(s) not shown (--all to include them)\n", hidden)
 		}
 		if len(qs) == 0 {
-			if len(every) == 0 {
+			switch {
+			case len(every) == 0:
 				fmt.Println(`no journeys yet — start one with: mikado journey new "title"`)
+			case len(inRegion) == 0:
+				fmt.Printf("no journeys in region %s\n", *region)
 			}
 			return nil
 		}
 		tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "KEY\tSTATE\tMAIN QUEST\tACHIEVEMENTS\tOPEN\tAWAITING REPLY\tUNDERWAY\tABANDONED\tHEROES\tTITLE")
+		fmt.Fprintln(tw, "KEY\tREGION\tSTATE\tMAIN QUEST\tACHIEVEMENTS\tOPEN\tAWAITING REPLY\tUNDERWAY\tABANDONED\tHEROES\tTITLE")
 		for _, q := range qs {
-			fmt.Fprintf(tw, "%s\t%s\t%d/%d\t%d/%d\t%d\t%d\t%d\t%d\t%s\t%s\n", q.Key, journeyWord(q.State, q.ArchivedAt), q.Main.Done, q.Main.Total,
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%d/%d\t%d/%d\t%d\t%d\t%d\t%d\t%s\t%s\n", q.Key, q.Region.Name, journeyWord(q.State, q.ArchivedAt), q.Main.Done, q.Main.Total,
 				q.Achievements.Done, q.Achievements.Total, q.Available, q.Awaiting, q.InProgress, q.Cancelled,
 				strings.Join(q.Heroes, ","), q.Title)
 		}
@@ -314,13 +327,17 @@ func journeyCmd(args []string) error {
 		cmd := newCommand("journey set")
 		title := cmd.fs.String("title", "", "new title")
 		crown := cmd.fs.String("crown", "", "its crowning quest Q")
-		pos, err := cmd.parse(args, 1, 1, "J [--title T] [--crown Q]")
+		region := cmd.fs.String("region", "", "move it to this region (R2 or its name)")
+		pos, err := cmd.parse(args, 1, 1, "J [--title T] [--crown Q] [--region R]")
 		if err != nil {
 			return err
 		}
 		body := map[string]any{}
 		if *title != "" {
 			body["title"] = *title
+		}
+		if *region != "" {
+			body["region"] = *region
 		}
 		if *crown != "" {
 			id, err := resolve(cmd.client(), *crown)
@@ -330,7 +347,7 @@ func journeyCmd(args []string) error {
 			body["final"] = id
 		}
 		if len(body) == 0 {
-			return usageError{"nothing to set: pass --title or --crown"}
+			return usageError{"nothing to set: pass --title, --crown or --region"}
 		}
 		return patchJourney(cmd, pos[0], body)
 	default:
@@ -346,7 +363,7 @@ func patchJourney(cmd *command, key string, body map[string]any) error {
 	if *cmd.json {
 		return printJSON(j)
 	}
-	fmt.Printf("journey %s: %s [%s]\n", j.Key, j.Title, journeyWord(j.State, j.ArchivedAt))
+	fmt.Printf("journey %s: %s [%s] in region %s %s\n", j.Key, j.Title, journeyWord(j.State, j.ArchivedAt), j.Region.Key, j.Region.Name)
 	return nil
 }
 
@@ -372,6 +389,7 @@ func showJourney(v *store.JourneyView) {
 		}
 	}
 	fmt.Printf("%s — %s [%s]\n", v.Journey.Key, v.Journey.Title, journeyWord(v.Journey.State, v.Journey.ArchivedAt))
+	fmt.Printf("region %s %s\n", v.Journey.Region.Key, v.Journey.Region.Name)
 	byID := map[int64]*store.Card{}
 	for i := range v.Cards {
 		byID[v.Cards[i].ID] = &v.Cards[i]
@@ -1044,4 +1062,101 @@ func listHosts(cmd *command) error {
 	tw.Flush()
 	fmt.Fprintln(os.Stderr, "localhost, *.localhost and loopback IPs are always accepted")
 	return nil
+}
+
+func regionPath(key string) string { return "/api/regions/" + url.PathEscape(key) }
+
+func regionCmd(args []string) error {
+	sub := "list"
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		sub, args = args[0], args[1:]
+	}
+	switch sub {
+	case "list", "ls":
+		cmd := newCommand("region list")
+		if _, err := cmd.parse(args, 0, 0, "[--json]"); err != nil {
+			return err
+		}
+		var rs []store.Region
+		if _, err := cmd.client().do("GET", "/api/regions", nil, &rs); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(rs)
+		}
+		tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(tw, "KEY\tJOURNEYS\tNAME")
+		for _, r := range rs {
+			fmt.Fprintf(tw, "%s\t%d\t%s\n", r.Key, r.Journeys, r.Name)
+		}
+		return tw.Flush()
+	case "new":
+		cmd := newCommand("region new")
+		pos, err := cmd.parse(args, 1, 1, `"name"`)
+		if err != nil {
+			return err
+		}
+		var r store.Region
+		if _, err := cmd.client().do("POST", "/api/regions", map[string]string{"name": pos[0]}, &r); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(r)
+		}
+		fmt.Printf("region %s created: %s\n", r.Key, r.Name)
+		return nil
+	case "set":
+		cmd := newCommand("region set")
+		name := cmd.fs.String("name", "", "new name")
+		pos, err := cmd.parse(args, 1, 1, "R --name NAME")
+		if err != nil {
+			return err
+		}
+		if *name == "" {
+			return usageError{"nothing to set: pass --name"}
+		}
+		var r store.Region
+		if _, err := cmd.client().do("PATCH", regionPath(pos[0]), map[string]string{"name": *name}, &r); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(r)
+		}
+		fmt.Printf("region %s: %s\n", r.Key, r.Name)
+		return nil
+	case "move":
+		cmd := newCommand("region move")
+		pos, err := cmd.parse(args, 2, -1, "R J...")
+		if err != nil {
+			return err
+		}
+		var js []store.JourneySummary
+		if _, err := cmd.client().do("POST", regionPath(pos[0])+"/journeys", map[string]any{"journeys": pos[1:]}, &js); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(js)
+		}
+		for _, j := range js {
+			fmt.Printf("journey %s is in region %s %s: %s\n", j.Key, j.Region.Key, j.Region.Name, j.Title)
+		}
+		return nil
+	case "delete":
+		cmd := newCommand("region delete")
+		pos, err := cmd.parse(args, 1, 1, "R")
+		if err != nil {
+			return err
+		}
+		var out store.RegionDeleted
+		if _, err := cmd.client().do("DELETE", regionPath(pos[0]), nil, &out); err != nil {
+			return err
+		}
+		if *cmd.json {
+			return printJSON(out)
+		}
+		fmt.Printf("region %s deleted: %s\n", out.Region.Key, out.Region.Name)
+		return nil
+	default:
+		return usageError{fmt.Sprintf("unknown region command %q (new, list, set, move, delete)", sub)}
+	}
 }
