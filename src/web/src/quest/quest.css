@@ -1094,8 +1094,9 @@
   border-color: transparent !important;
 }
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate.quest-lit::after {
-  filter: brightness(0) invert(0.62) sepia(1) saturate(4) hue-rotate(-12deg) blur(5px);
-  opacity: 0.75;
+  filter: brightness(0) invert(0.7) sepia(1) saturate(5) hue-rotate(-12deg) blur(10px);
+  opacity: 1;
+  inset: -12px -18px;
   transform: none;
 }
 /* Dark brown ink on the darkened paper; the small words get a pale halo against the char, as on awaiting. */
@@ -1180,15 +1181,16 @@
   gap: 4px;
 }
 /* Selected: the warm rim of light, on brass. On the paper sheets there is no border to light, so the glow
-   follows the deckle instead, as on the burned sheet. */
+   follows the deckle instead, as on the burned sheet. It is the only glow on the table and nothing else
+   dims, so it is wide and bright enough to find the selected card at a glance. */
 .quest-theme[data-theme='wartable'] .quest-item .quest-plate.quest-lit {
   border-color: #c98a1e !important;
 }
 .quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate.quest-lit {
-  --wt-under: brightness(0) invert(0.62) sepia(1) saturate(4) hue-rotate(-12deg) blur(5px);
-  --wt-under-opacity: 0.85;
+  --wt-under: brightness(0) invert(0.7) sepia(1) saturate(5) hue-rotate(-12deg) blur(10px);
+  --wt-under-opacity: 1;
   --wt-under-y: 0px;
-  --wt-under-inset: -4px -5px;
+  --wt-under-inset: -9px -11px;
   border-color: transparent !important;
 }
 
