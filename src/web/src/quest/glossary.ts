@@ -2,7 +2,7 @@
 // SKILL.md carries the same table for agents (src/internal/skill/SKILL.md), so change both together.
 
 export type Term = {
-  id: string // G1…G24, as SKILL.md numbers them
+  id: string // G1…G24, as SKILL.md numbers them; G21 (Hero) is left off the dashboard for now, which shows no heroes
   term: string
   also?: string // a synonym that means exactly the same
   text: string // what it means, in a sentence or two
@@ -125,12 +125,6 @@ export const glossary: Term[] = [
     term: 'Underway',
     text: 'Someone is on it right now, apart from its status. You take a quest up when you start and set it down when you stop.',
     cli: 'mikado take-up Q [--by WHO] · mikado set-down Q',
-  },
-  {
-    id: 'G21',
-    term: 'Hero / no hero',
-    text: 'Whoever is responsible for a quest: its GitHub assignee, else the hero set in mikado. A quest with neither shows "no hero".',
-    cli: '--hero WHO · mikado set Q --hero WHO',
   },
   {
     id: 'G22',

@@ -14,7 +14,7 @@ import '@xyflow/react/dist/style.css'
 import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Pencil, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import { titleOf, type Item, type JourneyCard, type JourneyModel, type JourneyState, type Status } from './model'
-import { ArchivedChip, Gate, Hero, Key, KindMark, Label, Npc, Tally, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { ArchivedChip, Gate, Jester, Key, KindMark, Label, Npc, Tally, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
   AlsoIn,
@@ -87,7 +87,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Row({ m, item, onPick, right }: { m: JourneyModel; item: Item; onPick: (id: string) => void; right: ReactNode }) {
+function Row({ m, item, onPick, right }: { m: JourneyModel; item: Item; onPick: (id: string) => void; right?: ReactNode }) {
   return (
     <li>
       <button
@@ -181,6 +181,7 @@ function WarLegend() {
           )}
           {row(<span className="quest-kind text-[12px] font-bold tracking-wider text-[var(--ink-soft)] uppercase">Errand</span>, 'Errand: a real step, not worth an issue')}
           {row(<span className="quest-kind text-[12px] font-bold tracking-wider text-[var(--await)] uppercase">Petition</span>, 'Petition: waiting on a reply from someone')}
+          {row(<Jester />, 'A jester: a petition — someone else must answer it')}
         </ul>
       </Panel>
       <Panel title="The paper">
@@ -207,9 +208,8 @@ function WarLegend() {
             <span className="text-[12px] font-bold tracking-wider uppercase" style={{ color: stateColour.available }}>
               {words.available}
             </span>,
-            'Bottom-left: the status, in words',
+            'The status, in words',
           )}
-          {row(<Hero />, 'Bottom-right: the hero on it, or no hero yet')}
         </ul>
       </Panel>
       <Panel title="The journey">
@@ -313,7 +313,6 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
           {journeyCardWord(q, status)}
         </span>
         {q.underway > 0 && !over && <Working compact />}
-        <Hero name={item.assignee} />
       </div>
       <div>
         <JourneyProgress q={q} done={over} />
@@ -416,13 +415,11 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
         <span className="text-[13px] font-bold tracking-wider uppercase" style={{ color: stateColour[status] }}>
           {words[status]}
         </span>
-        <Hero name={item.assignee} />
       </div>
       {item.kind === 'wait' &&
         (status === 'awaiting' || status === 'locked' ? (
           <p className="rounded bg-[var(--await-plate)] p-2 text-[14px]">
             Awaiting reply from <b>{item.waitingOn}</b> since {item.since} ({m.daysSince(item)} days).
-            {item.assignee && ` ${item.assignee} is chasing it.`}
           </p>
         ) : (
           <p className="rounded bg-[var(--chip)] p-2 text-[14px]">
@@ -949,7 +946,6 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
   const count = (s: Status) => items.filter((i) => statusOf(i) === s).length
   const available = items.filter((i) => statusOf(i) === 'available')
   const awaiting = items.filter((i) => statusOf(i) === 'awaiting')
-  const heroless = items.filter((i) => !i.done && !i.assignee).length
   const working = items.filter((i) => i.working && !i.done).length
   // The tally's shares split the quests: one underway is counted there, not under its state.
   const idle = (s: Status) => items.filter((i) => statusOf(i) === s && !i.working).length
@@ -1080,10 +1076,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                 { key: 'awaiting', n: idle('awaiting'), label: 'awaiting reply' },
                 { key: 'sealed', n: idle('locked'), label: 'sealed' },
               ]}
-              extra={[
-                ...(count('cancelled') ? [{ key: 'cancelled', n: count('cancelled'), label: 'abandoned' } as const] : []),
-                { key: 'nohero', n: heroless, label: 'no hero' },
-              ]}
+              extra={count('cancelled') ? [{ key: 'cancelled', n: count('cancelled'), label: 'abandoned' }] : []}
             />
             {/* The buttons, racked in two rows beside the tally: search on top, the rest below. */}
             <div className="quest-tools grid shrink-0 grid-cols-2 gap-1.5">
@@ -1220,12 +1213,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                       m={m}
                       item={i}
                       onPick={focus}
-                      right={
-                        <span className="flex shrink-0 items-center gap-2">
-                          {i.working && <Working compact by={i.workingBy} />}
-                          <Hero name={i.assignee} />
-                        </span>
-                      }
+                      right={i.working && <Working compact by={i.workingBy} />}
                     />
                   ))}
                 </ul>
@@ -1252,7 +1240,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
               <Panel title="Side quests — achievements">
                 <ul className="quest-rows space-y-1.5">
                   {sideQuests.map((q) => (
-                    <Row key={q.id} m={m} item={q} onPick={focus} right={<Hero name={q.assignee} />} />
+                    <Row key={q.id} m={m} item={q} onPick={focus} />
                   ))}
                 </ul>
               </Panel>

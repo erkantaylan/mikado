@@ -34,26 +34,8 @@ const cancelled = (q: AtlasJourney) => q.state === 'cancelled'
 const mainDone = (q: AtlasJourney) => (q.state ? q.state === 'complete' : q.main.done === q.main.total)
 const perfect = (q: AtlasJourney) => mainDone(q) && q.achievements.done === q.achievements.total
 
-function Heroes({ names }: { names: string[] }) {
-  return (
-    <span className="flex -space-x-1.5">
-      {names.map((n) => (
-        <span
-          key={n}
-          title={n}
-          className="grid size-7 place-items-center rounded-full bg-[var(--ink)] text-[12px] font-bold text-[var(--bg)] uppercase ring-2 ring-[var(--plate)]"
-        >
-          {n[0]}
-        </span>
-      ))}
-    </span>
-  )
-}
-
 // The row's columns, shared by every row so the shelves line up. Narrow screens wrap instead.
-// The heroes column is left out when no journey on the atlas has a hero, so it is not an empty strip.
-const columns = (heroes: boolean) =>
-  heroes ? 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px_96px]' : 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px]'
+const columns = 'md:grid md:grid-cols-[auto_minmax(0,1fr)_170px_90px_170px]'
 
 /** One linked journey in a row's "Blocked by" / "Blocks" line: a finished one steps back. */
 function LinkedJourney({ q }: { q: JourneyLink }) {
@@ -89,7 +71,7 @@ function Linked({ label, journeys }: { label: string; journeys?: JourneyLink[] }
 }
 
 // `chip`: say fulfilled or abandoned on the row; off on a shelf whose heading already says it.
-function JourneyRow({ q, href, noMap, heroes, chip }: { q: AtlasJourney; href?: string; noMap?: string; heroes: boolean; chip: boolean }) {
+function JourneyRow({ q, href, noMap, chip }: { q: AtlasJourney; href?: string; noMap?: string; chip: boolean }) {
   const pct = q.main.total ? Math.round((q.main.done / q.main.total) * 100) : 0
   const done = mainDone(q)
   const medal: CSSProperties = cancelled(q)
@@ -103,7 +85,7 @@ function JourneyRow({ q, href, noMap, heroes, chip }: { q: AtlasJourney; href?: 
   const body = (
     <div
       style={{ opacity: cancelled(q) || q.archivedAt ? 0.8 : undefined }}
-      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 bg-[var(--plate)] px-4 py-2.5 ${columns(heroes)} ${
+      className={`relative flex flex-wrap items-center gap-x-4 gap-y-2 bg-[var(--plate)] px-4 py-2.5 ${columns} ${
         href ? 'transition-colors hover:bg-[var(--panel)]' : ''
       }`}
     >
@@ -186,12 +168,6 @@ function JourneyRow({ q, href, noMap, heroes, chip }: { q: AtlasJourney; href?: 
         )}
         {!href && noMap && <span className="font-normal text-[var(--ink-faint)]">{noMap}</span>}
       </div>
-
-      {heroes && (
-        <span className="flex justify-end">
-          <Heroes names={q.heroes} />
-        </span>
-      )}
     </div>
   )
   return body
@@ -238,10 +214,9 @@ export default function Atlas({ journeys, hrefOf, eyebrow, noMap, banner, empty,
   const hundred = shelved.filter((q) => !cancelled(q) && perfect(q))
   const gone = shelved.filter(cancelled)
   const sum = (f: (q: AtlasJourney) => number) => active.reduce((n, q) => n + f(q), 0)
-  const heroes = shelved.some((q) => q.heroes.length > 0) || archived.some((q) => q.heroes.length > 0)
-  const row = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip={false} />
+  const row = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} chip={false} />
   // The archive mixes every state, so there each row says its own.
-  const archivedRow = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} heroes={heroes} chip />
+  const archivedRow = (q: AtlasJourney) => <JourneyRow key={q.key} q={q} href={hrefOf(q)} noMap={noMap} chip />
 
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">

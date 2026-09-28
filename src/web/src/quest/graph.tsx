@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import type { Item, JourneyModel, JourneyRef, JourneyState, Status } from './model'
-import { Achievements, Cover, Gate, Hero, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
+import { Achievements, Cover, Gate, Jester, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
 import { useWarTable } from './theme'
 import { JourneyCardView } from './JourneyCard'
 import { RailwayLine } from './railway'
@@ -140,6 +140,7 @@ function CardView({ data }: NodeProps<CardNode>) {
       data-status={status}
       data-side={side || undefined}
       data-npc={item.npc || undefined}
+      data-petition={(wt && item.kind === 'wait') || undefined}
       data-covered={covered || undefined}
       className="quest-item relative cursor-pointer"
     >
@@ -171,6 +172,8 @@ function CardView({ data }: NodeProps<CardNode>) {
           item.foundWhile && !wt ? 'quest-discovered !border-dashed' : ''
         } ${selected ? 'quest-lit' : ''}`}
       >
+        {/* War table: a petition carries the jester's portrait on the right, like the photo on an ID card. */}
+        {wt && item.kind === 'wait' && <Jester />}
         {/* The key would sit under the corner medal, so the row starts clear of it. */}
         <div className={`flex min-w-0 items-center gap-1.5 ${item.key ? (side ? 'pl-1.5' : 'pl-2.5') : ''}`}>
           <Label item={item} tag={tag} />
@@ -205,7 +208,7 @@ function CardView({ data }: NodeProps<CardNode>) {
           {item.title.replace(/^Polish: /, '')}
         </span>
         {!!item.alsoIn?.length && <AlsoIn journeys={item.alsoIn} />}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <span
             className="quest-status text-[12px] font-bold tracking-wider uppercase"
             style={{ color: side && status !== 'done' ? 'var(--side)' : status === 'done' ? spentText : stateColour[status] }}
@@ -213,7 +216,6 @@ function CardView({ data }: NodeProps<CardNode>) {
             {label}
             {status === 'locked' && ` · ${openBefore} to go`}
           </span>
-          <Hero name={item.assignee} />
         </div>
       </div>
       <Handle type="source" position={Position.Right} className={hidden} />

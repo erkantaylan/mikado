@@ -49,21 +49,6 @@ export const stateColour: Record<Status, string> = {
 /** A fulfilled quest's own label: still gold, but quiet. The header counts keep stateColour.done. */
 export const spentText = 'color-mix(in srgb, var(--gold) 55%, var(--ink-faint))'
 
-export function Hero({ name }: { name?: string }) {
-  if (!name)
-    return (
-      <span className="quest-nohero shrink-0 text-[12px] font-bold tracking-wide whitespace-nowrap text-[#e11d48] uppercase">no hero</span>
-    )
-  return (
-    <span className="flex items-center gap-1 text-[13px] text-[var(--ink-soft)]">
-      <span className="grid size-5 place-items-center rounded-full bg-[var(--ink)] text-[11px] font-bold text-[var(--bg)] uppercase">
-        {name[0]}
-      </span>
-      {name}
-    </span>
-  )
-}
-
 // NPC changes nothing about a quest's status; it only makes the quest red on the chart.
 export function Npc() {
   return (
@@ -149,13 +134,13 @@ export function Working({ compact = false, by }: { compact?: boolean; by?: strin
 }
 
 /** One share of a tally: how many quests are in one state. Its colour is the key's, in quest.css. */
-export type Share = { key: 'done' | 'underway' | 'open' | 'awaiting' | 'sealed' | 'cancelled' | 'nohero'; n: number; label: string }
+export type Share = { key: 'done' | 'underway' | 'open' | 'awaiting' | 'sealed' | 'cancelled'; n: number; label: string }
 
 /**
  * The header's tally: one bar split into the states the quests are in, so how far along it is and
  * what is still ahead read as one thing, with the counts as its legend. What is still sealed is the
  * bar's empty groove. `extra` counts sit beside it but are no share of it: abandoned quests count for
- * nothing, and "no hero" cuts across the states.
+ * nothing.
  */
 export function Tally({ title, done, total, shares, extra = [] }: { title: string; done: number; total: number; shares: Share[]; extra?: Share[] }) {
   const pct = total ? Math.round((done / total) * 100) : 0
@@ -286,6 +271,12 @@ export function Kinds({ kinds, reason, children }: { kinds: Kind[]; reason?: str
       ))}
     </span>
   )
+}
+
+/** War table: the jester's portrait on a petition, the mark of a quest someone else must answer. */
+export function Jester() {
+  const t = 'Petition: someone else must answer it'
+  return <span className="wt-jester" title={t} role="img" aria-label={t} />
 }
 
 /**

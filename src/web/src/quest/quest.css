@@ -143,9 +143,6 @@
   background: var(--char-plate);
   box-shadow: inset 0 0 0 1px var(--char-border);
 }
-.quest-share[data-share='nohero'] {
-  background: #e11d48;
-}
 /* The tally takes the header's free width; the buttons rack beside it in two rows, search on top. */
 .quest-header .quest-tally {
   flex: 1 1 auto;
@@ -486,9 +483,6 @@
 .quest-theme[data-theme='wartable'] .quest-share[data-share='cancelled'] {
   background: linear-gradient(180deg, #b3ada3, #37332d);
 }
-.quest-theme[data-theme='wartable'] .quest-share[data-share='nohero'] {
-  background: linear-gradient(180deg, #f79a92, #c5272b 55%, #6b0d12);
-}
 /* The group of the tally and the buttons may break too, rather than run off the edge. */
 .quest-theme[data-theme='wartable'] .quest-header > :has(> .quest-tally) {
   flex-wrap: wrap;
@@ -755,34 +749,6 @@
   font-weight: 600;
   letter-spacing: 0.08em;
 }
-/* No hero, in a list: quiet small caps behind a small red dot. The quest's own
-   card (the details) keeps it in red, where it matters. */
-.quest-theme[data-theme='wartable'] .quest-ledger .quest-nohero {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 14px;
-  font-weight: 500;
-  font-variant: small-caps;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: var(--ink-faint);
-}
-.quest-theme[data-theme='wartable'] .quest-ledger .quest-nohero::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--npc) 70%, transparent);
-}
-.quest-theme[data-theme='wartable'] .quest-ledger .quest-details .quest-nohero {
-  font-weight: 600;
-  color: #9b2b1d;
-}
-.quest-theme[data-theme='wartable'] .quest-ledger .quest-details .quest-nohero::before {
-  display: none;
-}
-
 /* ---- the quests: parchment notes laid on the map ----
    Each quest is a sheet of paper on the map. Whether it can be started is told
    by one small mark on its top-left corner (a whole seal, a broken seal, an
@@ -827,7 +793,7 @@
 
 /* ---- one question per spot ----
    Top-left, the gate: can it be started? Top-right, the kind: what sort of
-   card is it? Bottom-left the status in words, bottom-right the hero. The
+   card is it? Bottom-left the status in words. The
    top centre stays empty. (look.tsx draws Gate and Kinds.) */
 .quest-theme[data-theme='wartable'] .wt-gate {
   position: absolute;
@@ -1023,7 +989,7 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate.quest-lit {
   --wt-paper: none;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-key, .quest-kind, .quest-nohero) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-key, .quest-kind) {
   color: #2a1a0c !important;
 }
 /* Awaiting reply: a petition held up by someone else. It is written on the same hand-cut sheet as the
@@ -1042,9 +1008,9 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-plate, .quest-behind)::after {
   background-image: url('../assets/wartable/paper-petition.webp');
 }
-/* The paper carries the red, so the small red words on it (Petition, the status, No hero) turn dark brown,
+/* The paper carries the red, so the small red words on it (Petition, the status) turn dark brown,
    and the title too, all with a pale halo that lifts them off a drop where they cross one. */
-.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-kind, .quest-status, .quest-nohero) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-kind, .quest-status) {
   color: #3d1a0c !important;
   text-shadow:
     0 0 2px rgba(246, 236, 214, 0.95),
@@ -1103,7 +1069,7 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-title {
   color: #2a1a0c;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-key, .quest-kind, .quest-status, .quest-nohero) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-key, .quest-kind, .quest-status) {
   color: #2a1a0c !important;
   text-shadow: 0 0 3px rgba(226, 208, 176, 0.8);
 }
@@ -1180,6 +1146,68 @@
   padding-bottom: 6px;
   gap: 4px;
 }
+/* Petition: the jester's portrait (jester.webp) on the right of the paper, like the photo on an ID card:
+   upright, wholly inside the sheet, with the writing to its left. The plate keeps its width, reserves room on
+   the right so the title wraps before the portrait, and grows a little if it is too short to hold it.
+   --wt-jester is the picture's height; --wt-jester-in its distance from the paper's right edge. It never
+   glows; its shadow is a faint blurred copy under it, as the paper's is. On fulfilled and abandoned paper it
+   darkens with the sheet, so the live petitions stand out. */
+.quest-theme[data-theme='wartable'] .quest-item[data-petition] {
+  --wt-jester: 68px;
+  --wt-jester-in: 12px;
+  --wt-jester-look: none;
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-petition][data-side] {
+  --wt-jester: 54px;
+  --wt-jester-in: 10px;
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-petition][data-status='cancelled'] {
+  --wt-jester-in: 16px; /* clear of the charred rim */
+  --wt-jester-look: var(--wt-burnt);
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-petition][data-status='done'] {
+  --wt-jester-look: sepia(0.45) brightness(0.58) saturate(0.8);
+}
+.quest-theme[data-theme='wartable'] .quest-item[data-petition] .quest-plate {
+  padding-right: calc(var(--wt-jester) * 161 / 192 + var(--wt-jester-in) + 10px);
+  min-height: calc(var(--wt-jester) + 24px);
+}
+.quest-theme[data-theme='wartable'] .wt-jester {
+  position: absolute;
+  top: 50%;
+  right: var(--wt-jester-in);
+  width: calc(var(--wt-jester) * 161 / 192);
+  height: var(--wt-jester);
+  transform: translateY(-50%);
+  pointer-events: auto;
+}
+.quest-theme[data-theme='wartable'] .wt-jester::before,
+.quest-theme[data-theme='wartable'] .wt-jester::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('../assets/wartable/jester.webp') center / contain no-repeat;
+}
+.quest-theme[data-theme='wartable'] .wt-jester::before {
+  z-index: 1;
+  filter: var(--wt-jester-look);
+}
+.quest-theme[data-theme='wartable'] .wt-jester::after {
+  filter: brightness(0) blur(1.5px);
+  opacity: 0.35;
+  transform: translateY(1.5px);
+}
+/* In the Legend it stands in a row, a little smaller. */
+.quest-theme[data-theme='wartable'] .wt-legend .wt-jester {
+  --wt-jester: 44px;
+  --wt-jester-look: none;
+  position: relative;
+  top: auto;
+  right: auto;
+  display: block;
+  transform: none;
+}
+
 /* Selected: the warm rim of light, on brass. On the paper sheets there is no border to light, so the glow
    follows the deckle instead, as on the burned sheet. It is the only glow on the table and nothing else
    dims, so it is wide and bright enough to find the selected card at a glance. */
