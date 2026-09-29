@@ -16,7 +16,8 @@ import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-reac
 import type { Item, JourneyModel, JourneyRef, JourneyState, Status } from './model'
 import { Achievements, Cover, Gate, Jester, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
 import { useWarTable } from './theme'
-import { JourneyCardView } from './JourneyCard'
+import { JourneyCardView, journeyHref } from './JourneyCard'
+import { IdTag } from './wood'
 import { RailwayLine } from './railway'
 
 // ---- nodes -----------------------------------------------------------------
@@ -85,20 +86,42 @@ function GoalView({ data }: NodeProps<GoalNode>) {
   )
 }
 
-/** The other journeys a quest also belongs to, each a link to its chart. */
-export function AlsoIn({ journeys, label = true }: { journeys: JourneyRef[]; label?: boolean }) {
+/**
+ * The other journeys a quest also belongs to, each a link to its chart: its id tag, then its title.
+ * On a card they stay compact, a title chip that truncates after each tag; as a list (the details
+ * panel) one journey per line, its title wrapping.
+ */
+export function AlsoIn({ journeys, list }: { journeys: JourneyRef[]; list?: boolean }) {
+  if (list)
+    return (
+      <ul className="space-y-0.5 text-[14px]">
+        {journeys.map((q) => (
+          <li key={q.key}>
+            <a href={journeyHref(q.key)} className="flex items-start gap-1.5 rounded-md px-1.5 py-1 hover:bg-[var(--chip)]">
+              <span className="shrink-0 pt-px">
+                <IdTag id={q.key} />
+              </span>
+              <span className="min-w-0 [overflow-wrap:anywhere]">{q.title}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-1 text-[11px] font-semibold text-[var(--ink-faint)]">
-      {label && <span>Also in:</span>}
+    <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-semibold text-[var(--ink-faint)]">
+      <span>Also in:</span>
       {journeys.map((q) => (
         <a
           key={q.key}
-          href={`/journey/${encodeURIComponent(q.key)}`}
+          href={journeyHref(q.key)}
           onClick={(e) => e.stopPropagation()}
-          className="max-w-full truncate rounded border border-[var(--panel-border)] bg-[var(--chip)] px-1 text-[var(--ink-soft)] hover:text-[var(--ink)] hover:underline"
-          title={q.title}
+          className="group flex min-w-0 max-w-full items-center gap-1"
+          title={`${q.key} ${q.title}`}
         >
-          {q.title}
+          <IdTag id={q.key} />
+          <span className="min-w-0 truncate rounded border border-[var(--panel-border)] bg-[var(--chip)] px-1 text-[var(--ink-soft)] group-hover:text-[var(--ink)] group-hover:underline">
+            {q.title}
+          </span>
         </a>
       ))}
     </span>

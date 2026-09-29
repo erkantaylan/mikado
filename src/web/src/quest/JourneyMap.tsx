@@ -347,7 +347,7 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
       {others.length > 0 && (
         <div>
           <div className={heading}>Also in</div>
-          <AlsoIn journeys={others} label={false} />
+          <AlsoIn journeys={others} list />
         </div>
       )}
       {before.length > 0 && (
@@ -435,7 +435,7 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
       {!!item.alsoIn?.length && (
         <div>
           <div className="mb-1 text-[12px] font-bold text-[var(--ink-faint)]">Also in</div>
-          <AlsoIn journeys={item.alsoIn} label={false} />
+          <AlsoIn journeys={item.alsoIn} list />
         </div>
       )}
       {before.length > 0 && (
