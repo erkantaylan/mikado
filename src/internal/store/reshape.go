@@ -28,7 +28,7 @@ type Rewired struct {
 // Extracted is the outcome of an extract.
 type Extracted struct {
 	Journey JourneySummary `json:"journey"` // the new journey
-	Crown   string         `json:"crown"`   // its crowning quest, a new errand
+	Crown   string         `json:"crown"`   // its crowning quest, a new one
 	// StillIn are extracted quests the old journey still reaches by another
 	// route, so they stay on its war table too.
 	StillIn []string `json:"stillIn"`
@@ -95,12 +95,8 @@ func keyList(ids []int64) []string {
 	return out
 }
 
-// label names a card in a log line that must outlive it: Q12 “title”, or
-// Q12 owner/repo#7 for an issue.
+// label names a card in a log line that must outlive it: Q12 “title”.
 func label(c *cardRow) string {
-	if c.Kind == KindIssue {
-		return Key(c.ID) + " " + c.Ref
-	}
 	return Key(c.ID) + " " + quoted(c.Title)
 }
 
@@ -158,9 +154,9 @@ func (s *Store) Rewire(ctx context.Context, from, old, new int64) (*Rewired, err
 }
 
 // Extract moves quests of a journey into a new journey of their own, crowned
-// by a new errand titled like it. The errand requires the chosen quests (those
+// by a new quest titled like it. That quest requires the chosen quests (those
 // no other chosen quest already leads to), and every quest of the old journey
-// that required one of them requires the errand instead, so the old journey
+// that required one of them requires it instead, so the old journey
 // shows the new one as a single journey card where they were.
 func (s *Store) Extract(ctx context.Context, key string, ids []int64, title string) (*Extracted, error) {
 	title = strings.TrimSpace(title)
@@ -221,8 +217,8 @@ func (s *Store) Extract(ctx context.Context, key string, ids []int64, title stri
 		}
 
 		stamp := s.stamp()
-		if err := tx.QueryRowContext(ctx, `INSERT INTO cards (kind, title, created_at) VALUES (?, ?, ?) RETURNING id`,
-			KindErrand, title, stamp).Scan(&crown); err != nil {
+		if err := tx.QueryRowContext(ctx, `INSERT INTO cards (title, created_at) VALUES (?, ?) RETURNING id`,
+			title, stamp).Scan(&crown); err != nil {
 			return err
 		}
 		if err := tx.QueryRowContext(ctx, `INSERT INTO journeys (title, created_at, region_id) VALUES (?, ?, ?) RETURNING id`,
@@ -271,7 +267,7 @@ func (s *Store) Extract(ctx context.Context, key string, ids []int64, title stri
 		if err := s.event(ctx, tx, &newID, nil, "create", fmt.Sprintf("journey extracted from %s with %s", j.Key(), keys(sortedIDs(chosen)))); err != nil {
 			return err
 		}
-		if err := s.cardEvent(ctx, tx, crown, "add", fmt.Sprintf("%s errand added to crown %s — requires %s", Key(crown), JourneyKey(newID), keys(tops))); err != nil {
+		if err := s.cardEvent(ctx, tx, crown, "add", fmt.Sprintf("%s added to crown %s — requires %s", Key(crown), JourneyKey(newID), keys(tops))); err != nil {
 			return err
 		}
 		if err := s.setFinal(ctx, tx, &journeyRow{ID: newID}, crown); err != nil {

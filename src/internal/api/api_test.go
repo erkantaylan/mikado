@@ -1,29 +1,17 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"mikado/internal/github"
 	"mikado/internal/store"
 )
 
-type noGitHub struct{}
-
-func (noGitHub) Issues(context.Context, []github.Ref) (map[string]github.Issue, error) {
-	return map[string]github.Issue{}, nil
-}
-func (noGitHub) Assign(context.Context, github.Ref, []string, []string) error { return nil }
-func (noGitHub) Assignees(context.Context, string, string) ([]string, error) {
-	return []string{}, nil
-}
-
 func TestAPI(t *testing.T) {
-	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"), noGitHub{})
+	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,19 +43,23 @@ func TestAPI(t *testing.T) {
 		{"POST", "/api/journeys", `{"title":"x"}`, local, "text/plain", 415},
 		{"POST", "/api/journeys", `{"titel":"x"}`, local, js, 400},
 		// Journey-scoped alias: final:true makes it that journey's final (Q1).
-		{"POST", "/api/journeys/j1/cards", `{"kind":"errand","title":"a","final":true}`, "localhost:5173", js, 201},
-		{"POST", "/api/journeys/J99/cards", `{"kind":"errand","title":"x"}`, local, js, 404},
-		{"POST", "/api/journeys/ship/cards", `{"kind":"errand","title":"x"}`, local, js, 400},
+		{"POST", "/api/journeys/j1/cards", `{"title":"a","final":true}`, "localhost:5173", js, 201},
+		{"POST", "/api/journeys/J99/cards", `{"title":"x"}`, local, js, 404},
+		{"POST", "/api/journeys/ship/cards", `{"title":"x"}`, local, js, 400},
 		// Global: Q2, needed by Q1, so in journey J1.
-		{"POST", "/api/cards", `{"kind":"errand","title":"b","neededBy":[1]}`, local, js, 201},
+		{"POST", "/api/cards", `{"title":"b","neededBy":[1]}`, local, js, 201},
 		{"POST", "/api/needs", `{"from":2,"to":1}`, local, js, 409},
 		{"POST", "/api/cards", `{"kind":"issue","ref":"studio/game#1"}`, local, js, 400},
+		{"POST", "/api/cards", `{"title":"c","url":"https://example.com/c","mark":"#12","waitingOn":"bo"}`, local, js, 201}, // Q3
+		{"POST", "/api/cards", `{"title":"c","mark":"0123456789abcdef"}`, local, js, 400},
+		{"PATCH", "/api/cards/Q3", `{"url":"","mark":"234g45a","waitingOn":"","title":"d"}`, local, js, 200},
 		{"PATCH", "/api/cards/Q-2", `{"done":true}`, local, js, 200},
 		{"PATCH", "/api/cards/2", `{"final":true}`, local, js, 400},
 		{"PATCH", "/api/journeys/J1/cards/q2", `{"working":false}`, local, js, 200},
 		{"GET", "/api/cards/Q2", "", local, "", 200},
 		{"GET", "/api/cards/M2", "", local, "", 400},
 		{"GET", "/api/cards/studio/game%231", "", local, "", 404},
+		{"GET", "/api/cards/studio%2Fgame%231", "", local, "", 400},
 		{"POST", "/api/journeys", `{"title":"Other","final":"Q2"}`, local, js, 201}, // J2
 		{"PATCH", "/api/journeys/J2", `{"title":"Other two"}`, local, js, 200},
 		{"PATCH", "/api/journeys/J2", `{"slug":"other-two"}`, local, js, 400},
@@ -137,7 +129,7 @@ func TestHostMatcher(t *testing.T) {
 
 func TestHosts(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "mikado.db")
-	s, err := store.Open(path, noGitHub{})
+	s, err := store.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +186,7 @@ func TestHosts(t *testing.T) {
 
 	// Stored hosts outlive the server; flag hosts do not.
 	s.Close()
-	if s, err = store.Open(path, noGitHub{}); err != nil {
+	if s, err = store.Open(path); err != nil {
 		t.Fatal(err)
 	}
 	if h, err = Handler(s); err != nil {
@@ -212,7 +204,7 @@ func TestHosts(t *testing.T) {
 }
 
 func TestJourneyKeyRefsAndCrowns(t *testing.T) {
-	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"), noGitHub{})
+	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,12 +229,12 @@ func TestJourneyKeyRefsAndCrowns(t *testing.T) {
 		method, path, body string
 		want               int
 	}{
-		{"POST", "/api/journeys", `{"title":"Controller support"}`, 201},                              // J1
-		{"POST", "/api/journeys/J1/cards", `{"kind":"errand","title":"ship pads","final":true}`, 201}, // Q1
-		{"POST", "/api/cards", `{"kind":"errand","title":"glyphs","neededBy":[1]}`, 201},              // Q2
-		{"POST", "/api/journeys", `{"title":"Season two","final":"J1"}`, 201},                         // J2, crowned by Q1 too
-		{"POST", "/api/journeys", `{"title":"Launch"}`, 201},                                          // J3
-		{"POST", "/api/cards", `{"kind":"errand","title":"launch it","finalOf":"J3"}`, 201},           // Q3
+		{"POST", "/api/journeys", `{"title":"Controller support"}`, 201},              // J1
+		{"POST", "/api/journeys/J1/cards", `{"title":"ship pads","final":true}`, 201}, // Q1
+		{"POST", "/api/cards", `{"title":"glyphs","neededBy":[1]}`, 201},              // Q2
+		{"POST", "/api/journeys", `{"title":"Season two","final":"J1"}`, 201},         // J2, crowned by Q1 too
+		{"POST", "/api/journeys", `{"title":"Launch"}`, 201},                          // J3
+		{"POST", "/api/cards", `{"title":"launch it","finalOf":"J3"}`, 201},           // Q3
 		{"PATCH", "/api/journeys/J3", `{"final":"J3"}`, 200},
 		{"GET", "/api/cards/J99", "", 404},
 		{"GET", "/api/cards/nope", "", 400},
@@ -290,7 +282,7 @@ func TestJourneyKeyRefsAndCrowns(t *testing.T) {
 }
 
 func TestReshapeRoutes(t *testing.T) {
-	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"), noGitHub{})
+	s, err := store.Open(filepath.Join(t.TempDir(), "mikado.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,20 +295,20 @@ func TestReshapeRoutes(t *testing.T) {
 		method, path, body string
 		want               int
 	}{
-		{"POST", "/api/journeys", `{"title":"Brunch"}`, 201},                             // J1
-		{"POST", "/api/cards", `{"kind":"errand","title":"eat","finalOf":"J1"}`, 201},    // Q1
-		{"POST", "/api/cards", `{"kind":"errand","title":"tea","neededBy":[1]}`, 201},    // Q2
-		{"POST", "/api/cards", `{"kind":"errand","title":"water","neededBy":[2]}`, 201},  // Q3
-		{"POST", "/api/cards", `{"kind":"errand","title":"plates","neededBy":[1]}`, 201}, // Q4
-		{"POST", "/api/journeys/J1/extract", `{"title":"Tea","quests":["Q2"]}`, 201},     // J2, crowned by Q5
-		{"POST", "/api/journeys/J1/extract", `{"title":"Nope","quests":["Q2"]}`, 400},    // no longer on J1
-		{"POST", "/api/needs/rewire", `{"from":"Q4","old":"Q1","new":"Q3"}`, 404},        // Q4 does not require Q1
-		{"POST", "/api/needs/rewire", `{"from":"Q3","old":"Q9"}`, 404},                   // no Q9
-		{"POST", "/api/cards/Q3/delete", `{}`, 400},                                      // no journey, no force
-		{"POST", "/api/cards/Q3/delete", `{"journey":"J2"}`, 409},                        // last journey
-		{"POST", "/api/cards/Q3/delete", `{"journey":"J2","force":true}`, 200},           // deleted
-		{"DELETE", "/api/journeys/J2", `{}`, 409},                                        // on J1's war table
-		{"DELETE", "/api/journeys/J1", `{}`, 409},                                        // would orphan Q1, Q4
+		{"POST", "/api/journeys", `{"title":"Brunch"}`, 201},                          // J1
+		{"POST", "/api/cards", `{"title":"eat","finalOf":"J1"}`, 201},                 // Q1
+		{"POST", "/api/cards", `{"title":"tea","neededBy":[1]}`, 201},                 // Q2
+		{"POST", "/api/cards", `{"title":"water","neededBy":[2]}`, 201},               // Q3
+		{"POST", "/api/cards", `{"title":"plates","neededBy":[1]}`, 201},              // Q4
+		{"POST", "/api/journeys/J1/extract", `{"title":"Tea","quests":["Q2"]}`, 201},  // J2, crowned by Q5
+		{"POST", "/api/journeys/J1/extract", `{"title":"Nope","quests":["Q2"]}`, 400}, // no longer on J1
+		{"POST", "/api/needs/rewire", `{"from":"Q4","old":"Q1","new":"Q3"}`, 404},     // Q4 does not require Q1
+		{"POST", "/api/needs/rewire", `{"from":"Q3","old":"Q9"}`, 404},                // no Q9
+		{"POST", "/api/cards/Q3/delete", `{}`, 400},                                   // no journey, no force
+		{"POST", "/api/cards/Q3/delete", `{"journey":"J2"}`, 409},                     // last journey
+		{"POST", "/api/cards/Q3/delete", `{"journey":"J2","force":true}`, 200},        // deleted
+		{"DELETE", "/api/journeys/J2", `{}`, 409},                                     // on J1's war table
+		{"DELETE", "/api/journeys/J1", `{}`, 409},                                     // would orphan Q1, Q4
 		{"DELETE", "/api/journeys/J1", `{"force":true}`, 200},
 	} {
 		req := httptest.NewRequest(st.method, st.path, strings.NewReader(st.body))

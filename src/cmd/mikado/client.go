@@ -95,9 +95,6 @@ type command struct {
 	fs     *flag.FlagSet
 	server *string
 	json   *bool
-	// aliases maps a flag's earlier name to its current one. Aliases work
-	// but are left out of the -h listing.
-	aliases map[string]string
 }
 
 func newCommand(name string) *command {
@@ -107,26 +104,10 @@ func newCommand(name string) *command {
 		server = defaultServer
 	}
 	return &command{
-		fs:      fs,
-		server:  fs.String("server", server, "mikado server URL (env MIKADO_SERVER)"),
-		json:    fs.Bool("json", false, "print JSON"),
-		aliases: map[string]string{},
+		fs:     fs,
+		server: fs.String("server", server, "mikado server URL (env MIKADO_SERVER)"),
+		json:   fs.Bool("json", false, "print JSON"),
 	}
-}
-
-// alias lets the flag --current also be given as --old, sharing its value.
-func (c *command) alias(old, current string) {
-	f := c.fs.Lookup(current)
-	c.fs.Var(f.Value, old, f.Usage)
-	c.aliases[old] = current
-}
-
-// canonical is the current name of a flag given by any of its names.
-func (c *command) canonical(name string) string {
-	if n, ok := c.aliases[name]; ok {
-		return n
-	}
-	return name
 }
 
 func (c *command) client() *client { return newClient(*c.server) }
@@ -135,7 +116,7 @@ func (c *command) client() *client { return newClient(*c.server) }
 // the positional ones, checking there are between min and max of them
 // (max < 0: no limit).
 func (c *command) parse(args []string, min, max int, what string) ([]string, error) {
-	pos, err := parseFlags(c.fs, args, c.aliases)
+	pos, err := parseArgs(c.fs, args)
 	if err != nil {
 		return nil, err
 	}
@@ -148,25 +129,13 @@ func (c *command) parse(args []string, min, max int, what string) ([]string, err
 // parseArgs lets flags follow positional arguments (the flag package stops
 // at the first one). Everything after "--" is positional.
 func parseArgs(fs *flag.FlagSet, args []string) ([]string, error) {
-	return parseFlags(fs, args, nil)
-}
-
-// parseFlags is parseArgs for a flag set with aliases, which -h leaves out.
-func parseFlags(fs *flag.FlagSet, args []string, hidden map[string]string) ([]string, error) {
 	fs.SetOutput(io.Discard)
 	var pos []string
 	for {
 		if err := fs.Parse(args); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				shown := flag.NewFlagSet(fs.Name(), flag.ContinueOnError)
-				fs.VisitAll(func(f *flag.Flag) {
-					if _, alias := hidden[f.Name]; !alias {
-						shown.Var(f.Value, f.Name, f.Usage)
-						shown.Lookup(f.Name).DefValue = f.DefValue
-					}
-				})
-				shown.SetOutput(os.Stderr)
-				shown.PrintDefaults()
+				fs.SetOutput(os.Stderr)
+				fs.PrintDefaults()
 				os.Exit(0)
 			}
 			return nil, usageError{err.Error()}

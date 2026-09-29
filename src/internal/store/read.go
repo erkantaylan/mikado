@@ -3,27 +3,21 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
-
-	"mikado/internal/github"
 )
 
 // cardRow is a card as stored.
 type cardRow struct {
 	ID           int64
-	Kind         string
-	Ref          string
-	RefKey       string
 	Title        string
+	URL          string
+	Mark         string
 	Done         bool
 	Owner        string
-	WaitingOn    string
+	WaitingOn    string // set: a petition
 	Since        string
 	SideOf       *int64
 	FoundWhile   *int64
@@ -36,14 +30,14 @@ type cardRow struct {
 	WorkingBy    string
 }
 
-const cardCols = `id, kind, COALESCE(ref, ''), COALESCE(ref_key, ''), title, done, owner, waiting_on, since,
+const cardCols = `id, title, url, mark, done, owner, waiting_on, since,
 	side_of, found_while, reason, npc, removed_at IS NOT NULL,
 	cancelled_at IS NOT NULL, cancel_reason, COALESCE(working_since, ''), working_by`
 
 func scanCard(sc interface{ Scan(...any) error }) (*cardRow, error) {
 	var c cardRow
 	var sideOf, foundWhile sql.NullInt64
-	if err := sc.Scan(&c.ID, &c.Kind, &c.Ref, &c.RefKey, &c.Title, &c.Done, &c.Owner, &c.WaitingOn, &c.Since,
+	if err := sc.Scan(&c.ID, &c.Title, &c.URL, &c.Mark, &c.Done, &c.Owner, &c.WaitingOn, &c.Since,
 		&sideOf, &foundWhile, &c.Reason, &c.NPC, &c.Removed,
 		&c.Cancelled, &c.CancelReason, &c.WorkingSince, &c.WorkingBy); err != nil {
 		return nil, err
@@ -315,7 +309,7 @@ func (g *graph) isFinal(id int64) bool { return len(g.crowned[id]) > 0 }
 var cardIDRe = regexp.MustCompile(`^(?i)(?:q-?)?([1-9][0-9]*)$`)
 
 // ParseCardID reads a quest key in any accepted form: Q142, Q-142, q142 or
-// 142. It reports false for anything else (such as an issue ref).
+// 142. It reports false for anything else.
 func ParseCardID(s string) (int64, bool) {
 	m := cardIDRe.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
@@ -325,9 +319,8 @@ func ParseCardID(s string) (int64, bool) {
 	return id, err == nil
 }
 
-// Resolve turns a card reference (a quest key in any form, an issue ref, an
-// issue URL, or a journey key for that journey's crowning quest) into the id
-// of a live card.
+// Resolve turns a card reference (a quest key in any form, or a journey key
+// for that journey's crowning quest) into the id of a live card.
 func (s *Store) Resolve(ctx context.Context, ref string) (int64, error) {
 	if _, ok := ParseJourneyID(ref); !ok {
 		return s.resolveQuest(ctx, ref)
@@ -342,168 +335,37 @@ func (s *Store) Resolve(ctx context.Context, ref string) (int64, error) {
 	return *j.Final, nil
 }
 
-// resolveQuest is Resolve for the quest forms only: a key, an issue ref or
-// an issue URL. Anything else is ErrInvalid.
+// resolveQuest is Resolve for a quest key alone. Anything else is ErrInvalid.
 func (s *Store) resolveQuest(ctx context.Context, ref string) (int64, error) {
-	if id, ok := ParseCardID(ref); ok {
-		if _, err := liveCard(ctx, s.db, id); err != nil {
-			return 0, err
-		}
-		return id, nil
+	id, ok := ParseCardID(ref)
+	if !ok {
+		return 0, errf(ErrInvalid, "%q is not a quest (want Q142, or a journey key like J7)", ref)
 	}
-	r, err := github.ParseRef(ref)
-	if err != nil {
-		return 0, errf(ErrInvalid, "%q is not a quest (want Q142, owner/repo#n or a journey key like J7)", ref)
+	if _, err := liveCard(ctx, s.db, id); err != nil {
+		return 0, err
 	}
-	var id int64
-	err = s.db.QueryRowContext(ctx, `SELECT id FROM cards WHERE ref_key = ? AND removed_at IS NULL`, r.Key()).Scan(&id)
-	if err == sql.ErrNoRows {
-		return 0, errf(ErrNotFound, "%s is not on any chart yet (add it with `mikado add %s`)", r, r)
-	}
-	return id, err
-}
-
-// cached is what mikado knows about an issue from GitHub.
-type cached struct {
-	Ref         string
-	Title       string
-	State       string
-	StateReason string
-	Assignees   []string
-	URL         string
-	FetchedAt   time.Time
-}
-
-func loadCache(ctx context.Context, q querier, keys []string) (map[string]cached, error) {
-	out := map[string]cached{}
-	if len(keys) == 0 {
-		return out, nil
-	}
-	ph := strings.TrimSuffix(strings.Repeat("?,", len(keys)), ",")
-	args := make([]any, len(keys))
-	for i, k := range keys {
-		args[i] = k
-	}
-	rows, err := q.QueryContext(ctx, `SELECT ref_key, ref, title, state, state_reason, assignees, url, fetched_at FROM github_cache WHERE ref_key IN (`+ph+`)`, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var key, assignees, at string
-		var c cached
-		if err := rows.Scan(&key, &c.Ref, &c.Title, &c.State, &c.StateReason, &assignees, &c.URL, &at); err != nil {
-			return nil, err
-		}
-		_ = json.Unmarshal([]byte(assignees), &c.Assignees)
-		c.FetchedAt, _ = time.Parse(time.RFC3339, at)
-		out[key] = c
-	}
-	return out, rows.Err()
-}
-
-func (s *Store) saveCache(ctx context.Context, q querier, is github.Issue) error {
-	assignees, _ := json.Marshal(is.Assignees)
-	_, err := q.ExecContext(ctx, `INSERT INTO github_cache (ref_key, ref, title, state, state_reason, assignees, url, fetched_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT (ref_key) DO UPDATE SET ref = excluded.ref, title = excluded.title, state = excluded.state,
-			state_reason = excluded.state_reason, assignees = excluded.assignees, url = excluded.url, fetched_at = excluded.fetched_at`,
-		is.Ref.Key(), is.Ref.String(), is.Title, is.State, is.StateReason, string(assignees), is.URL, s.stamp())
-	return err
-}
-
-// issueData returns GitHub data for the issue cards among cards, refreshing
-// stale or missing entries in one batch. When GitHub cannot be reached the
-// cached data is returned along with a warning.
-func (s *Store) issueData(ctx context.Context, cards []*cardRow) (map[string]cached, string, error) {
-	refs := map[string]string{}
-	var keys []string
-	for _, c := range cards {
-		if c.Kind == KindIssue && refs[c.RefKey] == "" {
-			refs[c.RefKey] = c.Ref
-			keys = append(keys, c.RefKey)
-		}
-	}
-	data, err := loadCache(ctx, s.db, keys)
-	if err != nil {
-		return nil, "", err
-	}
-	var stale []github.Ref
-	for _, k := range keys {
-		if c, ok := data[k]; !ok || s.now().Sub(c.FetchedAt) >= CacheTTL {
-			if r, err := github.ParseRef(refs[k]); err == nil {
-				stale = append(stale, r)
-			}
-		}
-	}
-	if len(stale) == 0 || s.gh == nil {
-		return data, "", nil
-	}
-	fresh, err := s.gh.Issues(ctx, stale)
-	if err != nil {
-		return data, fmt.Sprintf("GitHub could not be reached, showing cached data: %v", err), nil
-	}
-	var missing []string
-	for _, r := range stale {
-		is, ok := fresh[r.Key()]
-		if !ok {
-			missing = append(missing, r.String())
-			continue
-		}
-		if err := s.saveCache(ctx, s.db, is); err != nil {
-			return nil, "", err
-		}
-		data[r.Key()] = cached{Ref: is.Ref.String(), Title: is.Title, State: is.State, StateReason: is.StateReason,
-			Assignees: is.Assignees, URL: is.URL, FetchedAt: s.now()}
-	}
-	warning := ""
-	if len(missing) > 0 {
-		warning = "not found on GitHub (deleted, transferred or no longer visible): " + strings.Join(missing, ", ")
-	}
-	return data, warning, nil
+	return id, nil
 }
 
 // buildCards turns stored cards into API cards and computes their status
 // from the needs among them. Final and AlsoIn are left to the caller.
-func buildCards(rows []*cardRow, needs []Need, gh map[string]cached) []Card {
+func buildCards(rows []*cardRow, needs []Need) []Card {
 	cards := make([]Card, 0, len(rows))
 	for _, r := range rows {
 		c := Card{
-			ID: r.ID, Key: Key(r.ID), Kind: r.Kind, Title: r.Title, Done: r.Done, Assignees: []string{},
+			ID: r.ID, Key: Key(r.ID), Title: r.Title, URL: r.URL, Mark: r.Mark, Done: r.Done,
 			Owner: r.Owner, SideOf: r.SideOf, FoundWhile: r.FoundWhile, Reason: r.Reason, NPC: r.NPC,
 			Cancelled: r.Cancelled, CancelReason: r.CancelReason,
 			Working: r.WorkingSince != "", WorkingSince: r.WorkingSince, WorkingBy: r.WorkingBy,
 			AlsoIn: []JourneyRef{},
 		}
-		switch r.Kind {
-		case KindIssue:
-			c.Ref = r.Ref
-			c.Done = false
-			if d, ok := gh[r.RefKey]; ok {
-				c.Ref, c.Title, c.State, c.URL, c.StateReason = d.Ref, d.Title, d.State, d.URL, d.StateReason
-				// Closed as not planned or as a duplicate is GitHub's "won't do".
-				if d.State == "closed" && closedAsCancelled(d.StateReason) {
-					c.Cancelled = true
-				} else {
-					c.Done = d.State == "closed"
-				}
-				if d.Assignees != nil {
-					c.Assignees = d.Assignees
-				}
-			} else {
-				c.Title = r.Ref // nothing known yet
-			}
-		case KindAwaiting:
-			c.WaitingOn, c.Since = r.WaitingOn, r.Since
+		if r.WaitingOn != "" {
+			c.Kind, c.WaitingOn, c.Since = KindAwaiting, r.WaitingOn, r.Since
 		}
 		cards = append(cards, c)
 	}
 	computeStatus(cards, needs)
 	return cards
-}
-
-func closedAsCancelled(stateReason string) bool {
-	return stateReason == "NOT_PLANNED" || stateReason == "DUPLICATE"
 }
 
 // computeStatus fills Status and OpenBefore from Done, Cancelled and the
@@ -558,18 +420,13 @@ func (g *graph) needsAmong(ids []int64) []Need {
 }
 
 // view builds the cards ids (whose status needs everything they need, so
-// callers pass a needs-closed set), refreshing GitHub data for them.
-func (s *Store) view(ctx context.Context, g *graph, ids []int64) (map[int64]Card, string, error) {
-	rows := g.rows(ids)
-	gh, warning, err := s.issueData(ctx, rows)
-	if err != nil {
-		return nil, "", err
-	}
+// callers pass a needs-closed set).
+func (g *graph) view(ids []int64) map[int64]Card {
 	out := map[int64]Card{}
-	for _, c := range buildCards(rows, g.needsAmong(ids), gh) {
+	for _, c := range buildCards(g.rows(ids), g.needsAmong(ids)) {
 		out[c.ID] = c
 	}
-	return out, warning, nil
+	return out
 }
 
 // alsoIn lists the journeys of a card other than the one being viewed.
@@ -596,16 +453,12 @@ func (s *Store) Journey(ctx context.Context, key string) (*JourneyView, error) {
 	}
 	ids := g.members(j)
 	// A folded journey card's status (and its journey's progress) needs what lies behind it too.
-	built, warning, err := s.view(ctx, g, g.closure(ids...))
-	if err != nil {
-		return nil, err
-	}
+	built := g.view(g.closure(ids...))
 	in := g.membership()
 	v := &JourneyView{
 		Journey: JourneyInfo{Key: j.Key(), Title: j.Title, FinalCardID: j.Final, State: JourneyActive, ArchivedAt: j.ArchivedAt, Region: g.regionRef(j.Region)},
 		Cards:   make([]Card, 0, len(ids)),
 		Needs:   g.needsAmong(ids),
-		GitHub:  warning,
 	}
 	for _, id := range ids {
 		c := built[id]
@@ -667,10 +520,7 @@ func (s *Store) CardView(ctx context.Context, id int64) (*CardView, error) {
 	}
 	// Everything shown, plus what those need, so every status is right.
 	start := append([]int64{id}, g.prev[id]...)
-	built, warning, err := s.view(ctx, g, g.closure(start...))
-	if err != nil {
-		return nil, err
-	}
+	built := g.view(g.closure(start...))
 	in := g.membership()
 	card := func(cid int64) Card {
 		c := built[cid]
@@ -678,7 +528,7 @@ func (s *Store) CardView(ctx context.Context, id int64) (*CardView, error) {
 		c.AlsoIn = alsoIn(in[cid], nil)
 		return c
 	}
-	v := &CardView{Card: card(id), Journeys: alsoIn(in[id], nil), Needs: []Card{}, NeededBy: []Card{}, SideQuests: []Card{}, GitHub: warning}
+	v := &CardView{Card: card(id), Journeys: alsoIn(in[id], nil), Needs: []Card{}, NeededBy: []Card{}, SideQuests: []Card{}}
 	v.Card.Crowns = g.crowns(id, nil, built)
 	for _, n := range g.next[id] {
 		v.Needs = append(v.Needs, card(n))
@@ -721,12 +571,11 @@ func (s *Store) card(ctx context.Context, id int64, viewing string) (*Card, erro
 	return &c, nil
 }
 
-// Journeys returns the atlas. The warning is non-empty when GitHub data is
-// stale.
-func (s *Store) Journeys(ctx context.Context) ([]JourneySummary, string, error) {
+// Journeys returns the atlas.
+func (s *Store) Journeys(ctx context.Context) ([]JourneySummary, error) {
 	g, err := loadGraph(ctx, s.db)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	members := map[int64][]int64{}
 	var all []int64
@@ -734,13 +583,10 @@ func (s *Store) Journeys(ctx context.Context) ([]JourneySummary, string, error) 
 		members[j.ID] = g.members(j)
 		all = append(all, members[j.ID]...)
 	}
-	built, warning, err := s.view(ctx, g, g.closure(all...))
-	if err != nil {
-		return nil, "", err
-	}
+	built := g.view(g.closure(all...))
 	last, err := lastActivity(ctx, s.db)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	out := make([]JourneySummary, 0, len(g.journeys))
 	for _, j := range g.journeys {
@@ -777,7 +623,7 @@ func (s *Store) Journeys(ctx context.Context) ([]JourneySummary, string, error) 
 			}
 		}
 	}
-	return out, warning, nil
+	return out, nil
 }
 
 // link names a journey with its state, from its final card among built.
@@ -865,16 +711,11 @@ func journeyState(final *Card) string {
 // summarize counts a journey's cards. Cancelled cards count only in Cancelled
 // (main and side quests alike), never in progress totals.
 func summarize(s JourneySummary, cards []Card) JourneySummary {
-	heroes, repos := map[string]bool{}, map[string]bool{}
+	heroes := map[string]bool{}
 	s.State = JourneyActive
 	for _, c := range cards {
 		if c.Final {
 			s.State = journeyState(&c)
-		}
-		if c.Ref != "" {
-			if r, err := github.ParseRef(c.Ref); err == nil {
-				repos[r.Repository()] = true
-			}
 		}
 		if c.Cancelled {
 			s.Cancelled++
@@ -899,16 +740,11 @@ func summarize(s JourneySummary, cards []Card) JourneySummary {
 				s.Awaiting++
 			}
 		}
-		if !c.Done {
-			for _, a := range c.Assignees {
-				heroes[a] = true
-			}
-			if c.Owner != "" {
-				heroes[c.Owner] = true
-			}
+		if !c.Done && c.Owner != "" {
+			heroes[c.Owner] = true
 		}
 	}
-	s.Heroes, s.Repos = sortedKeys(heroes), sortedKeys(repos)
+	s.Heroes = sortedKeys(heroes)
 	return s
 }
 
@@ -919,21 +755,6 @@ func sortedKeys(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-// RepoAssignees lists who can be assigned to issues in owner/repo.
-func (s *Store) RepoAssignees(ctx context.Context, owner, repo string) ([]string, error) {
-	if !github.ValidRepo(owner, repo) {
-		return nil, errf(ErrInvalid, "%s/%s is not a repository name", owner, repo)
-	}
-	if s.gh == nil {
-		return nil, errf(ErrUpstream, "GitHub is not configured")
-	}
-	users, err := s.gh.Assignees(ctx, owner, repo)
-	if err != nil {
-		return nil, errf(ErrUpstream, "%v", err)
-	}
-	return users, nil
 }
 
 // CheckJourney reports whether a journey exists.

@@ -23,18 +23,14 @@ import (
 //go:embed migrations/*.sql
 var migrations embed.FS
 
-// CacheTTL is how long GitHub data is served without refetching.
-const CacheTTL = 60 * time.Second
-
-// Store is the journey database plus the GitHub client used to fill issue cards.
+// Store is the journey database.
 type Store struct {
 	db  *sql.DB
-	gh  GitHub
 	now func() time.Time
 }
 
 // Open opens (creating if needed) the database at path and migrates it.
-func Open(path string, gh GitHub) (*Store, error) {
+func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
@@ -49,7 +45,7 @@ func Open(path string, gh GitHub) (*Store, error) {
 	// One connection: SQLite has one writer anyway, and this rules out
 	// SQLITE_BUSY between our own connections.
 	db.SetMaxOpenConns(1)
-	s := &Store{db: db, gh: gh, now: time.Now}
+	s := &Store{db: db, now: time.Now}
 	if err := s.migrate(context.Background()); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate %s: %w", path, err)
@@ -62,14 +58,27 @@ func (s *Store) Close() error { return s.db.Close() }
 
 // migrate applies every embedded migration newer than schema_version, each in
 // its own transaction. Files are named NNN_name.sql.
+//
+// Foreign keys are off while it runs, so a migration can rebuild a table
+// others point at (SQLite's way to drop a column with a constraint); each
+// migration must leave every foreign key intact, or it is rolled back.
 func (s *Store) migrate(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`); err != nil {
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys = OFF`); err != nil {
+		return err
+	}
+	defer conn.ExecContext(ctx, `PRAGMA foreign_keys = ON`)
+	if _, err := conn.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`); err != nil {
 		return err
 	}
 	var current int
-	err := s.db.QueryRowContext(ctx, `SELECT version FROM schema_version`).Scan(&current)
+	err = conn.QueryRowContext(ctx, `SELECT version FROM schema_version`).Scan(&current)
 	if err == sql.ErrNoRows {
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO schema_version (version) VALUES (0)`); err != nil {
+		if _, err := conn.ExecContext(ctx, `INSERT INTO schema_version (version) VALUES (0)`); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -102,11 +111,15 @@ func (s *Store) migrate(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		tx, err := s.db.BeginTx(ctx, nil)
+		tx, err := conn.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, string(body)); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("%s: %w", base, err)
+		}
+		if err := foreignKeysIntact(ctx, tx); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("%s: %w", base, err)
 		}
@@ -120,6 +133,25 @@ func (s *Store) migrate(ctx context.Context) error {
 		current = n
 	}
 	return nil
+}
+
+// foreignKeysIntact fails if any row points at a row that is not there.
+func foreignKeysIntact(ctx context.Context, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(ctx, `PRAGMA foreign_key_check`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var table, parent string
+		var rowid sql.NullInt64
+		var fk int
+		if err := rows.Scan(&table, &rowid, &parent, &fk); err != nil {
+			return err
+		}
+		return fmt.Errorf("a row of %s (rowid %d) points at a missing row of %s", table, rowid.Int64, parent)
+	}
+	return rows.Err()
 }
 
 // querier is what *sql.DB and *sql.Tx have in common.

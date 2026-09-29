@@ -1,8 +1,7 @@
 // Command mikado is a task map for any goal: journeys, the quests toward
-// them (GitHub issues, errands or petitions) and the side issues found along
-// the way. `mikado serve`
-// runs the local server (JSON API + dashboard); every other command is a thin
-// client of that API.
+// them and the side issues found along the way. `mikado serve` runs the local
+// server (JSON API + dashboard); every other command is a thin client of that
+// API.
 package main
 
 import (
@@ -22,7 +21,6 @@ import (
 	"unicode"
 
 	"mikado/internal/api"
-	"mikado/internal/github"
 	"mikado/internal/skill"
 	"mikado/internal/store"
 	"mikado/internal/web"
@@ -108,7 +106,7 @@ func serve(args []string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	st, err := store.Open(filepath.Join(dir, "mikado.db"), &github.Client{})
+	st, err := store.Open(filepath.Join(dir, "mikado.db"))
 	if err != nil {
 		return err
 	}
@@ -248,8 +246,9 @@ func usage() {
 	fmt.Fprint(os.Stderr, `usage: mikado <command> [args] [flags]
 
   A journey (J7) is a goal, drawn as a war table of quests ending in one crowning quest.
-  A quest is an issue, an errand or a petition, named Q142; "Q5 requires Q3" means
-  Q3 must be fulfilled first (Q3 opens Q5). Full glossary: mikado skill.
+  A quest is a step toward it, named Q142, with an optional link and mark; a petition
+  is a quest awaiting a reply from someone. "Q5 requires Q3" means Q3 must be
+  fulfilled first (Q3 opens Q5). Full glossary: mikado skill.
 
 AI agents: run `+"`mikado skill`"+` before using mikado. It is the guide, glossary included.
 
@@ -290,34 +289,32 @@ side quests; J is a journey key, J7):
   journey set J [--title T] [--crown Q] [--region R]
                                       --region moves it (as region move R J)
   journey extract J Q... --title T    move quests into a new journey, crowned by a new
-                                      errand T; J shows it as one journey card where they were
+                                      quest T; J shows it as one journey card where they were
   journey delete J [--force]          delete a journey (its quests in other journeys stay);
                                       refused if quests would be left in no journey, unless
                                       --force deletes those from the database too
   journey archive J / unarchive J     put a journey away (off the atlas, its war table
                                       and quests untouched) / bring it back
 
-quests are global, one per GitHub issue. Q is a quest key (Q142, Q-142, q142, 142), an
-issue owner/repo#n, an issue URL, or a journey key for that journey's crowning quest (so
-`+"`require Q5 J3`"+` makes Q5 wait on the whole journey J3, drawn there as one card).
-A quest is in a journey once it is linked in.
-  add owner/repo#N [link flags]       add a GitHub issue; if it is already on a war table,
-                                      that quest is returned and the link flags applied to it
-  errand "title" [link flags]         add a step not worth an issue
-  petition "title" --on WHO [link flags]
-                                      add something we await a reply on from someone
+quests are global. Q is a quest key (Q142, Q-142, q142, 142) or a journey key for that
+journey's crowning quest (so `+"`require Q5 J3`"+` makes Q5 wait on the whole journey J3,
+drawn there as one card). A quest is in a journey once it is linked in.
+  add "title" [--url U] [--mark M] [--on WHO] [link flags]
+                                      add a quest; --url links it anywhere, --mark is a short
+                                      tag shown by its id (at most 15 characters: #13,
+                                      234g45a, PROJ-88), --on makes it a petition awaiting
+                                      a reply from WHO
       link flags: --opens Q (repeatable)  --requires Q (repeatable)  --side-of Q
                   --crowns J  --found-on Q --reason "why"  --npc  --hero WHO
   show Q                              one quest: what it requires, what it opens, its journeys
   require Q PREREQ                    Q requires PREREQ fulfilled first (cycles are refused)
   unrequire Q PREREQ                  drop that requirement
   rewire Q OLD NEW                    Q requires NEW instead of OLD, in one step
-  fulfil Q / unfulfil Q               mark an errand or petition fulfilled / not
-                                      (issues are fulfilled by closing them on GitHub)
+  fulfil Q / unfulfil Q               mark it fulfilled / not
   take-up Q [--by WHO] / set-down Q   someone is on it right now (underway) / no longer
   abandon Q --reason "why"            won't do: stays on the war table, blocks nothing,
                                       counts in no total (its side quests are abandoned too)
-  unabandon Q                         undo an abandon made here
+  unabandon Q                         undo an abandon
   strike Q --reason "why"             gone for good, with its side quests (stays in the
                                       chronicle); prefer abandon
   delete Q --journey J                take Q out of journey J (it stays in its others);
@@ -325,9 +322,9 @@ A quest is in a journey once it is linked in.
   delete Q --force                    delete Q from every journey and the database
       what would leave with Q (side quests, prerequisites only it holds) must be named:
       --branch takes it along (deleting what ends in no journey), --rewire X hands it to X
-  set Q [--hero WHO] [--title T] [--npc=true|false]
-  assign Q LOGIN... [--remove]        assign (or unassign) an issue on GitHub
-  assignees owner/repo                who can be assigned in a repo
+  set Q [--title T] [--url U] [--mark M] [--on WHO] [--hero WHO] [--npc=true|false]
+                                      change it; "-" clears --url, --mark, --on (a plain
+                                      quest again) or --hero
 
 dashboard:
   open [R | J | Q] [--journey J] [--print]

@@ -1,19 +1,16 @@
 package store
 
 import (
-	"context"
 	"errors"
 	"fmt"
-
-	"mikado/internal/github"
 )
 
-// Card kinds.
-const (
-	KindIssue    = "issue"
-	KindErrand   = "errand"
-	KindAwaiting = "awaiting"
-)
+// KindAwaiting is the one kind a quest can have: a petition, awaiting a reply
+// from someone. Any other quest has no kind.
+const KindAwaiting = "awaiting"
+
+// MaxMark is how long a quest's mark may be, in characters.
+const MaxMark = 15
 
 // Computed card statuses.
 const (
@@ -24,41 +21,31 @@ const (
 	StatusAvailable = "available"
 )
 
-// GitHub is what the store needs from GitHub; *github.Client implements it and
-// tests use a fake.
-type GitHub interface {
-	// Issues returns the issues that exist, keyed by Ref.Key(); missing ones
-	// are absent from the map.
-	Issues(ctx context.Context, refs []github.Ref) (map[string]github.Issue, error)
-	Assign(ctx context.Context, ref github.Ref, add, remove []string) error
-	Assignees(ctx context.Context, owner, repo string) ([]string, error)
-}
-
-// Card is a card as the API shows it: stored fields, what GitHub says about
-// it (issues), and its computed status.
+// Card is a card as the API shows it: its stored fields and its computed
+// status.
 type Card struct {
-	ID         int64    `json:"id"`
-	Key        string   `json:"key"` // "Q142": how people and the AI name the card
-	Kind       string   `json:"kind"`
-	Ref        string   `json:"ref,omitempty"`
-	URL        string   `json:"url,omitempty"`
-	Title      string   `json:"title"`
-	Done       bool     `json:"done"`
-	State      string   `json:"state,omitempty"`
-	Assignees  []string `json:"assignees"`
-	Owner      string   `json:"owner,omitempty"`
-	WaitingOn  string   `json:"waitingOn,omitempty"`
-	Since      string   `json:"since,omitempty"`
-	Final      bool     `json:"final"`
-	SideOf     *int64   `json:"sideOf,omitempty"`
-	FoundWhile *int64   `json:"foundWhile,omitempty"`
-	Reason     string   `json:"reason,omitempty"`
-	NPC        bool     `json:"npc"`
-	// Cancelled: won't do — cancelled here, or closed on GitHub as not
-	// planned / duplicate. A cancelled card blocks nothing and counts in no total.
+	ID  int64  `json:"id"`
+	Key string `json:"key"` // "Q142": how people and the AI name the card
+	// Kind is "awaiting" for a petition (WaitingOn is set) and empty for
+	// any other quest.
+	Kind  string `json:"kind,omitempty"`
+	Title string `json:"title"`
+	// URL is any link, and Mark a short free text (at most MaxMark
+	// characters) such as "#13" or a commit hash; both optional, never parsed.
+	URL        string `json:"url,omitempty"`
+	Mark       string `json:"mark,omitempty"`
+	Done       bool   `json:"done"`
+	Owner      string `json:"owner,omitempty"`
+	WaitingOn  string `json:"waitingOn,omitempty"`
+	Since      string `json:"since,omitempty"`
+	Final      bool   `json:"final"`
+	SideOf     *int64 `json:"sideOf,omitempty"`
+	FoundWhile *int64 `json:"foundWhile,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	NPC        bool   `json:"npc"`
+	// Cancelled: won't do. A cancelled card blocks nothing and counts in no total.
 	Cancelled    bool   `json:"cancelled"`
 	CancelReason string `json:"cancelReason,omitempty"`
-	StateReason  string `json:"stateReason,omitempty"` // issues: GitHub's raw stateReason
 	// Working: someone is on it right now. Never set on a done or cancelled card.
 	Working      bool   `json:"working"`
 	WorkingSince string `json:"workingSince,omitempty"`
@@ -120,7 +107,6 @@ type CardView struct {
 	Needs      []Card       `json:"needs"`
 	NeededBy   []Card       `json:"neededBy"`
 	SideQuests []Card       `json:"sideQuests"`
-	GitHub     string       `json:"github,omitempty"`
 }
 
 // Need says From needs To done first.
@@ -155,14 +141,12 @@ const (
 	JourneyCancelled = "cancelled"
 )
 
-// JourneyView is everything the war table needs. GitHub is set when live
-// data could not be fetched and cached data is shown instead.
+// JourneyView is everything the war table needs.
 type JourneyView struct {
 	Journey JourneyInfo `json:"journey"`
 	Cards   []Card      `json:"cards"`
 	Needs   []Need      `json:"needs"`
 	Log     []Event     `json:"log"`
-	GitHub  string      `json:"github,omitempty"`
 }
 
 // Progress counts done cards out of a total.
@@ -184,7 +168,6 @@ type JourneySummary struct {
 	Cancelled    int       `json:"cancelled"`
 	InProgress   int       `json:"inProgress"`
 	Heroes       []string  `json:"heroes"`
-	Repos        []string  `json:"repos"`
 	LastActivity string    `json:"lastActivity"`
 	// ArchivedAt is set while the journey is archived: put away, off the
 	// atlas's shelves, otherwise unchanged.
@@ -197,10 +180,11 @@ type JourneySummary struct {
 
 // NewCard is a request to add a card. Cards are global; a card is in a journey
 // once it is linked into it (FinalOf, NeededBy a member, SideOf a member).
+// WaitingOn makes it a petition.
 type NewCard struct {
-	Kind       string  `json:"kind"`
-	Ref        string  `json:"ref"`
 	Title      string  `json:"title"`
+	URL        string  `json:"url"`
+	Mark       string  `json:"mark"`
 	FinalOf    string  `json:"finalOf"` // make it the final card of this journey (J7)
 	Final      bool    `json:"final"`   // journey-scoped route only: final of that journey
 	SideOf     *int64  `json:"sideOf"`
@@ -213,12 +197,16 @@ type NewCard struct {
 	NPC        bool    `json:"npc"`
 }
 
-// CardPatch changes a card; nil fields are left alone.
+// CardPatch changes a card; nil fields are left alone. An empty URL, Mark
+// or WaitingOn clears it; clearing WaitingOn makes a petition a plain quest.
 type CardPatch struct {
-	Done  *bool   `json:"done"`
-	Owner *string `json:"owner"`
-	NPC   *bool   `json:"npc"`
-	Title *string `json:"title"`
+	Done      *bool   `json:"done"`
+	Owner     *string `json:"owner"`
+	NPC       *bool   `json:"npc"`
+	Title     *string `json:"title"`
+	URL       *string `json:"url"`
+	Mark      *string `json:"mark"`
+	WaitingOn *string `json:"waitingOn"`
 	// Final (journey-scoped route only) makes the card that journey's final,
 	// or clears it if it was.
 	Final *bool `json:"final"`
@@ -237,7 +225,6 @@ const (
 	ErrInvalid  ErrKind = iota + 1 // the request makes no sense (400)
 	ErrNotFound                    // no such journey/card/need (404)
 	ErrConflict                    // clashes with existing data (409)
-	ErrUpstream                    // GitHub (gh) failed (502)
 )
 
 // Error is a store error with a message meant for the person using mikado.
@@ -277,17 +264,3 @@ func Key(id int64) string { return fmt.Sprintf("Q%d", id) }
 
 // JourneyKey is how a journey id is shown: J7.
 func JourneyKey(id int64) string { return fmt.Sprintf("J%d", id) }
-
-// kindNoun is how a sentence names a kind of quest: "an issue", "an errand",
-// "a petition" (stored as awaiting).
-func kindNoun(kind string) string {
-	switch kind {
-	case KindIssue:
-		return "an issue"
-	case KindErrand:
-		return "an errand"
-	case KindAwaiting:
-		return "a petition"
-	}
-	return kind
-}

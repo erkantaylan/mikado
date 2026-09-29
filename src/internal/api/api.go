@@ -58,10 +58,9 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	mux.HandleFunc("POST /api/regions/{key}/journeys", h.moveJourneys)
 
 	mux.HandleFunc("POST /api/cards", h.addCard)
-	mux.HandleFunc("GET /api/cards/{ref...}", h.getCard)
+	mux.HandleFunc("GET /api/cards/{ref}", h.getCard)
 	mux.HandleFunc("PATCH /api/cards/{id}", h.patchCard)
 	mux.HandleFunc("DELETE /api/cards/{id}", h.removeCard)
-	mux.HandleFunc("POST /api/cards/{id}/assignees", h.assign)
 	mux.HandleFunc("POST /api/cards/{id}/delete", h.deleteQuest)
 	mux.HandleFunc("POST /api/needs", h.addNeed)
 	mux.HandleFunc("DELETE /api/needs", h.removeNeed)
@@ -71,7 +70,6 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	mux.HandleFunc("POST /api/journeys/{key}/cards", h.inJourney(h.addCard))
 	mux.HandleFunc("PATCH /api/journeys/{key}/cards/{id}", h.inJourney(h.patchCard))
 	mux.HandleFunc("DELETE /api/journeys/{key}/cards/{id}", h.inJourney(h.removeCard))
-	mux.HandleFunc("POST /api/journeys/{key}/cards/{id}/assignees", h.inJourney(h.assign))
 	mux.HandleFunc("POST /api/journeys/{key}/needs", h.inJourney(h.addNeed))
 	mux.HandleFunc("DELETE /api/journeys/{key}/needs", h.inJourney(h.removeNeed))
 
@@ -80,7 +78,6 @@ func Handler(s *store.Store, hosts ...string) (http.Handler, error) {
 	mux.HandleFunc("DELETE /api/hosts/{name}", h.localOnly(h.removeHost))
 
 	mux.HandleFunc("GET /api/search", h.search)
-	mux.HandleFunc("GET /api/repos/{owner}/{repo}/assignees", h.repoAssignees)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint: "+r.Method+" "+r.URL.Path)
 	})
@@ -283,8 +280,8 @@ func (h *handler) inJourney(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// cardRef is a card named in a body by id (142) or by any reference string
-// ("Q142", "studio/game#7", "J7" for that journey's crowning quest).
+// cardRef is a card named in a body by id (142) or by a reference string
+// ("Q142", or "J7" for that journey's crowning quest).
 type cardRef struct{ raw json.RawMessage }
 
 func (c *cardRef) UnmarshalJSON(b []byte) error { c.raw = append(json.RawMessage{}, b...); return nil }
@@ -307,14 +304,10 @@ func (h *handler) resolve(r *http.Request, c *cardRef) (*int64, error) {
 }
 
 func (h *handler) listJourneys(w http.ResponseWriter, r *http.Request) {
-	qs, warning, err := h.s.Journeys(r.Context())
+	qs, err := h.s.Journeys(r.Context())
 	if err != nil {
 		fail(w, err)
 		return
-	}
-	if warning != "" {
-		// The body is a bare array, so the GitHub warning travels as a header.
-		w.Header().Set("X-Mikado-GitHub", warning)
 	}
 	writeJSON(w, http.StatusOK, qs)
 }
@@ -485,16 +478,12 @@ func (h *handler) addCard(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	c, created, err := h.s.AddCard(r.Context(), in, r.PathValue("key"))
+	c, err := h.s.AddCard(r.Context(), in, r.PathValue("key"))
 	if err != nil {
 		fail(w, err)
 		return
 	}
-	status := http.StatusOK
-	if created {
-		status = http.StatusCreated
-	}
-	writeJSON(w, status, c)
+	writeJSON(w, http.StatusCreated, c)
 }
 
 func (h *handler) getCard(w http.ResponseWriter, r *http.Request) {
@@ -574,26 +563,6 @@ func (h *handler) deleteQuest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-func (h *handler) assign(w http.ResponseWriter, r *http.Request) {
-	id, ok := h.cardID(w, r)
-	if !ok {
-		return
-	}
-	var in struct {
-		Add    []string `json:"add"`
-		Remove []string `json:"remove"`
-	}
-	if !decode(w, r, &in) {
-		return
-	}
-	c, err := h.s.Assign(r.Context(), id, in.Add, in.Remove, r.PathValue("key"))
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, c)
-}
-
 func (h *handler) addNeed(w http.ResponseWriter, r *http.Request) {
 	var in store.Need
 	if !decode(w, r, &in) {
@@ -663,17 +632,8 @@ func (h *handler) search(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, res)
 }
 
-func (h *handler) repoAssignees(w http.ResponseWriter, r *http.Request) {
-	users, err := h.s.RepoAssignees(r.Context(), r.PathValue("owner"), r.PathValue("repo"))
-	if err != nil {
-		fail(w, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, users)
-}
-
-// cardID reads the {id} path segment: 142, Q142, q-142, J7 (its crowning
-// quest) or an issue URL-escaped as one segment.
+// cardID reads the {id} path segment: 142, Q142, q-142 or J7 (its crowning
+// quest).
 func (h *handler) cardID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	id, err := h.s.Resolve(r.Context(), r.PathValue("id"))
 	if err != nil {
@@ -704,8 +664,6 @@ func fail(w http.ResponseWriter, err error) {
 		status = http.StatusNotFound
 	case store.ErrConflict:
 		status = http.StatusConflict
-	case store.ErrUpstream:
-		status = http.StatusBadGateway
 	default:
 		log.Printf("api: %v", err)
 	}

@@ -10,8 +10,8 @@ import (
 type SearchResult struct {
 	Journeys []JourneyInfo `json:"journeys"`
 	Quests   []Card        `json:"quests"`
-	// Exact is set when the query names one quest by key or issue (Q142,
-	// owner/repo#n, an issue URL): that quest, also first in Quests.
+	// Exact is set when the query names one quest by key (Q142): that quest,
+	// also first in Quests.
 	Exact *Card `json:"exact,omitempty"`
 }
 
@@ -21,11 +21,10 @@ const (
 	searchQuests   = 20
 )
 
-// Search finds journeys (by key, title and region name) and live quests (by key, issue
-// and title) whose text holds every word of q, ignoring case. It runs on
-// every keystroke, so issue titles come from the GitHub cache only, never
-// live. Quests still to do come before finished ones; each quest's AlsoIn
-// lists every journey it is in. An empty q lists the journeys that are not
+// Search finds journeys (by key, title and region name) and live quests (by
+// key, title, mark and url) whose text holds every word of q, ignoring case.
+// Quests still to do come before finished ones; each quest's AlsoIn lists
+// every journey it is in. An empty q lists the journeys that are not
 // archived.
 func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 	g, err := loadGraph(ctx, s.db)
@@ -36,21 +35,7 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 	for id := range g.cards {
 		ids = append(ids, id)
 	}
-	rows := g.rows(ids)
-	var keys []string
-	for _, c := range rows {
-		if c.Kind == KindIssue {
-			keys = append(keys, c.RefKey)
-		}
-	}
-	gh, err := loadCache(ctx, s.db, keys)
-	if err != nil {
-		return nil, err
-	}
-	cards := map[int64]Card{}
-	for _, c := range buildCards(rows, g.needsAmong(ids), gh) {
-		cards[c.ID] = c
-	}
+	cards := g.view(ids)
 	in := g.membership()
 	withJourneys := func(c Card) Card {
 		c.Final = g.isFinal(c.ID)
@@ -115,7 +100,7 @@ func (s *Store) Search(ctx context.Context, q string) (*SearchResult, error) {
 	}
 	var found []Card
 	for _, c := range cards {
-		if c.ID != exact && has(c.Key+" "+c.Ref+" "+c.Title) {
+		if c.ID != exact && has(c.Key+" "+c.Title+" "+c.Mark+" "+c.URL) {
 			found = append(found, c)
 		}
 	}

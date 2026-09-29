@@ -10,23 +10,21 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"unicode/utf8"
 
-	"mikado/internal/github"
 	"mikado/internal/store"
 )
 
 // commands are the client commands; each is a thin wrapper over the API.
 // Quests are global, so quest commands take no journey.
 var commands = map[string]func([]string) error{
-	"journey":  journeyCmd,
-	"add":      func(a []string) error { return addCmd("add", store.KindIssue, a) },
-	"errand":   func(a []string) error { return addCmd("errand", store.KindErrand, a) },
-	"petition": func(a []string) error { return addCmd("petition", store.KindAwaiting, a) },
-	"show":     showCmd,
-	"strike":   strikeCmd,
-	"delete":   deleteCmd,
-	"rewire":   rewireCmd,
-	"require":  func(a []string) error { return requireCmd("require", a) },
+	"journey": journeyCmd,
+	"add":     addCmd,
+	"show":    showCmd,
+	"strike":  strikeCmd,
+	"delete":  deleteCmd,
+	"rewire":  rewireCmd,
+	"require": func(a []string) error { return requireCmd("require", a) },
 	"unrequire": func(a []string) error {
 		return requireCmd("unrequire", a)
 	},
@@ -44,29 +42,17 @@ var commands = map[string]func([]string) error{
 	"set-down": func(a []string) error {
 		return flagCmd("set-down", "set down", a, func(p *store.CardPatch) { p.Working = ptr(false) })
 	},
-	"set":       setCmd,
-	"assign":    assignCmd,
-	"assignees": assigneesCmd,
-	"open":      openCmd,
-	"hosts":     hostsCmd,
-	"region":    regionCmd,
+	"set":    setCmd,
+	"open":   openCmd,
+	"hosts":  hostsCmd,
+	"region": regionCmd,
 }
 
-// aliases are the commands' earlier names (and a spelling or two). They still
-// work but are left out of the help, which lists only the names above.
+// aliases are other spellings of the commands. They work but are left out of
+// the help, which lists only the names above.
 var aliases = map[string]string{
-	"await":     "petition",
-	"done":      "fulfil",
-	"undone":    "unfulfil",
 	"fulfill":   "fulfil",
 	"unfulfill": "unfulfil",
-	"cancel":    "abandon",
-	"uncancel":  "unabandon",
-	"remove":    "strike",
-	"start":     "take-up",
-	"stop":      "set-down",
-	"need":      "require",
-	"unneed":    "unrequire",
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -78,18 +64,15 @@ func cardPath(id int64, rest ...string) string {
 }
 
 // resolve turns a quest reference into an id: Q142, Q-142, q142 and 142
-// locally; an issue ref, a github.com URL or a journey key (that journey's
-// crowning quest) by asking the server.
+// locally; a journey key (that journey's crowning quest) by asking the server.
 func resolve(c *client, ref string) (int64, error) {
 	if id, ok := store.ParseCardID(ref); ok {
 		return id, nil
 	}
-	path := "/api/cards/" + url.PathEscape(strings.TrimSpace(ref))
-	if r, err := github.ParseRef(ref); err == nil {
-		path = "/api/cards/" + url.PathEscape(r.Owner) + "/" + url.PathEscape(r.Repo) + "%23" + strconv.Itoa(r.Number)
-	} else if strings.TrimSpace(ref) == "" || strings.ContainsAny(ref, "/#?") {
-		return 0, usageError{fmt.Sprintf("%q is not a quest (want Q142, owner/repo#n or a journey key like J7)", ref)}
+	if _, ok := store.ParseJourneyID(ref); !ok {
+		return 0, usageError{fmt.Sprintf("%q is not a quest (want Q142, or a journey key like J7)", ref)}
 	}
+	path := "/api/cards/" + url.PathEscape(strings.TrimSpace(ref))
 	var v store.CardView
 	if _, err := c.do("GET", path, nil, &v); err != nil {
 		return 0, err
@@ -196,8 +179,7 @@ func journeyCmd(args []string) error {
 			return err
 		}
 		var every []store.JourneySummary
-		rep, err := cmd.client().do("GET", "/api/journeys", nil, &every)
-		if err != nil {
+		if _, err := cmd.client().do("GET", "/api/journeys", nil, &every); err != nil {
 			return err
 		}
 		inRegion := every
@@ -233,11 +215,7 @@ func journeyCmd(args []string) error {
 				q.Achievements.Done, q.Achievements.Total, q.Available, q.Awaiting, q.InProgress, q.Cancelled,
 				strings.Join(q.Heroes, ","), q.Title)
 		}
-		tw.Flush()
-		if w := rep.header.Get("X-Mikado-GitHub"); w != "" {
-			fmt.Fprintln(os.Stderr, "github:", w)
-		}
-		return nil
+		return tw.Flush()
 	case "show":
 		cmd := newCommand("journey show")
 		pos, err := cmd.parse(args, 1, 1, "J [--json]")
@@ -463,9 +441,6 @@ func showJourney(v *store.JourneyView) {
 			fmt.Printf("  %s  %s\n", e.At, e.Text)
 		}
 	}
-	if v.GitHub != "" {
-		fmt.Fprintln(os.Stderr, "github:", v.GitHub)
-	}
 }
 
 func hasSide(cards []store.Card) bool {
@@ -480,16 +455,8 @@ func hasSide(cards []store.Card) bool {
 // cardDetails lists what is worth saying about a quest besides its name.
 func cardDetails(c *store.Card) []string {
 	var extra []string
-	if c.Cancelled {
-		switch {
-		case c.CancelReason != "":
-			extra = append(extra, "abandoned: "+c.CancelReason)
-		case c.StateReason != "":
-			extra = append(extra, "closed on GitHub as "+strings.ToLower(strings.ReplaceAll(c.StateReason, "_", " ")))
-		}
-	}
-	if len(c.Assignees) > 0 {
-		extra = append(extra, "@"+strings.Join(c.Assignees, " @"))
+	if c.Cancelled && c.CancelReason != "" {
+		extra = append(extra, "abandoned: "+c.CancelReason)
 	}
 	if c.Owner != "" {
 		extra = append(extra, "hero "+c.Owner)
@@ -513,18 +480,17 @@ func cardDetails(c *store.Card) []string {
 	return extra
 }
 
+// cardName is the quest's title, after its mark and, for a petition, the
+// word petition.
 func cardName(c *store.Card) string {
-	switch c.Kind {
-	case store.KindIssue:
-		if c.Title == c.Ref {
-			return c.Ref
-		}
-		return c.Ref + "  " + c.Title
-	case store.KindAwaiting:
-		return "(petition) " + c.Title
-	default:
-		return "(errand) " + c.Title
+	name := c.Title
+	if c.Kind == store.KindAwaiting {
+		name = "(petition) " + name
 	}
+	if c.Mark != "" {
+		name = c.Mark + "  " + name
+	}
+	return name
 }
 
 func nameWithWork(c *store.Card) string {
@@ -597,15 +563,15 @@ func showCmd(args []string) error {
 			fmt.Printf("    %s [%s] %s\n", g.Key, statusWord(g), nameWithWork(g))
 		}
 	}
-	if v.GitHub != "" {
-		fmt.Fprintln(os.Stderr, "github:", v.GitHub)
-	}
 	return nil
 }
 
-func addCmd(name, kind string, args []string) error {
-	cmd := newCommand(name)
+func addCmd(args []string) error {
+	cmd := newCommand("add")
 	var requires, opens listFlag
+	link := cmd.fs.String("url", "", "a link for it: any URL (optional)")
+	mark := cmd.fs.String("mark", "", "a short mark shown by its id, at most 15 characters: #13, 234g45a, PROJ-88 (optional)")
+	on := cmd.fs.String("on", "", "make it a petition, awaiting a reply from WHO")
 	cmd.fs.Var(&requires, "requires", "the new quest requires quest Q fulfilled first (repeatable)")
 	cmd.fs.Var(&opens, "opens", "the new quest opens quest Q: Q requires it (repeatable)")
 	foundOn := cmd.fs.String("found-on", "", "quest Q this was found on")
@@ -614,41 +580,15 @@ func addCmd(name, kind string, args []string) error {
 	crowns := cmd.fs.String("crowns", "", "make it the crowning quest of journey J")
 	npc := cmd.fs.Bool("npc", false, "mark it as an NPC (drawn red on the chart)")
 	hero := cmd.fs.String("hero", "", "who is responsible for it (free text)")
-	cmd.alias("needs", "requires")
-	cmd.alias("needed-by", "opens")
-	cmd.alias("found-while", "found-on")
-	cmd.alias("final-of", "crowns")
-	cmd.alias("owner", "hero")
-	var on *string
-	what := `"title" [flags]`
-	switch kind {
-	case store.KindIssue:
-		what = "owner/repo#N [flags]"
-	case store.KindAwaiting:
-		on = cmd.fs.String("on", "", "who the petition awaits a reply from (required)")
-		what = `"title" --on WHO [flags]`
-	}
-	pos, err := cmd.parse(args, 1, 1, what)
+	pos, err := cmd.parse(args, 1, 1, `"title" [--url U] [--mark M] [--on WHO] [link flags]`)
 	if err != nil {
 		return err
 	}
+	if err := checkMark(*mark); err != nil {
+		return err
+	}
 	cl := cmd.client()
-	in := store.NewCard{Kind: kind, Reason: *reason, NPC: *npc, Owner: *hero, FinalOf: *crowns}
-	if kind == store.KindIssue {
-		r, err := github.ParseRef(pos[0])
-		if err != nil {
-			return usageError{err.Error()}
-		}
-		in.Ref = r.String()
-	} else {
-		in.Title = pos[0]
-	}
-	if on != nil {
-		if *on == "" {
-			return usageError{"--on WHO is required: who does the petition await a reply from?"}
-		}
-		in.WaitingOn = *on
-	}
+	in := store.NewCard{Title: pos[0], URL: *link, Mark: *mark, WaitingOn: *on, Reason: *reason, NPC: *npc, Owner: *hero, FinalOf: *crowns}
 	if in.Needs, err = resolveAll(cl, requires); err != nil {
 		return err
 	}
@@ -662,8 +602,7 @@ func addCmd(name, kind string, args []string) error {
 		return err
 	}
 	var c store.Card
-	rep, err := cl.do("POST", "/api/cards", in, &c)
-	if err != nil {
+	if _, err := cl.do("POST", "/api/cards", in, &c); err != nil {
 		return err
 	}
 	if *cmd.json {
@@ -672,12 +611,6 @@ func addCmd(name, kind string, args []string) error {
 	verb := "added"
 	if in.FoundWhile != nil {
 		verb = "found on " + store.Key(*in.FoundWhile)
-	}
-	if rep.status == http.StatusOK {
-		verb = "already on the chart"
-		if len(requires)+len(opens) > 0 || *sideOf != "" || *crowns != "" {
-			verb += ", links applied"
-		}
 	}
 	printCard(&c, verb)
 	if len(c.AlsoIn) == 0 {
@@ -688,6 +621,14 @@ func addCmd(name, kind string, args []string) error {
 			keys = append(keys, j.Key)
 		}
 		fmt.Printf("  in: %s\n", strings.Join(keys, ", "))
+	}
+	return nil
+}
+
+// checkMark refuses a mark that is too long before asking the server.
+func checkMark(mark string) error {
+	if n := utf8.RuneCountInString(strings.TrimSpace(mark)); n > store.MaxMark {
+		return usageError{fmt.Sprintf("--mark is at most %d characters, and %q has %d: keep it short (#13, 234g45a, PROJ-88)", store.MaxMark, mark, n)}
 	}
 	return nil
 }
@@ -888,26 +829,40 @@ func takeUpCmd(args []string) error {
 
 func setCmd(args []string) error {
 	cmd := newCommand("set")
+	title := cmd.fs.String("title", "", "new title")
+	link := cmd.fs.String("url", "", `a link for it: any URL ("-" clears it)`)
+	mark := cmd.fs.String("mark", "", `a short mark, at most 15 characters ("-" clears it)`)
+	on := cmd.fs.String("on", "", `make it a petition, awaiting a reply from WHO ("-": a plain quest again)`)
 	hero := cmd.fs.String("hero", "", `hero (free text; "-" leaves it with no hero)`)
-	title := cmd.fs.String("title", "", "new title (errands and petitions)")
 	npc := cmd.fs.String("npc", "", "true or false")
-	cmd.alias("owner", "hero")
-	pos, err := cmd.parse(args, 1, 1, "Q [--hero WHO] [--title T] [--npc=true|false]")
+	pos, err := cmd.parse(args, 1, 1, "Q [--title T] [--url U] [--mark M] [--on WHO] [--hero WHO] [--npc=true|false]")
 	if err != nil {
 		return err
 	}
 	var p store.CardPatch
 	set := map[string]bool{}
-	cmd.fs.Visit(func(f *flag.Flag) { set[cmd.canonical(f.Name)] = true })
-	if set["hero"] {
-		o := *hero
-		if o == "-" {
-			o = ""
+	cmd.fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	// clearable is a flag's value if it was given, "" for "-".
+	clearable := func(name string, v *string) *string {
+		switch {
+		case !set[name]:
+			return nil
+		case *v == "-":
+			return ptr("")
 		}
-		p.Owner = &o
+		return v
 	}
 	if set["title"] {
 		p.Title = title
+	}
+	p.URL, p.Mark, p.WaitingOn, p.Owner = clearable("url", link), clearable("mark", mark), clearable("on", on), clearable("hero", hero)
+	if p.Mark != nil {
+		if err := checkMark(*p.Mark); err != nil {
+			return err
+		}
+	}
+	if set["on"] && strings.TrimSpace(*on) == "" {
+		return usageError{`--on wants who the petition awaits a reply from, or "-" to make it a plain quest`}
 	}
 	if set["npc"] {
 		b, err := strconv.ParseBool(*npc)
@@ -916,62 +871,10 @@ func setCmd(args []string) error {
 		}
 		p.NPC = &b
 	}
-	if !set["hero"] && !set["title"] && !set["npc"] {
-		return usageError{"nothing to set: pass --hero, --title or --npc (a journey's crowning quest: mikado journey crown)"}
+	if p == (store.CardPatch{}) {
+		return usageError{"nothing to set: pass --title, --url, --mark, --on, --hero or --npc (a journey's crowning quest: mikado journey crown)"}
 	}
 	return patch(cmd, pos[0], p, "updated")
-}
-
-func assignCmd(args []string) error {
-	cmd := newCommand("assign")
-	remove := cmd.fs.Bool("remove", false, "unassign the logins instead")
-	pos, err := cmd.parse(args, 2, -1, "Q LOGIN... [--remove]")
-	if err != nil {
-		return err
-	}
-	cl := cmd.client()
-	id, err := resolve(cl, pos[0])
-	if err != nil {
-		return err
-	}
-	body := map[string][]string{"add": pos[1:], "remove": {}}
-	verb := "assigned on GitHub"
-	if *remove {
-		body["add"], body["remove"] = []string{}, pos[1:]
-		verb = "unassigned on GitHub"
-	}
-	var c store.Card
-	if _, err := cl.do("POST", cardPath(id, "assignees"), body, &c); err != nil {
-		return err
-	}
-	if *cmd.json {
-		return printJSON(c)
-	}
-	printCard(&c, verb)
-	return nil
-}
-
-func assigneesCmd(args []string) error {
-	cmd := newCommand("assignees")
-	pos, err := cmd.parse(args, 1, 1, "owner/repo")
-	if err != nil {
-		return err
-	}
-	owner, repo, ok := strings.Cut(pos[0], "/")
-	if !ok || !github.ValidRepo(owner, repo) {
-		return usageError{fmt.Sprintf("%q is not owner/repo", pos[0])}
-	}
-	var users []string
-	if _, err := cmd.client().do("GET", "/api/repos/"+owner+"/"+repo+"/assignees", nil, &users); err != nil {
-		return err
-	}
-	if *cmd.json {
-		return printJSON(users)
-	}
-	for _, u := range users {
-		fmt.Println(u)
-	}
-	return nil
 }
 
 // acceptedHost is an entry of GET /api/hosts.

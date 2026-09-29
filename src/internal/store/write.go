@@ -4,11 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"regexp"
 	"strings"
 	"unicode/utf8"
-
-	"mikado/internal/github"
 )
 
 func (s *Store) event(ctx context.Context, q querier, journeyID, cardID *int64, kind, text string) error {
@@ -70,7 +67,7 @@ func (s *Store) CreateJourney(ctx context.Context, title string, final *int64, r
 }
 
 func (s *Store) summary(ctx context.Context, id int64) (*JourneySummary, error) {
-	js, _, err := s.Journeys(ctx)
+	js, err := s.Journeys(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -170,15 +167,31 @@ func (s *Store) clearFinal(ctx context.Context, tx *sql.Tx, j *journeyRow, text 
 	return s.event(ctx, tx, &j.ID, j.Final, "final", text)
 }
 
-// AddCard adds a card to the global graph and links it as asked. An issue
-// that already has a live card is not added again: that card is returned
-// (created=false) with the requested links applied to it. viewing (a
-// journey key, or "") only shapes the returned card; see card.
-func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card, bool, error) {
+// cleanMark trims a mark and checks its length.
+func cleanMark(m string) (string, error) {
+	m = strings.TrimSpace(m)
+	if n := utf8.RuneCountInString(m); n > MaxMark {
+		return "", errf(ErrInvalid, "a mark is at most %d characters, and %q has %d: keep it short (#13, 234g45a, PROJ-88) and put the rest in the title or url", MaxMark, m, n)
+	}
+	return m, nil
+}
+
+// AddCard adds a card to the global graph and links it as asked; WaitingOn
+// makes it a petition. viewing (a journey key, or "") only shapes the
+// returned card; see card.
+func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card, error) {
 	in.Title, in.Owner, in.WaitingOn, in.Reason = strings.TrimSpace(in.Title), strings.TrimSpace(in.Owner), strings.TrimSpace(in.WaitingOn), strings.TrimSpace(in.Reason)
+	in.URL = strings.TrimSpace(in.URL)
+	var err error
+	if in.Mark, err = cleanMark(in.Mark); err != nil {
+		return nil, err
+	}
+	if in.Title == "" {
+		return nil, errf(ErrInvalid, "a quest needs a title")
+	}
 	if in.Final {
 		if viewing == "" {
-			return nil, false, errf(ErrInvalid, "a crowning quest needs a journey: use finalOf")
+			return nil, errf(ErrInvalid, "a crowning quest needs a journey: use finalOf")
 		}
 		in.FinalOf = viewing
 	}
@@ -186,72 +199,12 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 	if in.FinalOf != "" {
 		q, err := getJourney(ctx, s.db, in.FinalOf)
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		finalOf = q
 	}
 	if in.SideOf != nil && (finalOf != nil || len(in.Needs) > 0 || len(in.NeededBy) > 0) {
-		return nil, false, errf(ErrInvalid, "a side quest never blocks anything: it cannot crown a journey, require or open a quest")
-	}
-
-	var ref github.Ref
-	var err error
-	switch in.Kind {
-	case KindIssue:
-		if ref, err = github.ParseRef(in.Ref); err != nil {
-			return nil, false, errf(ErrInvalid, "%v", err)
-		}
-		if in.Title != "" || in.WaitingOn != "" {
-			return nil, false, errf(ErrInvalid, "an issue takes its title from GitHub; title and waitingOn are for errands and petitions")
-		}
-		var existing int64
-		err := s.db.QueryRowContext(ctx, `SELECT id FROM cards WHERE ref_key = ? AND removed_at IS NULL`, ref.Key()).Scan(&existing)
-		if err == nil {
-			if err := s.inTx(ctx, func(tx *sql.Tx) error { return s.link(ctx, tx, existing, in, finalOf) }); err != nil {
-				return nil, false, err
-			}
-			c, err := s.card(ctx, existing, viewing)
-			return c, false, err
-		} else if err != sql.ErrNoRows {
-			return nil, false, err
-		}
-	case KindErrand, KindAwaiting:
-		if in.Ref != "" {
-			return nil, false, errf(ErrInvalid, "only issues have a ref")
-		}
-		if in.Title == "" {
-			return nil, false, errf(ErrInvalid, "%s needs a title", kindNoun(in.Kind))
-		}
-		if in.Kind == KindAwaiting && in.WaitingOn == "" {
-			return nil, false, errf(ErrInvalid, "a petition needs waitingOn: who it awaits a reply from")
-		}
-		if in.Kind == KindErrand && in.WaitingOn != "" {
-			return nil, false, errf(ErrInvalid, "waitingOn is for petitions")
-		}
-	default:
-		return nil, false, errf(ErrInvalid, "kind must be issue, errand or awaiting (a petition), not %q", in.Kind)
-	}
-
-	// Check the issue on GitHub before opening the transaction.
-	if in.Kind == KindIssue {
-		if s.gh == nil {
-			return nil, false, errf(ErrUpstream, "GitHub is not configured")
-		}
-		found, err := s.gh.Issues(ctx, []github.Ref{ref})
-		if err != nil {
-			return nil, false, errf(ErrUpstream, "cannot check %s on GitHub: %v", ref, err)
-		}
-		is, ok := found[ref.Key()]
-		switch {
-		case !ok:
-			return nil, false, errf(ErrInvalid, "%s does not exist on GitHub (or gh cannot see it)", ref)
-		case is.IsPR:
-			return nil, false, errf(ErrInvalid, "%s is a pull request; mikado tracks issues — add the issue it resolves instead", ref)
-		}
-		if err := s.saveCache(ctx, s.db, is); err != nil {
-			return nil, false, err
-		}
-		ref = is.Ref // GitHub's casing
+		return nil, errf(ErrInvalid, "a side quest never blocks anything: it cannot crown a journey, require or open a quest")
 	}
 
 	var id int64
@@ -270,18 +223,14 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 		if err := mainCards(ctx, tx, append(append([]int64{}, in.Needs...), in.NeededBy...)); err != nil {
 			return err
 		}
-		var refStr, refKey any
 		since := ""
-		if in.Kind == KindIssue {
-			refStr, refKey = ref.String(), ref.Key()
-		}
-		if in.Kind == KindAwaiting {
+		if in.WaitingOn != "" {
 			since = s.now().Format("2006-01-02")
 		}
-		err = tx.QueryRowContext(ctx, `INSERT INTO cards (kind, ref, ref_key, title, owner, waiting_on, since,
+		err = tx.QueryRowContext(ctx, `INSERT INTO cards (title, url, mark, owner, waiting_on, since,
 				side_of, found_while, reason, npc, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-			in.Kind, refStr, refKey, in.Title, in.Owner, in.WaitingOn, since,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+			in.Title, in.URL, in.Mark, in.Owner, in.WaitingOn, since,
 			in.SideOf, in.FoundWhile, in.Reason, b2i(in.NPC), s.stamp()).Scan(&id)
 		if err != nil {
 			return err
@@ -297,13 +246,10 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 			}
 		}
 
-		// "Q9 errand added as a side quest on Q4 — opens Q3", or for a quest found
+		// "Q9 added as a side quest on Q4 — opens Q3", or for a quest found
 		// on the way, "Q9 found on Q3: old saves crash the loader — opens Q3".
 		head := Key(id)
-		switch in.Kind {
-		case KindErrand:
-			head += " errand"
-		case KindAwaiting:
+		if in.WaitingOn != "" {
 			head += " petition"
 		}
 		var details []string
@@ -324,7 +270,7 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 				details = append(details, in.Reason)
 			}
 		}
-		if in.Kind == KindAwaiting {
+		if in.WaitingOn != "" {
 			details = append(details, "awaiting reply from "+in.WaitingOn)
 		}
 		if len(in.NeededBy) > 0 {
@@ -346,56 +292,9 @@ func (s *Store) AddCard(ctx context.Context, in NewCard, viewing string) (*Card,
 		return nil
 	})
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
-	c, err := s.card(ctx, id, viewing)
-	return c, true, err
-}
-
-// link applies the link requests of an add to an existing card: needs,
-// neededBy, sideOf and finalOf. Each new link is logged; existing ones are
-// left alone.
-func (s *Store) link(ctx context.Context, tx *sql.Tx, id int64, in NewCard, finalOf *journeyRow) error {
-	c, err := liveCard(ctx, tx, id)
-	if err != nil {
-		return err
-	}
-	if len(in.Needs) > 0 || len(in.NeededBy) > 0 {
-		if err := mainCards(ctx, tx, append(append([]int64{id}, in.Needs...), in.NeededBy...)); err != nil {
-			return err
-		}
-	}
-	for _, n := range in.Needs {
-		created, err := addNeed(ctx, tx, id, n)
-		if err != nil {
-			return err
-		}
-		if created {
-			if err := s.cardEvent(ctx, tx, id, "need", Key(id)+" now requires "+Key(n)); err != nil {
-				return err
-			}
-		}
-	}
-	for _, n := range in.NeededBy {
-		created, err := addNeed(ctx, tx, n, id)
-		if err != nil {
-			return err
-		}
-		if created {
-			if err := s.cardEvent(ctx, tx, n, "need", Key(n)+" now requires "+Key(id)); err != nil {
-				return err
-			}
-		}
-	}
-	if in.SideOf != nil && (c.SideOf == nil || *c.SideOf != *in.SideOf) {
-		if err := s.makeSide(ctx, tx, c, *in.SideOf); err != nil {
-			return err
-		}
-	}
-	if finalOf != nil {
-		return s.setFinal(ctx, tx, finalOf, id)
-	}
-	return nil
+	return s.card(ctx, id, viewing)
 }
 
 // makeSide turns an existing card into a side quest of parent.
@@ -637,10 +536,10 @@ func (s *Store) RemoveCard(ctx context.Context, id int64, reason string) error {
 	})
 }
 
-// UpdateCard applies a patch. done and title apply to errands and awaitings
-// only: an issue is done when it closes on GitHub. Cancelling (any kind,
-// reason required) cascades to the card's side quests; marking a card done
-// or cancelled stops work on it. Final needs a journey: viewing names it.
+// UpdateCard applies a patch. Cancelling (reason required) cascades to the
+// card's side quests; marking a card done or cancelled stops work on it.
+// Setting WaitingOn makes the quest a petition, clearing it a plain quest.
+// Final needs a journey: viewing names it.
 func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing string) (*Card, error) {
 	var q *journeyRow
 	if viewing != "" {
@@ -651,20 +550,11 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 	} else if p.Final != nil {
 		return nil, errf(ErrInvalid, "a crowning quest belongs to a journey: set it with PATCH /api/journeys/{key} {final} (mikado journey crown)")
 	}
-	// An issue's done and abandoned states live on GitHub, which the local
-	// guard below cannot see: check them before taking an issue up.
-	if p.Working != nil && *p.Working {
-		v, err := s.CardView(ctx, id)
-		if err != nil {
+	var mark string
+	if p.Mark != nil {
+		var err error
+		if mark, err = cleanMark(*p.Mark); err != nil {
 			return nil, err
-		}
-		if c := v.Card; c.Kind == KindIssue {
-			switch {
-			case c.Cancelled && !c.Done && c.State == "closed":
-				return nil, errf(ErrInvalid, "%s is abandoned: %s was closed on GitHub as not planned; reopen it there before taking it up", c.Key, c.Ref)
-			case c.Done:
-				return nil, errf(ErrInvalid, "%s is fulfilled: %s is closed on GitHub; reopen it there before taking it up", c.Key, c.Ref)
-			}
 		}
 	}
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
@@ -673,9 +563,6 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 			return err
 		}
 		k := Key(id)
-		if c.Kind == KindIssue && (p.Done != nil || p.Title != nil) {
-			return errf(ErrInvalid, "%s is an issue: it is fulfilled when %s closes on GitHub, and its title comes from there", k, c.Ref)
-		}
 		if p.CancelReason != nil && (p.Cancelled == nil || !*p.Cancelled) {
 			return errf(ErrInvalid, "cancelReason goes with cancelled: true")
 		}
@@ -704,6 +591,42 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 			}
 			if t != c.Title {
 				if err := set("title", t, "edit", k+" renamed from "+quoted(c.Title)); err != nil {
+					return err
+				}
+			}
+		}
+		if p.URL != nil {
+			u := strings.TrimSpace(*p.URL)
+			if u != c.URL {
+				text := k + " link cleared"
+				if u != "" {
+					text = k + " link set to " + u
+				}
+				if err := set("url", u, "edit", text); err != nil {
+					return err
+				}
+			}
+		}
+		if p.Mark != nil && mark != c.Mark {
+			text := k + " mark cleared"
+			if mark != "" {
+				text = k + " mark set to " + mark
+			}
+			if err := set("mark", mark, "edit", text); err != nil {
+				return err
+			}
+		}
+		if p.WaitingOn != nil {
+			who := strings.TrimSpace(*p.WaitingOn)
+			if who != c.WaitingOn {
+				since, text := "", k+" no longer awaits a reply: a plain quest now"
+				if who != "" {
+					since, text = s.now().Format("2006-01-02"), k+" now awaits a reply from "+who
+				}
+				if err := exec(`UPDATE cards SET waiting_on = ?, since = ? WHERE id = ?`, who, since, id); err != nil {
+					return err
+				}
+				if err := s.cardEvent(ctx, tx, id, "edit", text); err != nil {
 					return err
 				}
 			}
@@ -827,73 +750,6 @@ func (s *Store) UpdateCard(ctx context.Context, id int64, p CardPatch, viewing s
 			case !*p.Final && isFinal:
 				return s.clearFinal(ctx, tx, q, "crowning quest "+k+" unset; the journey has no crowning quest")
 			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return s.card(ctx, id, viewing)
-}
-
-var loginRe = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$`)
-
-func cleanLogins(in []string) ([]string, error) {
-	var out []string
-	for _, l := range in {
-		l = strings.TrimPrefix(strings.TrimSpace(l), "@")
-		if !loginRe.MatchString(l) {
-			return nil, errf(ErrInvalid, "%q is not a GitHub login", l)
-		}
-		out = append(out, l)
-	}
-	return out, nil
-}
-
-// Assign adds and removes assignees of an issue card on GitHub.
-func (s *Store) Assign(ctx context.Context, id int64, add, remove []string, viewing string) (*Card, error) {
-	add, err := cleanLogins(add)
-	if err != nil {
-		return nil, err
-	}
-	remove, err = cleanLogins(remove)
-	if err != nil {
-		return nil, err
-	}
-	if len(add) == 0 && len(remove) == 0 {
-		return nil, errf(ErrInvalid, "nobody to assign or unassign")
-	}
-	c, err := liveCard(ctx, s.db, id)
-	if err != nil {
-		return nil, err
-	}
-	if c.Kind != KindIssue {
-		return nil, errf(ErrInvalid, "%s is %s; only issues have assignees on GitHub (give it a hero instead)", Key(id), kindNoun(c.Kind))
-	}
-	ref, err := github.ParseRef(c.Ref)
-	if err != nil {
-		return nil, err
-	}
-	if s.gh == nil {
-		return nil, errf(ErrUpstream, "GitHub is not configured")
-	}
-	ghErr := s.gh.Assign(ctx, ref, add, remove)
-	// Whatever happened, what we cached may now be wrong.
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM github_cache WHERE ref_key = ?`, ref.Key()); err != nil {
-		return nil, err
-	}
-	if ghErr != nil {
-		return nil, errf(ErrUpstream, "%v", ghErr)
-	}
-	err = s.inTx(ctx, func(tx *sql.Tx) error {
-		at := func(ls []string) string { return "@" + strings.Join(ls, ", @") }
-		if len(add) > 0 {
-			if err := s.cardEvent(ctx, tx, id, "assign", Key(id)+" assigned to "+at(add)); err != nil {
-				return err
-			}
-		}
-		if len(remove) > 0 {
-			return s.cardEvent(ctx, tx, id, "unassign", Key(id)+" unassigned "+at(remove))
 		}
 		return nil
 	})
