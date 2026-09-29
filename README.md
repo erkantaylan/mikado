@@ -110,10 +110,9 @@ One global graph of quests and requirements; each journey is a view onto it, dra
   written before the vocabulary changed keep their old words.
 - **Heroes**: a quest's hero is whoever is set with `--hero`.
 - **Earlier databases** are migrated when the server opens them. A GitHub issue quest became a
-  plain quest with the same id, its last known title, and its last known state as its own
-  (closed as completed: fulfilled; closed as not planned or a duplicate: abandoned); everything
-  else of mikado's own (hero, NPC, links, side quests, underway, chronicle) stays, and the GitHub
-  data is dropped. Errands became plain quests.
+  plain quest with the same id and its last known title; mikado's own state (fulfilled,
+  abandoned, hero, NPC, links, side quests, underway, chronicle) stays as it was, and everything
+  from GitHub, its open or closed state too, is dropped. Errands became plain quests.
 
 The API and the database keep plain, older names (`cards`, `needs`, `done`, `locked`, `final`,
 `owner`, `working`, `log`); the dashboard and the CLI's text show the words above. SKILL.md maps

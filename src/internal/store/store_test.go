@@ -1562,8 +1562,8 @@ func TestMigrateRegions(t *testing.T) {
 }
 
 // A database from before quests had one kind (schema 5): issue quests
-// become plain quests with the same ids, their last known title and state,
-// and all of mikado's own state; GitHub's data is gone.
+// become plain quests with the same ids, their last known title and all of
+// mikado's own state; everything from GitHub else is gone, its state too.
 func TestMigrateToOneKind(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "mikado.db")
 	db := oldDB(t, path, 5)
@@ -1574,8 +1574,8 @@ func TestMigrateToOneKind(t *testing.T) {
 			VALUES (1, 'issue', 'Studio/Game#7', 'studio/game#7', 'ada', 1, '` + at + `', 'cyd', '` + at + `')`,
 		// 2 an issue never fetched: no title but its ref.
 		`INSERT INTO cards (id, kind, ref, ref_key, created_at) VALUES (2, 'issue', 'studio/game#8', 'studio/game#8', '` + at + `')`,
-		// 3 closed as completed on GitHub, 4 closed as not planned, 5 as not
-		// planned but abandoned here first, with its own reason.
+		// 3 closed as completed on GitHub, 4 closed as not planned (both open
+		// again), 5 closed as not planned but abandoned here, with its own reason.
 		`INSERT INTO cards (id, kind, ref, ref_key, created_at) VALUES (3, 'issue', 'studio/game#9', 'studio/game#9', '` + at + `')`,
 		`INSERT INTO cards (id, kind, ref, ref_key, created_at) VALUES (4, 'issue', 'studio/game#10', 'studio/game#10', '` + at + `')`,
 		`INSERT INTO cards (id, kind, ref, ref_key, cancelled_at, cancel_reason, created_at)
@@ -1619,8 +1619,8 @@ func TestMigrateToOneKind(t *testing.T) {
 			got[c.ID] = c
 		}
 		for id, want := range map[int64]struct{ title, status string }{
-			1: {"Crash on load", StatusAvailable}, 2: {"studio/game#8", StatusAvailable},
-			3: {"Done upstream", StatusDone}, 4: {"Not planned", StatusCancelled}, 5: {"Dropped", StatusCancelled},
+			1: {"Crash on load", StatusLocked}, 2: {"studio/game#8", StatusAvailable},
+			3: {"Done upstream", StatusAvailable}, 4: {"Not planned", StatusAvailable}, 5: {"Dropped", StatusCancelled},
 			6: {"Ship it", StatusLocked}, 7: {"Key art", StatusAwaiting}, 8: {"Polish", StatusDone},
 		} {
 			c, ok := got[id]
@@ -1631,8 +1631,10 @@ func TestMigrateToOneKind(t *testing.T) {
 		if c := got[1]; c.Kind != "" || c.Owner != "ada" || !c.NPC || !c.Working || c.WorkingBy != "cyd" {
 			t.Errorf("Q1 lost its state: %+v", c)
 		}
-		if c := got[4]; c.CancelReason != "closed on GitHub as not planned" {
-			t.Errorf("Q4: %+v", c)
+		for _, id := range []int64{3, 4} {
+			if c := got[id]; c.Done || c.Cancelled || c.CancelReason != "" {
+				t.Errorf("%s kept GitHub's state: %+v", Key(id), c)
+			}
 		}
 		if c := got[5]; c.CancelReason != "out of scope" {
 			t.Errorf("Q5 lost its reason: %+v", c)

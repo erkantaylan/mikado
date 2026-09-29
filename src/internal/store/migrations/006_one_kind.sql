@@ -3,11 +3,11 @@
 -- mark. A petition is a quest awaiting a reply from someone (waiting_on).
 --
 -- Issue quests become plain quests with the same id. Each keeps its title:
--- the last one GitHub gave (it lived only in github_cache), else its ref. Its
--- last known state becomes its own: closed as completed is fulfilled, closed
--- as not planned or a duplicate is abandoned. Everything else about GitHub
--- (ref, state, assignees, the cache) goes. Errands become plain quests;
--- petitions stay petitions.
+-- its own, else the last one GitHub gave (it lived only in github_cache), else
+-- its ref. Nothing else from GitHub survives: its state, assignees and the
+-- cache go, and every flag (fulfilled, abandoned, underway) is mikado's own as
+-- it was, so an issue closed on GitHub but never fulfilled here is open again.
+-- Errands become plain quests; petitions stay petitions.
 --
 -- SQLite cannot drop constrained columns, so cards is rebuilt (the migration
 -- runs with foreign keys off, and checks them before it commits).
@@ -37,20 +37,12 @@ INSERT INTO cards_new (id, title, done, owner, waiting_on, since, side_of, found
         created_at, removed_at, removed_reason, cancelled_at, cancel_reason, working_since, working_by)
 SELECT c.id,
     COALESCE(NULLIF(TRIM(c.title), ''), NULLIF(TRIM(g.title), ''), c.ref, ''),
-    CASE WHEN g.state = 'closed' AND g.state_reason NOT IN ('NOT_PLANNED', 'DUPLICATE') THEN 1 ELSE c.done END,
+    c.done,
     c.owner,
     CASE WHEN c.kind = 'awaiting' THEN c.waiting_on ELSE '' END,
     CASE WHEN c.kind = 'awaiting' THEN c.since ELSE '' END,
     c.side_of, c.found_while, c.reason, c.npc, c.created_at, c.removed_at, c.removed_reason,
-    CASE WHEN c.cancelled_at IS NULL AND g.state = 'closed' AND g.state_reason IN ('NOT_PLANNED', 'DUPLICATE')
-        THEN g.fetched_at ELSE c.cancelled_at END,
-    CASE WHEN c.cancelled_at IS NULL AND g.state = 'closed' AND g.state_reason = 'NOT_PLANNED'
-            THEN 'closed on GitHub as not planned'
-        WHEN c.cancelled_at IS NULL AND g.state = 'closed' AND g.state_reason = 'DUPLICATE'
-            THEN 'closed on GitHub as a duplicate'
-        ELSE c.cancel_reason END,
-    CASE WHEN g.state = 'closed' THEN NULL ELSE c.working_since END,
-    CASE WHEN g.state = 'closed' THEN '' ELSE c.working_by END
+    c.cancelled_at, c.cancel_reason, c.working_since, c.working_by
 FROM cards c
 LEFT JOIN github_cache g ON c.kind = 'issue' AND g.ref_key = c.ref_key;
 
