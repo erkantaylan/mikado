@@ -14,3 +14,5 @@
 ## Dashboard
 
 - It is desktop-only: don't spend effort on phone or narrow-screen layouts, or verify at phone widths. Check desktop widths, in all three themes.
+- Clarity over ornament: themes stay calm so each quest is easy to read and focus on. Put materials, fonts and status clarity first; arrows, flourishes and other eye-catching decoration are a later, separate step, and anything decorative is flagged as optional.
+- Only the selected card glows. States are told apart by paper, marks and words, not glows.
