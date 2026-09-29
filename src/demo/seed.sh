@@ -5,7 +5,7 @@
 #   MIKADO_SERVER=http://127.0.0.1:47295 src/demo/seed.sh [path/to/mikado]
 #
 # Run it against a fresh data directory (make demo does): the keys it makes
-# (J1…J6, Q1…) depend on starting from nothing.
+# (J1…J7, Q1…) depend on starting from nothing.
 set -euo pipefail
 
 m=${1:-mikado}
@@ -95,10 +95,17 @@ quiet "$m" take-up "$toggle" --by mira
 quiet "$m" journey extract J4 "$steep" "$water" "$leaves" --title "Brew Turkish tea in the çaydanlık"
 quiet "$m" fulfil "$water"
 
+# J7: tea on the balcony waits on the whole tea journey too, so the tea's
+# crowning quest is in three journeys (J6, J4 and this one).
+quiet "$m" journey new "Have the neighbours over for tea on the balcony" 2>/dev/null
+balcony=$("$m" add "Pour the neighbours tea with a plate of baklava on the balcony" --crowns J7 --json | key)
+quiet "$m" require "$balcony" J6
+quiet "$m" add "Buy a tray of pistachio baklava from the bakery" --opens "$balcony"
+
 # Regions: the kitchen journeys wait on each other, so they move together; the
 # rest stay in R1, Personal.
 quiet "$m" region new "Kitchen"
-quiet "$m" region move Kitchen J3 J4 J6
+quiet "$m" region move Kitchen J3 J4 J6 J7
 quiet "$m" region new "Side projects"
 quiet "$m" region move "Side projects" J5
 
