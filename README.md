@@ -2,17 +2,17 @@
 
 A task map for any goal. A **journey** is the goal; **quests** are the steps toward it, each with
 what it requires and why it was added, and anything found along the way. A journey can span ten
-repos or none: shipping a release, learning a language, or cooking an omelette. A quest is a
-GitHub issue, an **errand** (a step that lives only in mikado) or a **petition** (waiting on
-someone's reply).
+repos or none: shipping a release, learning a language, or cooking an omelette. A quest is a title
+and a status you set by hand, with an optional **link** (any URL) and **mark** (a short note such as
+`#13` or a commit hash); a **petition** is a quest waiting on someone's reply.
 
 One static Go binary: `mikado serve` runs a JSON API and a web dashboard that draws each journey
 as a chart; every other command is a thin client of that API (AI agents like Claude Code fill
 journeys through it).
 
 Local-first: the server listens on loopback only and has no authentication yet. All data goes
-through the API, so auth can be added there later. GitHub is optional: when a quest is an issue,
-it is reached through the `gh` CLI, which holds the token; mikado stores no credentials.
+through the API, so auth can be added there later. mikado talks to no outside tool and stores no
+credentials: a quest tracked elsewhere carries that tool's link and number as its url and mark.
 
 The name comes from the [Mikado Method](https://mikadomethod.info/): put the goal at the top,
 try to reach it, and record every prerequisite you run into on the way. mikado keeps that graph
@@ -26,7 +26,7 @@ across projects, people and plain life, so the end goal stays in view while side
 | **Midnight theme** | **War table theme** |
 | ![Midnight theme](docs/screenshots/midnight.png) | ![War table theme](docs/screenshots/medieval.png) |
 
-**The words** — journey, atlas, chart, quest (or task), crowning quest, requires/opens, petition,
+**The words** — journey, atlas, chart, quest (or task), link, mark, crowning quest, requires/opens, petition,
 sealed, abandoned, struck, underway, hero, chronicle and the rest — are defined once, in the glossary in
 [`src/internal/skill/SKILL.md`](src/internal/skill/SKILL.md#glossary). The dashboard shows the same
 list in its Glossary tab.
@@ -35,7 +35,6 @@ list in its Glossary tab.
 
 - Go 1.27+
 - bun 1.3+ (frontend package manager and script runner)
-- `gh`, logged in (`gh auth status`): mikado reads and assigns issues through it
 
 ## Layout
 
@@ -46,7 +45,6 @@ TypeScript app at `src/web`.
 |---|---|
 | `cmd/mikado` | the CLI and `serve` |
 | `internal/store` | SQLite (pure-Go `modernc.org/sqlite`), embedded migrations, status computation — the only code that touches the database |
-| `internal/github` | batch issue reads (`gh api graphql`), assign/unassign (`gh issue edit`), assignable users |
 | `internal/api` | the JSON API under `/api` |
 | `internal/web` | `/api/health`, mounts the API, serves the embedded frontend |
 
@@ -54,15 +52,17 @@ TypeScript app at `src/web`.
 
 One global graph of quests and requirements; each journey is a view onto it, drawn as a chart.
 
-- A **quest** (or task) exists once and has a global id, shown as **`Q142`**. It is one of:
-  - an **issue**: a GitHub issue `owner/repo#n`. There is at most one live quest per issue. Its
-    title, state and assignees come from GitHub, cached ~60 s.
-  - an **errand**: a step not worth an issue, with a local title, fulfilled flag and hero.
-  - a **petition**: waiting on someone, with a local title, fulfilled flag, whom it awaits a reply
-    from, since when, and a hero.
+- A **quest** (or task) exists once and has a global id, shown as **`Q142`**. It has a title, a
+  fulfilled flag and a hero, all set in mikado, and two optional properties:
+  - a **link** (`--url`): any URL, never parsed; two quests may share one.
+  - a **mark** (`--mark`): free text of at most 15 characters, kept as written, such as `#13`,
+    `234g45a`, `feat(someh)` or `PROJ-88`. The chart shows it right after the quest's id, as a
+    link when the quest has a url; the details panel links the quest's title.
 
-  Wherever a quest is expected, it can be given as `Q142`, `Q-142`, `q142`, `142`, `owner/repo#n`
-  or an issue URL, or as a journey's id (`J7`), which names that journey's crowning quest.
+  A quest added with `--on WHO` is a **petition**: it awaits a reply from someone, since the day
+  it was made. `set Q --on -` makes it a plain quest again. Wherever a quest is expected, it can
+  be given as `Q142`, `Q-142`, `q142` or `142`, or as a journey's id (`J7`), which names that
+  journey's crowning quest.
 - **Requires** ("Q5 requires Q3": Q3 must be fulfilled first; Q3 opens Q5) is the only blocking
   relation. Requirements are global and acyclic across the whole graph.
   A quest hung on another with `--side-of` is a **side quest**: optional, never blocks and never
@@ -87,7 +87,7 @@ One global graph of quests and requirements; each journey is a view onto it, dra
   optional, while the other journey here blocks the quest that requires it.
 - **Regions** group journeys (`R2`, with a name). Every journey lives in exactly one; a new one
   goes to R1, "Personal", unless `--region` names another. A quest stays inside one region: a
-  requirement, crown, shared issue or journey waiting on another that would put a quest on
+  requirement, crown, shared quest or journey waiting on another that would put a quest on
   journeys of two regions is refused. Journeys that share quests move together
   (`region move R J...`). The Atlas's home page lists the regions; each
   opens its own page (`/region/R2`, `mikado open R2`) with its journeys on their shelves, where
@@ -95,15 +95,12 @@ One global graph of quests and requirements; each journey is a view onto it, dra
 - **Archiving** a journey puts it away. It leaves the Atlas's shelves for a closed "Archived"
   shelf at the bottom, and it leaves `journey list` unless you pass `--all`. Nothing else changes:
   its quests, chart and chronicle stay, and so does its URL. `journey unarchive` brings it back.
-- **Two ways to take a quest out**, like GitHub:
+- **Two ways to take a quest out**:
   - **Strike** means gone for good. The quest leaves the graph (it stays in the chronicle), and so
     do its side quests. A journey whose crowning quest is struck has none.
   - **Abandon** means won't do. The quest stays on the chart, blocks nothing and counts in no
-    progress total. Its side quests are abandoned with it. An issue closed on GitHub as
-    `NOT_PLANNED` or `DUPLICATE` reads as abandoned. Any quest, including an open issue, can also
-    be abandoned locally.
-- **Status is computed**, never stored: **abandoned**, else **fulfilled** (issue closed / flag
-  set), else **sealed** while anything it requires is neither fulfilled nor abandoned, else
+    progress total. Its side quests are abandoned with it.
+- **Status is computed** from the flags set by hand: **abandoned**, else **fulfilled**, else **sealed** while anything it requires is neither fulfilled nor abandoned, else
   **awaiting reply** for petitions and **open** for the rest. A journey is fulfilled when its
   crowning quest is, abandoned when its crowning quest is, and active otherwise.
 - **Underway** (someone is on it, optionally by name) is set explicitly with `take-up` and
@@ -111,7 +108,12 @@ One global graph of quests and requirements; each journey is a view onto it, dra
 - **The chronicle**: every change is an event, written as a sentence. A journey's chronicle is its
   own events (created, retitled, crowned) plus the events of the quests on its chart. Sentences
   written before the vocabulary changed keep their old words.
-- **Heroes**: a quest's hero is its GitHub assignee, else the hero set with `--hero`.
+- **Heroes**: a quest's hero is whoever is set with `--hero`.
+- **Earlier databases** are migrated when the server opens them. A GitHub issue quest became a
+  plain quest with the same id, its last known title, and its last known state as its own
+  (closed as completed: fulfilled; closed as not planned or a duplicate: abandoned); everything
+  else of mikado's own (hero, NPC, links, side quests, underway, chronicle) stays, and the GitHub
+  data is dropped. Errands became plain quests.
 
 The API and the database keep plain, older names (`cards`, `needs`, `done`, `locked`, `final`,
 `owner`, `working`, `log`); the dashboard and the CLI's text show the words above. SKILL.md maps
@@ -132,14 +134,15 @@ mikado journey archive J4                        # off the Atlas and `journey li
 mikado region new "Work"                          # -> region R2 (R1 is "Personal")
 mikado journey new "Store page is live" --region Work
 mikado region move Work J3 J4                     # together, when they share quests
-mikado add studio/game#140 --crowns J1           # Q1, the crowning quest
-mikado add studio/saves#88 --opens Q1            # Q2: Q1 requires it
-mikado add studio/saves#91 --opens Q2 --found-on Q2 --reason "old saves crash the loader"
-mikado errand "Book the store-page feature slot" --hero ada --opens Q1
-mikado petition "Final key art" --on "freelance artist" --opens studio/game#140
-mikado add studio/saves#88 --opens Q9            # same quest Q2, now also in Q9's journey
+mikado add "Ship the winter update" --crowns J1  # Q1, the crowning quest
+mikado add "Save migration" --opens Q1 --mark "#88" --url https://tracker.example.com/saves/88
+mikado add "Old saves crash the loader" --opens Q2 --found-on Q2 --reason "no version field"
+mikado add "Book the store-page feature slot" --hero ada --opens Q1
+mikado add "Final key art" --on "freelance artist" --opens Q1   # a petition
+mikado set Q2 --mark 234g45a --url -             # change the mark, drop the link
+mikado require Q9 Q2                             # Q2 now also opens Q9, in Q9's journey
 mikado require Q1 J2                             # Q1 waits on that whole journey: one card on the chart
-mikado errand "Controller glyphs in the trailer" --opens J2   # a journey id names its crowning quest
+mikado add "Controller glyphs in the trailer" --opens J2   # a journey id names its crowning quest
 mikado take-up Q2 --by cyd
 mikado abandon Q5 --reason "split-screen co-op is cut from this update"
 mikado show Q2                                   # requires, opens, side quests, journeys
@@ -155,8 +158,6 @@ mikado help                                      # every command
 
 Client commands reach the server at `--server URL` / `$MIKADO_SERVER` (default
 `http://127.0.0.1:47291`), take `--json`, and exit non-zero with the API's error message on failure.
-Earlier command and flag names (`done`, `cancel`, `remove`, `start`, `need`, `await`,
-`--needed-by`, `--owner`, …) still work but are no longer listed.
 
 ### Reaching it under another name
 
@@ -197,7 +198,7 @@ make uninstall         # remove the binary, the skill and the service; keeps ~/.
 
 `make install` alone also rebuilds, replaces the binary and restarts the service if it is running.
 For the service: `make start`, `stop`, `restart`, `status` and `logs` (follows the journal).
-The dashboard shows the running server's version in small print (its commit links to GitHub), and
+The dashboard shows the running server's version in small print (its commit links to the repo), and
 `mikado version` prints the CLI's version next to the server's, saying so when they differ.
 
 ## For AI agents
@@ -217,7 +218,7 @@ is left alone unless you pass `--force`. `mikado help` points agents at `mikado 
 
 ## API
 
-JSON under `/api`; errors are `{"error": "..."}` with 400/404/409/502; any change that would put a quest on journeys of two regions is refused with 409. Bodies must be sent as
+JSON under `/api`; errors are `{"error": "..."}` with 400/404/409; any change that would put a quest on journeys of two regions is refused with 409. Bodies must be sent as
 `Content-Type: application/json`, and requests must be addressed to localhost, `*.localhost` or an
 accepted host (`mikado hosts`); a refused host gets 403. The routes and fields keep the machine names: a *card* is a quest, a *need* `{from, to}` is "from requires to",
 *final* is the crowning quest, *owner* the hero. A `{id}` in a path takes any quest id form (`142`,
@@ -226,33 +227,30 @@ accepted host (`mikado hosts`); a refused host gets 403. The routes and fields k
 
 | | |
 |---|---|
-| `GET /api/journeys` | the Atlas: journey summaries (a GitHub warning, if any, in the `X-Mikado-GitHub` header). `blockedBy` lists the journeys `[{key, title, state, archivedAt?}]` whose crowning quests are on this journey's chart as journey cards; `blocks` the journeys with this one's on theirs |
+| `GET /api/journeys` | the Atlas: journey summaries. `blockedBy` lists the journeys `[{key, title, state, archivedAt?}]` whose crowning quests are on this journey's chart as journey cards; `blocks` the journeys with this one's on theirs |
 | `POST /api/journeys` `{title, final?, region?}` | create a journey; `final` (its crowning quest) is a quest id or reference string; `region` a region key or name (default: R1) |
-| `GET /api/journeys/{key}` | `{journey, cards, needs, log, github?}`: its quests, requirements and chronicle; each quest has `key` and `alsoIn`. A quest that crowns another journey has `crowns: {key, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that journey, its main-quest progress counted as the Atlas counts it, how many of its quests are underway, and its quests still to do. Its own quests are not in `cards` |
+| `GET /api/journeys/{key}` | `{journey, cards, needs, log}`: its quests, requirements and chronicle; each quest has `key` and `alsoIn`. A quest that crowns another journey has `crowns: {key, title, state, archivedAt?, done, total, working, open: [{key, title, status, working}]}`: that journey, its main-quest progress counted as the Atlas counts it, how many of its quests are underway, and its quests still to do. Its own quests are not in `cards` |
 | `PATCH /api/journeys/{key}` `{title?, final?, archived?, region?}` | retitle, crown, archive (`true`) or bring back (`false`), or move to a region; an archived journey has `archivedAt`. Every journey has `region: {key, name}` |
 | `DELETE /api/journeys/{key}` `{force?}` | delete a journey: `{key, deleted, kept}`. 409 when it is on another journey's chart, or when quests would be left in no journey and `force` (delete them too) is not set |
-| `POST /api/journeys/{key}/extract` `{title, quests}` | move quests into a new journey crowned by a new errand (201): `{journey, crown, stillIn}`. Quests of `{key}` that required them require the new crown instead; `stillIn` are moved quests `{key}` still reaches another way |
-| `POST /api/cards` `{kind, ref?, title?, sideOf?, foundWhile?, reason?, needs?, neededBy?, waitingOn?, owner?, npc?, finalOf?}` | add a quest (201); `finalOf` is a journey id. An issue that is already a quest gives 200 with that quest, and the links are applied to it |
+| `POST /api/journeys/{key}/extract` `{title, quests}` | move quests into a new journey crowned by a new quest (201): `{journey, crown, stillIn}`. Quests of `{key}` that required them require the new crown instead; `stillIn` are moved quests `{key}` still reaches another way |
+| `POST /api/cards` `{title, url?, mark?, waitingOn?, sideOf?, foundWhile?, reason?, needs?, neededBy?, owner?, npc?, finalOf?}` | add a quest (201); `waitingOn` makes it a petition, `finalOf` is a journey id. A quest has `kind: "awaiting"` when it is a petition (no `kind` otherwise), and `url` and `mark` when set |
 | `GET /api/regions` | `[{key, name, createdAt, journeys}]`, oldest first |
 | `POST /api/regions` `{name}` / `PATCH /api/regions/{key}` `{name}` | create (201) / rename a region; `{key}` is `R2` or its name. 409 for a name already taken |
 | `POST /api/regions/{key}/journeys` `{journeys}` | move journeys into the region together: their summaries. 409 when a quest on them is also on a journey that stays behind |
 | `DELETE /api/regions/{key}` | delete an empty region: `{region}`. 409 while it holds journeys, or when it is the last |
-| `GET /api/search?q=` | `{journeys, quests, exact?}`: journeys by id, title and region name, quests by id, issue and title (every word, any case; issue titles from the cache). `exact` is the quest the query names by id or issue. Quests still to do come first |
-| `GET /api/cards/{ref}` | `{card, journeys, needs, neededBy, sideQuests}`; `{ref}` may be `owner/repo%23n` or a journey id. A crowning quest's `card.crowns` names the journey it crowns, as above |
-| `PATCH /api/cards/{id}` `{done?, owner?, npc?, title?, cancelled?, cancelReason?, working?, workingBy?}` | change a quest: fulfil, hero, NPC, title, abandon, take up / set down |
+| `GET /api/search?q=` | `{journeys, quests, exact?}`: journeys by id, title and region name, quests by id, title, mark and url (every word, any case). `exact` is the quest the query names by id. Quests still to do come first |
+| `GET /api/cards/{ref}` | `{card, journeys, needs, neededBy, sideQuests}`; `{ref}` may be a journey id. A crowning quest's `card.crowns` names the journey it crowns, as above |
+| `PATCH /api/cards/{id}` `{done?, title?, url?, mark?, waitingOn?, owner?, npc?, cancelled?, cancelReason?, working?, workingBy?}` | change a quest: fulfil, title, link, mark, petition, hero, NPC, abandon, take up / set down; `""` clears `url`, `mark`, `waitingOn` (a plain quest again) or `owner` |
 | `DELETE /api/cards/{id}` `{reason}` | strike a quest and its side quests |
 | `POST /api/cards/{id}/delete` `{journey?, force?, branch?, rewire?}` | take a quest out of `journey`, or out of the database (`force`, needed too when `journey` is its last): `{key, journeys, branch, deleted}`. 409 names what is missing when its side quests or prerequisites would leave with it and neither `branch` (take them along) nor `rewire` (a quest that takes them over) is set |
 | `POST /api/needs/rewire` `{from, old, new}` | `from` requires `new` instead of `old`, in one transaction: `{from, old, new, orphaned}` |
 | `POST`/`DELETE /api/needs` `{from, to}` | add / drop a requirement (`from` requires `to`) |
-| `POST /api/cards/{id}/assignees` `{add, remove}` | assign on GitHub (issues) |
-| `GET /api/repos/{owner}/{repo}/assignees` | assignable logins |
 | `GET /api/hosts` | `[{name, source, addedAt?}]`: the hosts accepted besides localhost; `source` is `flag` (`--allow-host`, `$MIKADO_ALLOWED_HOSTS`) or `stored` |
 | `POST /api/hosts` `{name}` | accept a host from the next request on (201; 200 if already accepted). Only through localhost or a loopback IP (else 403) |
 | `DELETE /api/hosts/{name}` | stop accepting a stored host (204); 409 for a `flag` one. Only through localhost or a loopback IP (else 403) |
 
 The journey-scoped routes `POST /api/journeys/{key}/cards`, `PATCH`/`DELETE
-/api/journeys/{key}/cards/{id}`, `POST /api/journeys/{key}/cards/{id}/assignees` and
-`POST`/`DELETE /api/journeys/{key}/needs` are aliases. They check the journey exists; there,
+/api/journeys/{key}/cards/{id}` and `POST`/`DELETE /api/journeys/{key}/needs` are aliases. They check the journey exists; there,
 `final: true` means "crowning quest of this journey", and the returned quest's `alsoIn` leaves
 that journey out.
 
@@ -272,19 +270,20 @@ make demo         # serve the demo journeys on http://127.0.0.1:47295, fresh on 
 make screenshots  # retake docs/screenshots from them (needs Chrome, or $CHROME)
 ```
 
-`src/demo/seed.sh` fills an empty server with five journeys, with and without code: an omelette
-(found quests, side quests on side quests, a petition), a brunch that waits on the whole omelette
-journey, a finished home-office move, a typing goal with an achievement left, and a mikado journey
-with a real GitHub issue (skipped without `gh`). The data lives in `.demo/` and never touches your
-real database. To work on the frontend against it: `make demo`, then `make dev-web
-ADDR=127.0.0.1:47295`; for the CLI, `MIKADO_SERVER=http://127.0.0.1:47295 ./bin/mikado …`.
+`src/demo/seed.sh` fills an empty server with six journeys, with and without code: an omelette
+(found quests, side quests on side quests, a petition, a crowning quest linked to its recipe), a
+brunch that waits on the whole omelette journey and the tea extracted from it, a finished
+home-office move, a typing goal with an achievement left, and a dark mode for a made-up recipe site
+whose quests carry issue numbers and a commit hash as marks, each linked to its page. The data
+lives in `.demo/` and never touches your real database. To work on the frontend against it:
+`make demo`, then `make dev-web ADDR=127.0.0.1:47295`; for the CLI, `MIKADO_SERVER=http://127.0.0.1:47295 ./bin/mikado …`.
 
 ## Build and check
 
 ```bash
 make build      # frontend into src/internal/web/dist, then bin/mikado with it embedded
 make check      # tsc --noEmit + go vet
-make test       # go test ./... (store tests use a temp database and a fake GitHub)
+make test       # go test ./... (store tests use a temp database)
 ./bin/mikado version
 ./bin/mikado serve --addr 127.0.0.1:47291
 ```

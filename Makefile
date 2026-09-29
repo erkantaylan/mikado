@@ -129,7 +129,7 @@ check: deps ## tsc --noEmit and go vet
 	cd $(WEB) && $(BUN) x tsc -b --noEmit
 	cd src && $(GO) vet ./...
 
-# Go unit tests (the store runs against a temp SQLite file and a fake GitHub).
+# Go unit tests (the store runs against a temp SQLite file).
 test: tools ## go test
 	cd src && $(GO) test ./...
 

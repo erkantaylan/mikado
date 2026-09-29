@@ -31,18 +31,16 @@ const quest = async (title) => {
 
 const omelette = journey('Make an omelette')
 const brunch = journey('Host brunch for four on Sunday')
-const plugins = journey('mikado can hook in any task tool, not only GitHub')
+const darkMode = journey('The recipe site gets a dark mode')
 const found = await quest('Buy a box of eggs from the corner shop')
 const omeletteCrown = await quest('Serve the omelette on a warm plate while it is still soft in the middle')
-const issue = await quest('Make GitHub one pluggable quest source, so any tool can be hooked in').catch(() =>
-  quest('Write down the JSON protocol a source speaks'),
-)
+const toggle = await quest('Add a light / dark switch to the header')
 
 const shots = [
   { file: 'board.png', path: '/', theme: 'parchment', tab: 'journey' },
   { file: 'chart.png', path: `/journey/${omelette}?quest=${found}`, theme: 'parchment', tab: 'journey' },
   { file: 'glossary.png', path: `/journey/${omelette}?quest=${found}`, theme: 'parchment', tab: 'glossary' },
-  { file: 'midnight.png', path: `/journey/${plugins}?quest=${issue}`, theme: 'midnight', tab: 'journey' },
+  { file: 'midnight.png', path: `/journey/${darkMode}?quest=${toggle}`, theme: 'midnight', tab: 'journey' },
   { file: 'medieval.png', path: `/journey/${brunch}?quest=${omeletteCrown}`, theme: 'wartable', tab: 'journey' },
 ]
 

@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# Data lives in ~/.local/share/mikado; gh supplies the GitHub login.
+# Data lives in ~/.local/share/mikado.
 # Hosts besides localhost to answer, e.g. behind a reverse proxy (see README).
 # The usual way is `mikado hosts add NAME`, kept in the database and applied at
 # once; this adds hosts for as long as the service runs with it:
