@@ -85,6 +85,78 @@
   font-family: var(--font-display);
 }
 
+/* ---- a journey's card ----
+   The chart's own journey (the goal) and a journey this one waits on share one face (JourneyCard.tsx): a
+   sheet in the proportions of the war table's journey paper (paper-journey.webp, 768 x 504), with a thin
+   gold rule inset from its edge as that paper's is. The rule's inset was measured on the paper: 6.1% of
+   the width from each side, 9.1% of the height from the top and bottom. The padding keeps everything
+   written a little further in, so nothing touches the rule. The goal is the larger sheet. Only the goal
+   has the soft gold halo, as the chart's end. A waited-on journey's paper tells its state as a quest's
+   does: fulfilled steps back, abandoned sinks to the darkest plate. */
+.quest-journey {
+  --jw: 280px; /* the sheet's width; everything else follows from it */
+  width: var(--jw);
+  height: calc(var(--jw) / 1.524);
+  padding: calc(var(--jw) * 0.1) calc(var(--jw) * 0.1);
+  border-color: color-mix(in srgb, var(--gold) 80%, var(--plate));
+  border-width: 2px;
+  background: var(--plate);
+}
+.quest-goal {
+  --jw: 340px;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.quest-journey-paper {
+  position: absolute;
+  inset: 9.1% 6.1%;
+  border: 1px solid color-mix(in srgb, var(--gold) 75%, transparent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.quest-goal .quest-journey-title {
+  -webkit-line-clamp: 3;
+}
+.quest-journey[data-status='done'] {
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--panel));
+  background: var(--panel);
+}
+.quest-journey[data-status='done'] .quest-progress {
+  background: color-mix(in srgb, var(--gold) 55%, var(--panel));
+}
+.quest-journey[data-status='done'] .quest-journey-paper {
+  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.quest-journey[data-status='cancelled'] {
+  border-color: var(--char-border);
+  background: var(--char-plate);
+}
+.quest-journey[data-status='cancelled'] .quest-progress {
+  background: var(--edge-off);
+}
+.quest-journey[data-status='cancelled'] .quest-journey-paper {
+  border-color: var(--char-border);
+}
+.quest-journey:is([data-status='done'], [data-status='cancelled']) .quest-journey-title {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.quest-journey[data-status='cancelled'] .quest-journey-title {
+  text-decoration: line-through;
+}
+/* The Legend's sample of it. */
+.quest-journey-sample {
+  display: block;
+  flex-shrink: 0;
+  width: 38px;
+  height: 25px;
+  border: 2px solid color-mix(in srgb, var(--gold) 80%, var(--plate));
+  border-radius: 6px;
+  background: var(--plate);
+  box-shadow:
+    inset 0 0 0 2px var(--plate),
+    inset 0 0 0 3px color-mix(in srgb, var(--gold) 75%, transparent);
+}
+
 /* ---- covered quests ----
    Like the agent tiles laid over guessed cards in Codenames: a settled quest the chart covers keeps
    its place, under a solid tile with its key and how it ended. Hovering lifts the tile off to read
@@ -112,7 +184,7 @@
 .quest-item[data-covered] > :not(.quest-cover, .react-flow__handle) {
   transition: opacity 0.18s;
 }
-.quest-item[data-covered]:not(:hover) > :not(.quest-cover, .react-flow__handle, .quest-plate, .quest-behind) {
+.quest-item[data-covered]:not(:hover) > :not(.quest-cover, .react-flow__handle, .quest-plate, .quest-journey) {
   opacity: 0;
 }
 .quest-item[data-covered]:hover > .quest-cover {
@@ -988,9 +1060,6 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-side] .quest-title {
   font-size: 15px;
 }
-.quest-theme[data-theme='wartable'] .quest-stack .quest-title {
-  font-size: 16.5px;
-}
 
 /* ---- one question per spot ----
    Top-left, the gate: can it be started? Top-right, the kind: what sort of
@@ -1105,10 +1174,6 @@
   --wt-icon: url('../assets/wartable/icons/spade.svg');
   color: #6d5434;
 }
-.quest-theme[data-theme='wartable'] .wt-kind[data-kind='journey'] {
-  --wt-icon: url('../assets/wartable/icons/castle.svg');
-  color: #85611f;
-}
 .quest-theme[data-theme='wartable'] .wt-kind[data-kind='npc'] {
   --wt-icon: url('../assets/wartable/icons/banner.svg');
   color: var(--npc);
@@ -1122,7 +1187,7 @@
    drop-shadow filter would too, but Chromium smears it when the chart is zoomed. The borders are gone, so
    each state's cue is carried by that layer: a tint over the paper (cut to the sheet by the picture's own
    outline), a filter on the paper alone, a coloured edge just inside it, or another sheet (awaiting). Only
-   the selected card swaps its shadow for a glow. A journey card's sheets behind it are the same paper. */
+   the selected card swaps its shadow for a glow. */
 .quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) {
   --wt-paper: none; /* a filter on the paper alone, never on the writing */
   --wt-edge: none; /* inset shadows on the paper, cut to its deckled outline */
@@ -1130,16 +1195,15 @@
   --wt-under-opacity: 0.5;
   --wt-under-y: 3px;
   --wt-under-inset: -2px -3px;
-  --wt-flip: ; /* a sheet behind a journey card is turned round, so its edge is not the front's again */
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind) {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate {
   isolation: isolate; /* keeps the paper layers behind the writing but on the card */
   background: none !important;
   border-color: transparent !important;
   box-shadow: none !important;
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::before,
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate::before,
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate::after {
   content: '';
   position: absolute;
   inset: -2px -3px; /* the deckle falls just outside where the card's edge was */
@@ -1148,25 +1212,21 @@
   background: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
   pointer-events: none;
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::before {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate::before {
   background:
     linear-gradient(var(--wt-tint), var(--wt-tint)),
     url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
   mask: url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat;
   box-shadow: var(--wt-edge);
   filter: var(--wt-paper);
-  transform: var(--wt-flip);
 }
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-plate::after {
   inset: var(--wt-under-inset);
   z-index: -2;
   box-shadow: none;
   filter: var(--wt-under);
   opacity: var(--wt-under-opacity);
-  transform: translateY(var(--wt-under-y)) var(--wt-flip);
-}
-.quest-theme[data-theme='wartable'] .quest-item:not([data-status='cancelled']) .quest-behind {
-  --wt-flip: scale(-1, -1);
+  transform: translateY(var(--wt-under-y));
 }
 /* Open: a little warmth on the paper, instead of the blue pulse. It casts the plain shadow: on the war table
    only the selected card glows. */
@@ -1200,13 +1260,13 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] {
   --wt-edge: inset 0 0 1.5px 1.5px rgba(110, 18, 14, 0.7);
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-plate, .quest-behind)::before {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] .quest-plate::before {
   background-image:
     linear-gradient(var(--wt-tint), var(--wt-tint)),
     url('../assets/wartable/paper-petition.webp');
   mask-image: url('../assets/wartable/paper-petition.webp');
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] .quest-plate::after {
   background-image: url('../assets/wartable/paper-petition.webp');
 }
 /* The paper carries the red, so the small red words on it (Petition, the status) turn dark brown,
@@ -1240,8 +1300,8 @@
   box-shadow: none !important;
   padding: 11px 26px 11px 30px; /* the writing stays inside the charred rim */
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-plate, .quest-behind)::before,
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate::before,
+.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate::after {
   content: '';
   position: absolute;
   inset: -5px -10px; /* a little larger than the card, so its charred rim falls mostly outside the writing */
@@ -1250,7 +1310,7 @@
   filter: var(--wt-burnt);
   pointer-events: none;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-plate, .quest-behind)::after {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-plate::after {
   z-index: -2;
   filter: brightness(0) blur(3px);
   opacity: 0.5;
@@ -1273,15 +1333,6 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-kind, .quest-status, .quest-mark) {
   color: #2a1a0c !important;
   text-shadow: 0 0 3px rgba(226, 208, 176, 0.8);
-}
-/* A journey's sheets behind it burned with it: the same paper and shadow, a shade darker. */
-.quest-theme[data-theme='wartable'] .quest-stack[data-status='cancelled'] .quest-behind {
-  --wt-burnt: sepia(0.35) saturate(0.8) brightness(0.6);
-  isolation: isolate;
-  background: none !important;
-  border-color: transparent !important;
-  box-shadow: none;
-  filter: none;
 }
 /* Covered: the tile is the card's own paper, laid over it with the same outline, so a covered quest looks
    like a quieter version of itself: a fulfilled quest's darkened sheet, an abandoned quest's burned one,
@@ -1437,50 +1488,90 @@
   background: #f6d98a;
 }
 
-/* ---- journey cards: a stack of sheets ---- */
-.quest-theme[data-theme='wartable'] .quest-behind {
-  background: #e6d7b2 url('../assets/wartable/paper-card.webp') center / 512px !important;
-  border-width: 1.5px;
-  border-color: rgba(62, 40, 18, 0.45) !important;
-  border-radius: 5px 4px 7px 5px / 4px 7px 5px 6px;
-  box-shadow: 0 2px 5px rgba(40, 24, 8, 0.3);
-  opacity: 1 !important;
-}
-.quest-theme[data-theme='wartable'] .quest-behind:first-of-type {
-  filter: brightness(0.9);
-}
-.quest-theme[data-theme='wartable'] .quest-stack[data-status='done'] .quest-behind {
-  filter: brightness(0.97) saturate(0.6);
-}
 /* Progress, in brass (here and on the crowning quest's card). */
 .quest-theme[data-theme='wartable'] .quest-progress {
   background: linear-gradient(180deg, #f1d58e 0%, #c9983e 45%, #8d6420 100%) !important;
 }
-.quest-theme[data-theme='wartable'] :is(.quest-item, .quest-goal) .quest-progress {
+.quest-theme[data-theme='wartable'] :is(.quest-item, .quest-journey) .quest-progress {
   box-shadow: inset 0 -1px 0 rgba(60, 35, 5, 0.35);
 }
-.quest-theme[data-theme='wartable'] .quest-stack:is([data-status='done'], [data-status='cancelled']) .quest-progress {
+.quest-theme[data-theme='wartable'] .quest-journey:is([data-status='done'], [data-status='cancelled']) .quest-progress {
   filter: saturate(0.55) brightness(1.1);
 }
 
-/* ---- the journey's own card: the crown above the castle ---- */
-.quest-theme[data-theme='wartable'] .quest-goal {
-  position: relative;
-  width: 320px !important;
-  padding: 20px 22px 18px;
-  gap: 10px;
-  border-width: 2px;
-  border-color: #a87417 !important;
-  border-radius: 6px 9px 7px 10px / 9px 6px 10px 7px;
-  background:
-    linear-gradient(rgba(255, 238, 196, 0.25), rgba(255, 238, 196, 0.25)),
-    #f3e9cf url('../assets/wartable/paper-card.webp') center / 512px !important;
-  box-shadow:
-    inset 0 0 0 3px rgba(252, 246, 230, 0.8),
-    inset 0 0 0 4px #b98a3a,
-    0 1px 1px rgba(40, 24, 8, 0.35),
-    0 6px 16px -2px rgba(40, 24, 8, 0.45) !important;
+/* ---- a journey's card: the journey paper ----
+   The chart's own journey and a journey this one waits on share it (.quest-journey, JourneyCard.tsx): a
+   heavier sheet than a quest's, with its own gold rule (paper-journey.webp), drawn at 100% 100% so the rule
+   stays where the padding expects it. As on a quest's sheet, the paper is a layer behind the writing
+   (.quest-journey-paper::before) and its shadow a blurred, blackened copy of it (::after). Its state is
+   told as a quest's is: the paper's light goes out when fulfilled, and it is darkened when abandoned;
+   selected, it is lit again and glows along its deckle. */
+.quest-theme[data-theme='wartable'] .quest-journey {
+  isolation: isolate; /* keeps the paper layers behind the writing but on the card */
+  border-width: 0;
+  border-color: transparent !important;
+  background: none !important;
+  box-shadow: none !important;
 }
+.quest-theme[data-theme='wartable'] .quest-journey-paper {
+  inset: 0;
+  z-index: -1;
+  border: 0;
+  border-radius: 0;
+}
+.quest-theme[data-theme='wartable'] .quest-journey-paper::before,
+.quest-theme[data-theme='wartable'] .quest-journey-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('../assets/wartable/paper-journey.webp') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.quest-theme[data-theme='wartable'] .quest-journey-paper::before {
+  z-index: -1;
+}
+.quest-theme[data-theme='wartable'] .quest-journey-paper::after {
+  z-index: -2;
+  inset: -1px -2px;
+  filter: brightness(0) blur(3px);
+  opacity: 0.5;
+  transform: translateY(3px);
+}
+.quest-theme[data-theme='wartable'] .quest-journey[data-status='done']:not(.quest-lit) .quest-journey-paper::before {
+  filter: sepia(0.45) brightness(0.62) saturate(0.8);
+}
+.quest-theme[data-theme='wartable'] .quest-journey[data-status='cancelled'] .quest-journey-paper::before {
+  filter: grayscale(0.55) sepia(0.2) brightness(0.55);
+}
+.quest-theme[data-theme='wartable'] .quest-journey .quest-journey-title {
+  font-size: 16.5px;
+  line-height: 1.3;
+}
+.quest-theme[data-theme='wartable'] .quest-goal .quest-journey-title {
+  font-size: 18px;
+  line-height: 1.25;
+}
+.quest-theme[data-theme='wartable'] .quest-journey:is([data-status='done']:not(.quest-lit), [data-status='cancelled']) .quest-journey-title {
+  color: #2a1a0c;
+  font-weight: 600;
+}
+/* On the darkened paper the small words turn a dark brown ink, with a pale halo against it. */
+.quest-theme[data-theme='wartable'] .quest-journey:is([data-status='done']:not(.quest-lit), [data-status='cancelled']) :is(.quest-journey-word, .quest-journey-count, .quest-journey-link) {
+  color: #2a1a0c !important;
+  text-shadow: 0 0 3px rgba(226, 208, 176, 0.7);
+}
+/* Selected: the glow follows the deckle, as on a quest's sheet, instead of the rim round a box. */
+.quest-theme[data-theme='wartable'] .quest-journey.quest-lit::after {
+  content: none;
+}
+.quest-theme[data-theme='wartable'] .quest-journey.quest-lit .quest-journey-paper::after {
+  inset: -9px -11px;
+  filter: brightness(0) invert(0.7) sepia(1) saturate(5) hue-rotate(-12deg) blur(10px);
+  opacity: 1;
+  transform: none;
+}
+
+/* The chart's own journey: the crown above the castle. */
 .quest-theme[data-theme='wartable'] .quest-goal::before {
   content: '';
   position: absolute;
@@ -1495,13 +1586,18 @@
 .quest-theme[data-theme='wartable'] .quest-goal[data-state='cancelled']::before {
   filter: grayscale(1) opacity(0.55);
 }
-/* The crown and castle stand for the quest here, so the trophy badge steps aside (an abandoned quest keeps its mark). */
-.quest-theme[data-theme='wartable'] .quest-goal:not([data-state='cancelled']) .quest-goal-medal {
+/* The crown and castle stand for the trophy here, where it would sit (greyed when the journey is abandoned). */
+.quest-theme[data-theme='wartable'] .quest-goal .quest-goal-medal {
   display: none;
 }
-.quest-theme[data-theme='wartable'] .quest-goal .quest-goal-title {
-  font-size: 18px;
-  line-height: 1.25;
+/* The Legend's sample of it. */
+.quest-theme[data-theme='wartable'] .quest-journey-sample {
+  width: 44px;
+  height: 29px;
+  border: 0;
+  border-radius: 0;
+  background: url('../assets/wartable/paper-journey.webp') center / 100% 100% no-repeat;
+  filter: drop-shadow(0 1.5px 1.5px rgba(40, 24, 8, 0.4));
 }
 
 /* ---- the legend: the cards' own marks, set in a row ---- */
@@ -1632,6 +1728,17 @@
 }
 .react-flow__minimap-node.mm-goal {
   fill: var(--gold);
+}
+/* A journey this one waits on: its status, framed in the goal's gold. */
+.react-flow__minimap-node.mm-journey {
+  stroke: var(--gold);
+  stroke-width: 14px;
+}
+.react-flow__minimap-node.mm-journey.mm-done {
+  stroke: color-mix(in srgb, var(--gold) 55%, var(--panel));
+}
+.react-flow__minimap-node.mm-journey.mm-cancelled {
+  stroke: var(--char-border);
 }
 
 /* The "light bulb" behind a selected card: a warm halo that flickers on, then holds. */

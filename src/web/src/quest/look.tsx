@@ -396,16 +396,15 @@ export function Gate({ status, count, small = false }: { status: Status; count?:
   )
 }
 
-export type Kind = 'side' | 'found' | 'journey' | 'npc'
+export type Kind = 'side' | 'found' | 'npc'
 
 export const kindTitle: Record<Kind, string> = {
   side: 'Side quest: optional, earns an achievement',
   found: 'Found: turned up along the way',
-  journey: 'Journey card: stands for another journey, with its own chart',
   npc: 'NPC (right-click the quest on the chart to change)',
 }
 
-/** One kind mark: a gem, a spade, a castle or a red banner. */
+/** One kind mark: a gem, a spade or a red banner. */
 export function KindMark({ kind, title }: { kind: Kind; title?: string }) {
   const t = title ?? kindTitle[kind]
   return (

@@ -103,6 +103,9 @@ function Row({ item, onPick, right }: { item: Item; onPick: (id: string) => void
   )
 }
 
+// Both legends' words for the gold-framed card.
+const journeyCardText = "A gold-framed card: a journey. This chart's own stands at the end; any other is a journey this one waits on, with its own chart"
+
 function Legend() {
   const line = (style: CSSProperties) => (
     <svg width="36" height="10" className="shrink-0">
@@ -127,6 +130,9 @@ function Legend() {
       </li>
       <li className="flex items-center gap-2">{dot(sideMedal, <Gem size={14} />)} Side quest: optional, earns an achievement</li>
       <li className="flex items-center gap-2">{dot(medal.available, <Crown size={14} />)} Crowning quest: fulfil it and the journey is fulfilled</li>
+      <li className="flex items-center gap-2">
+        <span className="quest-journey-sample" /> {journeyCardText}
+      </li>
       <li className="flex items-center gap-2">
         <Npc /> a red quest: an NPC; right-click a quest to mark or unmark it
       </li>
@@ -188,7 +194,6 @@ function WarLegend() {
         <ul className="space-y-2.5">
           {row(<KindMark kind="side" />, 'Side quest: optional, earns an achievement')}
           {row(<KindMark kind="found" />, 'Found: turned up along the way')}
-          {row(<KindMark kind="journey" />, 'Journey card: stands for another journey, with its own chart')}
           {row(<KindMark kind="npc" />, 'NPC: right-click a quest to mark or unmark it')}
           {row(<Working />, 'Underway: someone has taken it up right now')}
         </ul>
@@ -207,6 +212,7 @@ function WarLegend() {
       <Panel title="The journey">
         <ul className="space-y-2.5">
           {row(<span className="wt-crown" />, 'Crowning quest: fulfil it and the journey is fulfilled')}
+          {row(<span className="quest-journey-sample" />, journeyCardText)}
         </ul>
       </Panel>
       <Panel title="Lines between cards">
@@ -789,7 +795,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
   const selectedId = sel ? sel.id : null
   const hidden = useMemo(() => hiddenQuests(m, hide), [m, hide])
   const covered = useMemo(() => coveredQuests(m, hide), [m, hide])
-  const graph = useMemo(() => buildGraph(m, selectedId, state, hidden, covered), [m, selectedId, state, hidden, covered])
+  const graph = useMemo(() => buildGraph(m, selectedId, state, hidden, covered, journeyKey), [m, selectedId, state, hidden, covered, journeyKey])
   const hideable = useMemo(
     () => ({ done: coveredQuests(m, { done: 'cover', cancelled: 'show' }).size, cancelled: coveredQuests(m, { done: 'show', cancelled: 'cover' }).size }),
     [m],

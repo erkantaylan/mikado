@@ -16,7 +16,7 @@ import { Ban, Check, Crown, Gem, Hourglass, Sparkles, Trophy } from 'lucide-reac
 import type { Item, JourneyModel, JourneyRef, JourneyState, Status } from './model'
 import { Achievements, Cover, Gate, Jester, Kinds, Label, Npc, Working, crownMedal, glow, medal, plate, spentText, sideMedal, sidePlate, stateColour, words, type Kind } from './look'
 import { useWarTable } from './theme'
-import { JourneyCardView, journeyHref } from './JourneyCard'
+import { JourneyCardView, JourneyFace, journeyHref } from './JourneyCard'
 import { IdTag } from './wood'
 import { RailwayLine } from './railway'
 
@@ -24,12 +24,11 @@ import { RailwayLine } from './railway'
 
 // Widths are fixed; heights follow the content, so a long title is shown in full.
 // The layout runs after React Flow has measured the real heights.
-const GOAL_WIDTH = 290
 const CARD_WIDTH = 310
 const SIDE_WIDTH = 290
 
 // Node data carries everything a node draws, so node components read no journey state of their own.
-type GoalData = { title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
+type GoalData = { id?: string; title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
 export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; selected: boolean; covered: boolean }
 type GoalNode = Node<GoalData, 'goal'>
 type CardNode = Node<CardData, 'card'>
@@ -48,41 +47,35 @@ function MedalIcon({ item, status, openBefore }: { item: Item; status: Status; o
   return <Sparkles size={size} />
 }
 
-const journeyWord: Record<JourneyState, string> = { active: 'Journey', complete: 'Journey fulfilled', cancelled: 'Journey abandoned' }
-
 function GoalView({ data }: NodeProps<GoalNode>) {
-  const pct = data.total ? Math.round((data.done / data.total) * 100) : 0
   return (
-    <div
-      style={{ width: GOAL_WIDTH, borderColor: 'var(--gold)', background: 'var(--plate)', boxShadow: glow('--gold', 30, 35) }}
-      data-state={data.state ?? 'active'}
-      data-reached={data.reached || undefined}
-      className="quest-goal flex flex-col items-center justify-center gap-2 rounded-2xl border-[3px] px-4 py-4 text-center"
+    <JourneyFace
+      id={data.id}
+      title={data.title}
+      state={data.state ?? 'active'}
+      done={data.done}
+      total={data.total}
+      className="quest-goal"
+      data={{ 'data-state': data.state ?? 'active', 'data-reached': data.reached || undefined }}
+      // The trophy, on its top edge, is the goal's alone: the chart ends here. (On the war table the crown and castle stand in for it.)
+      top={
+        <span
+          className="quest-goal-medal absolute -top-6 left-1/2 z-10 grid size-11 -translate-x-1/2 place-items-center rounded-full border-2"
+          style={
+            data.reached
+              ? crownMedal
+              : data.state === 'cancelled'
+                ? medal.cancelled
+                : { background: 'var(--plate)', borderColor: 'var(--gold)', color: 'var(--gold)' }
+          }
+        >
+          {data.state === 'cancelled' ? <Ban size={22} /> : <Trophy size={22} />}
+        </span>
+      }
+      bottom={<Achievements done={data.bonus} total={data.bonusTotal} />}
     >
       <Handle type="target" position={Position.Left} className={hidden} />
-      <span
-        className="quest-goal-medal grid size-12 place-items-center rounded-full border-2"
-        style={data.reached ? crownMedal : data.state === 'cancelled' ? medal.cancelled : { borderColor: 'var(--gold)', color: 'var(--gold)' }}
-      >
-        {data.state === 'cancelled' ? <Ban size={24} /> : <Trophy size={24} />}
-      </span>
-      <span
-        className="text-[12px] font-bold"
-        style={{ color: data.state === 'cancelled' ? stateColour.cancelled : stateColour.done }}
-      >
-        {journeyWord[data.state ?? 'active']}
-      </span>
-      <span className="quest-display quest-goal-title text-[15px] leading-tight font-semibold">{data.title}</span>
-      <div className="w-full">
-        <div className="h-2 overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
-          <div className="quest-progress h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="mt-1 text-[13px] text-[var(--ink-soft)]">
-          Main quest {data.done}/{data.total}
-        </div>
-      </div>
-      <Achievements done={data.bonus} total={data.bonusTotal} />
-    </div>
+    </JourneyFace>
   )
 }
 
@@ -147,7 +140,7 @@ function CardView({ data }: NodeProps<CardNode>) {
   const { item, tag, status, openBefore, days, selected, covered } = data
   const wt = useWarTable()
   // A quest that crowns another journey stands for that whole journey here.
-  if (item.crowns) return <JourneyCardView item={item} q={item.crowns} status={status} selected={selected} covered={covered} />
+  if (item.crowns) return <JourneyCardView q={item.crowns} status={status} selected={selected} covered={covered} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   const underway = item.working && !item.done
@@ -412,6 +405,7 @@ export function buildGraph(
   state?: JourneyState,
   hidden: Set<string> = new Set(),
   covered: Set<string> = new Set(),
+  key?: string, // the journey's own (J7), for its card; the mock has none
 ): { nodes: QuestNode[]; edges: QuestEdge[] } {
   const { goal, items, sideQuests, needs, byId } = m
   const done = items.filter((i) => i.done && m.counted(i)).length
@@ -423,6 +417,7 @@ export function buildGraph(
       type: 'goal',
       position: { x: 0, y: 0 },
       data: {
+        id: key,
         title: goal.title,
         state,
         done,
@@ -507,6 +502,8 @@ export function buildGraph(
 export const miniClass = (n: Node) => {
   if (n.type === 'goal') return 'mm-goal'
   const d = n.data as CardData
+  // A journey this one waits on: its status, in the goal's gold frame.
+  if (d.item.crowns) return `mm-${d.status} mm-journey`
   if (d.item.npc) return d.status === 'done' || d.status === 'cancelled' ? 'mm-npc-done' : 'mm-npc'
   return d.item.sideOf && !d.item.done ? 'mm-side' : `mm-${d.status}`
 }

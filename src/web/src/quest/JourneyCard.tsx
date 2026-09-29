@@ -1,31 +1,19 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Ban, Check, ExternalLink, Flag, Layers } from 'lucide-react'
-import type { Item, JourneyCard, Status } from './model'
-import { Cover, Gate, Key, Kinds, Working, glow, medal, plate, spentText, stateColour, words } from './look'
+import { Ban, Check, ExternalLink, Flag } from 'lucide-react'
+import type { JourneyCard, JourneyState, Status } from './model'
+import { Cover, Gate, Working, medal, stateColour, words } from './look'
 import { useWarTable } from './theme'
 import { IdTag } from './wood'
 
-// A journey card: a quest on this chart that crowns another journey, drawn as one card standing for
-// that whole journey, its own quests folded behind it. It counts as one quest here.
+// A journey's card, as the chart draws it twice: the chart's own journey (the goal, at the right end), and
+// a quest on this chart that crowns another journey, standing for that whole journey. Both are one face
+// (JourneyFace, .quest-journey in quest.css), so they cannot drift apart; only the goal wears the trophy
+// (and on the war table the crown and castle), and only the other journey's card the marks of a quest.
 
-const CARD_WIDTH = 310 // as graph.tsx's quests
-const STACK = 5 // how far each folded plate peeks out behind the card
 const hidden = '!opacity-0'
 
 export const journeyHref = (key: string) => `/journey/${encodeURIComponent(key)}`
-
-/** The folded plates behind a journey card: its own quests, stacked. They step back like a fulfilled quest. */
-function behind(status: Status, depth: number): CSSProperties {
-  const base = plate[status]
-  const done = status === 'done' || status === 'cancelled'
-  return {
-    background: `color-mix(in srgb, ${base.background} ${done ? 80 : 88 - depth * 10}%, var(--bg))`,
-    borderColor: base.borderColor as string,
-    opacity: done ? 0.55 : 1 - depth * 0.15,
-    transform: `translate(${STACK * depth}px, ${STACK * depth}px)`,
-  }
-}
 
 /** The other journey's main-quest progress, as the Atlas counts it. */
 export function JourneyProgress({ q, done }: { q: JourneyCard; done: boolean }) {
@@ -53,35 +41,85 @@ export function journeyCardWord(q: JourneyCard, status: Status): string {
   return words[status]
 }
 
-type Props = { item: Item; q: JourneyCard; status: Status; selected: boolean; covered?: boolean }
+const journeyWord: Record<JourneyState, string> = { active: 'Journey', complete: 'Journey fulfilled', cancelled: 'Journey abandoned' }
 
-/** The journey card node. */
-export function JourneyCardView({ item, q, status, selected, covered }: Props) {
+type FaceProps = {
+  id?: string // J7; the mock's journey has none
+  title: string
+  state: JourneyState
+  done: number
+  total: number
+  archived?: boolean
+  top?: ReactNode // on its top edge: the goal's trophy
+  bottom?: ReactNode // under the progress: the goal's achievements, the other journey's status and link
+  className?: string
+  style?: CSSProperties
+  data?: Record<`data-${string}`, string | boolean | undefined>
+  children?: ReactNode // the node's handles
+}
+
+/**
+ * A journey's card face: its id and state, its title and its main-quest progress, on the journey's own
+ * paper: a sheet with a gold rule inset from its edge (paper-journey.webp on the war table, a thin CSS rule
+ * in the other themes). The sheet keeps its proportions, so the rule always sits where the padding expects
+ * it and everything written stays inside it; a long title is cut short, in full on hover. Its sizes and
+ * colours are in quest.css (.quest-journey), per theme and per status.
+ */
+export function JourneyFace({ id, title, state, done, total, archived, top, bottom, className = '', style, data, children }: FaceProps) {
+  const pct = total ? Math.round((done / total) * 100) : 0
+  return (
+    <div
+      {...data}
+      style={style}
+      className={`quest-journey relative flex flex-col items-center justify-center gap-1.5 rounded-2xl text-center ${className}`}
+    >
+      <span aria-hidden className="quest-journey-paper" />
+      {children}
+      {top}
+      <span className="flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+        {id && <IdTag id={id} />}
+        <span
+          className="quest-journey-word text-[12px] font-bold"
+          style={{ color: state === 'cancelled' ? stateColour.cancelled : stateColour.done }}
+        >
+          {journeyWord[state]}
+        </span>
+        {archived && <span className="text-[11px] font-semibold text-[var(--ink-faint)]">· Archived</span>}
+      </span>
+      <span className="quest-display quest-journey-title line-clamp-2 text-[15px] leading-tight font-semibold" title={title}>
+        {title}
+      </span>
+      <div className="flex w-full flex-col items-center gap-1">
+        <span className="quest-journey-count text-[13px] leading-none whitespace-nowrap text-[var(--ink-soft)]">
+          Main quest {done}/{total}
+        </span>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--chip)] ring-1 ring-[var(--plate-border)]">
+          <div className="quest-progress h-full bg-[var(--gold)]" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      {bottom}
+    </div>
+  )
+}
+
+const stateOf = (status: Status): JourneyState => (status === 'done' ? 'complete' : status === 'cancelled' ? 'cancelled' : 'active')
+
+type Props = { q: JourneyCard; status: Status; selected: boolean; covered?: boolean }
+
+/**
+ * A journey this one waits on: the journey's own face, with the marks every quest wears (the state badge
+ * or the war table's gate on its corner, underway on the other) and its status and a link to its chart
+ * along the bottom. It counts as one quest here.
+ */
+export function JourneyCardView({ q, status, selected, covered }: Props) {
   const wt = useWarTable()
   const done = status === 'done'
   const over = done || status === 'cancelled'
   const underway = q.underway > 0 && !over
-  const working = <Working by={`${q.underway} ${q.underway === 1 ? 'quest' : 'quests'} in ${q.key}`} />
-  const front: CSSProperties = { ...plate[status], ...(status === 'available' ? { boxShadow: glow('--avail', 18, 45) } : {}) }
   return (
-    <div
-      style={{ width: CARD_WIDTH + STACK * 2, paddingRight: STACK * 2, paddingBottom: STACK * 2 }}
-      data-status={status}
-      data-covered={covered || undefined}
-      className="quest-item quest-stack relative cursor-pointer"
-    >
+    <div data-status={status} data-covered={covered || undefined} className="quest-item relative cursor-pointer">
       <Handle type="target" position={Position.Left} className={hidden} />
-      {/* The tile covers the front card; the journey's folded quests still peek out behind it. */}
-      {covered && <Cover status={status} name={q.key} style={{ right: STACK * 2, bottom: STACK * 2 }} />}
-      {/* The journey's own quests, folded behind it. */}
-      {[2, 1].map((depth) => (
-        <div
-          key={depth}
-          aria-hidden
-          style={{ ...behind(status, depth), right: STACK * 2, bottom: STACK * 2 }}
-          className="quest-behind absolute top-0 left-0 rounded-lg border-2"
-        />
-      ))}
+      {covered && <Cover status={status} name={q.key} style={{ borderRadius: '1rem' }} />}
       {wt ? (
         // The war table's gate: can it be started? A seal counts the journey's quests still to go, as its label does.
         <Gate status={status} count={q.total - q.done} />
@@ -94,44 +132,36 @@ export function JourneyCardView({ item, q, status, selected, covered }: Props) {
           {done ? <Check size={16} strokeWidth={3} /> : status === 'cancelled' ? <Ban size={16} /> : <Flag size={16} />}
         </span>
       )}
-      {underway && !wt && <span className="absolute -top-3 right-5 z-10">{working}</span>}
-      <div style={front} className={`quest-plate relative flex flex-col gap-1.5 rounded-lg border-2 py-2 pr-3 pl-5 ${selected ? 'quest-lit' : ''}`}>
-        <div className="flex min-w-0 items-center gap-1.5 pl-2.5">
-          <Key id={item.key} />
-          <span
-            className="flex shrink-0 items-center gap-1 text-[12px] font-bold"
-            style={{ color: over ? spentText : stateColour.done }}
-          >
-            <Layers size={13} /> Journey
-          </span>
-          <IdTag id={q.key} />
-          {q.archived && (
-            <span className="shrink-0 text-[11px] font-semibold text-[var(--ink-faint)]">Archived</span>
-          )}
-          {wt && <Kinds kinds={['journey']}>{underway && working}</Kinds>}
-        </div>
-        <span
-          className={`quest-display quest-title leading-snug ${
-            over ? 'text-[15px] font-medium text-[var(--ink-soft)]' : 'text-[15px] font-semibold'
-          } ${status === 'cancelled' ? 'line-through' : ''}`}
-        >
-          {q.title}
+      {underway && (
+        <span className="absolute -top-3 right-5 z-10">
+          <Working by={`${q.underway} ${q.underway === 1 ? 'quest' : 'quests'} in ${q.key}`} />
         </span>
-        <JourneyProgress q={q} done={over} />
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-bold" style={{ color: done ? spentText : stateColour[status] }}>
-            {journeyCardWord(q, status)}
-          </span>
-          <a
-            href={journeyHref(q.key)}
-            onClick={(e) => e.stopPropagation()}
-            title={`Open journey ${q.key}`}
-            className="flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] hover:underline"
-          >
-            open <ExternalLink size={12} />
-          </a>
-        </div>
-      </div>
+      )}
+      <JourneyFace
+        id={q.key}
+        title={q.title}
+        state={stateOf(status)}
+        done={q.done}
+        total={q.total}
+        archived={q.archived}
+        className={selected ? 'quest-lit' : ''}
+        data={{ 'data-status': status }}
+        bottom={
+          <div className="flex w-full items-center justify-between gap-2">
+            <span className="quest-status text-[12px] font-bold" style={{ color: stateColour[status] }}>
+              {!over && journeyCardWord(q, status)}
+            </span>
+            <a
+              href={journeyHref(q.key)}
+              onClick={(e) => e.stopPropagation()}
+              title={`Open journey ${q.key}`}
+              className="quest-journey-link nodrag nopan flex shrink-0 items-center gap-0.5 text-[12px] font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] hover:underline"
+            >
+              chart <ExternalLink size={12} />
+            </a>
+          </div>
+        }
+      />
       <Handle type="source" position={Position.Right} className={hidden} />
     </div>
   )
