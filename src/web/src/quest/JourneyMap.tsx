@@ -1013,8 +1013,8 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
               ]}
               extra={count('cancelled') ? [{ key: 'cancelled', n: count('cancelled'), label: 'abandoned' }] : []}
             />
-            {/* The buttons, racked in two rows beside the tally: search on top, the rest below. */}
-            <div className="quest-tools grid shrink-0 grid-cols-2 gap-1.5">
+            {/* The buttons, racked beside the tally: search on top, the theme below. */}
+            <div className="quest-tools grid shrink-0 grid-cols-1 gap-1.5">
               {journeyKey && (
                 <Search
                   here={journeyKey}
@@ -1027,14 +1027,6 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                 />
               )}
               <ThemeMenu theme={theme} onChange={setTheme} />
-              <button
-                onClick={() => setPanelOpen((o) => !o)}
-                className="quest-tool grid size-10 place-items-center rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
-                aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
-                title={panelOpen ? 'Hide side panel' : 'Show side panel'}
-              >
-                {panelOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
-              </button>
             </div>
           </div>
         </header>
@@ -1099,6 +1091,16 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                     aria-expanded={showOpen}
                   >
                     {hidden.size || covered.size ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </ControlButton>
+                  {/* The side panel's button, at the stack's foot, a little apart from the view's buttons. */}
+                  <span className="quest-stack-gap" aria-hidden />
+                  <ControlButton
+                    onClick={() => setPanelOpen((o) => !o)}
+                    title={panelOpen ? 'Hide side panel' : 'Show side panel'}
+                    aria-label={panelOpen ? 'Hide side panel' : 'Show side panel'}
+                    aria-expanded={panelOpen}
+                  >
+                    {panelOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
                   </ControlButton>
                 </Controls>
                 <LayoutWhenMeasured onPlaced={onPlaced} />

@@ -160,6 +160,27 @@
   opacity: 0.5;
 }
 
+/* ---- the chart's control stack (React Flow's Controls) ---- */
+/* React Flow fills every icon in the stack: right for its own, a blot for an outline icon. */
+.react-flow__controls-button svg.lucide {
+  max-width: 14px;
+  max-height: 14px;
+  fill: none;
+}
+/* The side panel's button sits at the foot of the stack, a small gap above it. The stack's shadow
+   becomes a drop shadow, so the gap stays clear. */
+.react-flow__controls-button:has(+ .quest-stack-gap) {
+  border-bottom: none;
+}
+.quest-stack-gap {
+  display: block;
+  height: 8px;
+}
+.quest-theme .react-flow__controls {
+  box-shadow: none;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.35));
+}
+
 @media (prefers-reduced-motion: reduce) {
   .quest-item[data-covered]:hover > .quest-cover {
     transform: none;
@@ -301,7 +322,7 @@
 }
 
 .quest-theme[data-theme='wartable'] .react-flow__controls {
-  box-shadow: 0 2px 6px rgba(40, 25, 8, 0.35);
+  filter: drop-shadow(0 2px 3px rgba(40, 25, 8, 0.45));
 }
 
 /* ---- the carved-wood header ---- */
