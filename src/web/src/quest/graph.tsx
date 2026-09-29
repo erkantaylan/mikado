@@ -28,7 +28,7 @@ const CARD_WIDTH = 310
 const SIDE_WIDTH = 290
 
 // Node data carries everything a node draws, so node components read no journey state of their own.
-type GoalData = { id?: string; title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
+type GoalData = { id?: string; quest?: string; title: string; state?: JourneyState; done: number; total: number; reached: boolean; bonus: number; bonusTotal: number }
 export type CardData = { item: Item; tag: string; status: Status; openBefore: number; days: number; selected: boolean; covered: boolean }
 type GoalNode = Node<GoalData, 'goal'>
 type CardNode = Node<CardData, 'card'>
@@ -51,6 +51,7 @@ function GoalView({ data }: NodeProps<GoalNode>) {
   return (
     <JourneyFace
       id={data.id}
+      quest={data.quest}
       title={data.title}
       state={data.state ?? 'active'}
       done={data.done}
@@ -140,7 +141,7 @@ function CardView({ data }: NodeProps<CardNode>) {
   const { item, tag, status, openBefore, days, selected, covered } = data
   const wt = useWarTable()
   // A quest that crowns another journey stands for that whole journey here.
-  if (item.crowns) return <JourneyCardView q={item.crowns} status={status} selected={selected} covered={covered} />
+  if (item.crowns) return <JourneyCardView q={item.crowns} quest={item.key} status={status} selected={selected} covered={covered} />
   const side = !!item.sideOf
   const label = side && status !== 'done' ? 'Optional' : status === 'awaiting' ? `${words.awaiting} · ${days} days` : words[status]
   const underway = item.working && !item.done
@@ -418,6 +419,7 @@ export function buildGraph(
       position: { x: 0, y: 0 },
       data: {
         id: key,
+        quest: byId.get(goal.doneWhen)?.key, // its crowning quest; none yet, none shown
         title: goal.title,
         state,
         done,

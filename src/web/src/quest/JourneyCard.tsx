@@ -10,6 +10,8 @@ import { IdTag } from './wood'
 // a quest on this chart that crowns another journey, standing for that whole journey. Both are one face
 // (JourneyFace, .quest-journey in quest.css), so they cannot drift apart; only the goal wears the trophy
 // (and on the war table the crown and castle), and only the other journey's card the marks of a quest.
+// Both lead with the journey's id and the id of the quest that stands for it on this chart: the goal's
+// crowning quest, or the waited-on card's own.
 
 const hidden = '!opacity-0'
 
@@ -45,6 +47,7 @@ const journeyWord: Record<JourneyState, string> = { active: 'Journey', complete:
 
 type FaceProps = {
   id?: string // J7; the mock's journey has none
+  quest?: string // Q142: the quest that stands for the journey here (the goal's crowning quest, or the card's own)
   title: string
   state: JourneyState
   done: number
@@ -65,7 +68,7 @@ type FaceProps = {
  * it and everything written stays inside it; a long title is cut short, in full on hover. Its sizes and
  * colours are in quest.css (.quest-journey), per theme and per status.
  */
-export function JourneyFace({ id, title, state, done, total, archived, top, bottom, className = '', style, data, children }: FaceProps) {
+export function JourneyFace({ id, quest, title, state, done, total, archived, top, bottom, className = '', style, data, children }: FaceProps) {
   const pct = total ? Math.round((done / total) * 100) : 0
   return (
     <div
@@ -76,15 +79,17 @@ export function JourneyFace({ id, title, state, done, total, archived, top, bott
       <span aria-hidden className="quest-journey-paper" />
       {children}
       {top}
-      <span className="flex max-w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+      <span className="flex max-w-full items-center justify-center gap-x-1.5 whitespace-nowrap">
         {id && <IdTag id={id} />}
+        {id && quest && <span className="text-[12px] font-bold text-[var(--ink-faint)]">·</span>}
+        {quest && <IdTag id={quest} />}
         <span
-          className="quest-journey-word text-[12px] font-bold"
+          className="quest-journey-word min-w-0 truncate text-[12px] font-bold"
           style={{ color: state === 'cancelled' ? stateColour.cancelled : stateColour.done }}
         >
           {journeyWord[state]}
         </span>
-        {archived && <span className="text-[11px] font-semibold text-[var(--ink-faint)]">· Archived</span>}
+        {archived && <span className="shrink-0 text-[11px] font-semibold text-[var(--ink-faint)]">· Archived</span>}
       </span>
       <span className="quest-display quest-journey-title line-clamp-2 text-[15px] leading-tight font-semibold" title={title}>
         {title}
@@ -104,14 +109,14 @@ export function JourneyFace({ id, title, state, done, total, archived, top, bott
 
 const stateOf = (status: Status): JourneyState => (status === 'done' ? 'complete' : status === 'cancelled' ? 'cancelled' : 'active')
 
-type Props = { q: JourneyCard; status: Status; selected: boolean; covered?: boolean }
+type Props = { q: JourneyCard; quest?: string; status: Status; selected: boolean; covered?: boolean }
 
 /**
  * A journey this one waits on: the journey's own face, with the marks every quest wears (the state badge
  * or the war table's gate on its corner, underway on the other) and its status and a link to its chart
  * along the bottom. It counts as one quest here.
  */
-export function JourneyCardView({ q, status, selected, covered }: Props) {
+export function JourneyCardView({ q, quest, status, selected, covered }: Props) {
   const wt = useWarTable()
   const done = status === 'done'
   const over = done || status === 'cancelled'
@@ -139,6 +144,7 @@ export function JourneyCardView({ q, status, selected, covered }: Props) {
       )}
       <JourneyFace
         id={q.key}
+        quest={quest}
         title={q.title}
         state={stateOf(status)}
         done={q.done}
