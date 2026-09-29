@@ -22,9 +22,9 @@ quiet() { "$@" >/dev/null; }
 
 # J1: everything done, achievements too (the Atlas's 100% shelf).
 quiet "$m" journey new "The home office moves into the spare room" 2>/dev/null
-a=$("$m" add "Carry the desk and chair into the spare room" --crowns J1 --hero erkan --json | key)
-b=$("$m" add "Clear the old boxes out of the spare room" --opens "$a" --hero erkan --json | key)
-c=$("$m" add "Run a network cable along the skirting board" --opens "$a" --hero erkan --json | key)
+a=$("$m" add "Carry the desk and chair into the spare room" --crowns J1 --hero defne --json | key)
+b=$("$m" add "Clear the old boxes out of the spare room" --opens "$a" --hero defne --json | key)
+c=$("$m" add "Run a network cable along the skirting board" --opens "$a" --hero defne --json | key)
 s=$("$m" add "Hang the map of Istanbul above the desk" --side-of "$a" --json | key)
 for q in "$b" "$c" "$a" "$s"; do quiet "$m" fulfil "$q"; done
 
@@ -44,18 +44,18 @@ serve=$("$m" add "Serve the omelette on a warm plate while it is still soft in t
 	--url https://recipes.example.com/french-omelette --mark recipe --json | key)
 whisk=$("$m" add "Whisk three eggs with a pinch of salt until no streaks of white remain" --opens "$serve" --json | key)
 heat=$("$m" add "Heat a knob of butter in the pan until it foams but doesn't brown" --opens "$serve" --json | key)
-eggs=$("$m" add "Make sure there are three eggs in the fridge" --opens "$whisk" --hero erkan --json | key)
+eggs=$("$m" add "Make sure there are three eggs in the fridge" --opens "$whisk" --hero defne --json | key)
 salt=$("$m" add "Make sure there is salt in the grinder or the jar" --opens "$whisk" --json | key)
-pan=$("$m" add "Wash and dry the 20 cm non-stick pan" --opens "$heat" --hero erkan --json | key)
+pan=$("$m" add "Wash and dry the 20 cm non-stick pan" --opens "$heat" --hero defne --json | key)
 butter=$("$m" add "Take the butter out of the fridge and cut a 15 g knob" --opens "$heat" --json | key)
 shop=$("$m" add "Buy a box of eggs from the corner shop" --opens "$eggs" --found-on "$eggs" \
-	--reason "only two eggs left, the recipe needs three" --hero erkan --json | key)
+	--reason "only two eggs left, the recipe needs three" --hero defne --json | key)
 filling=$("$m" add "Grate a handful of cheese and chop the chives for a filling" --side-of "$serve" --json | key)
 quiet "$m" add "Ask your flatmate whether the cheddar in the fridge is theirs" --on flatmate --side-of "$filling"
 quiet "$m" add "Grind black pepper into the eggs just before cooking" --side-of "$whisk"
 quiet "$m" add "Roll the omelette into a French fold with no browning at all" --side-of "$serve"
 for q in "$salt" "$pan" "$butter"; do quiet "$m" fulfil "$q"; done
-quiet "$m" take-up "$shop" --by erkan
+quiet "$m" take-up "$shop" --by defne
 castiron=$("$m" add "Borrow the flatmate's cast-iron pan" --opens "$heat" --json | key)
 quiet "$m" abandon "$castiron" --reason "the non-stick pan does the job"
 
@@ -88,7 +88,7 @@ vars=$("$m" add "Move every colour into CSS variables" --opens "$toggle" --opens
 quiet "$m" add "Ask the photographer for darker backgrounds" --on "the photographer" --opens "$palette" --mark "#14"
 quiet "$m" add "Remember the choice across visits" --side-of "$toggle" --mark "feat(prefs)"
 quiet "$m" fulfil "$vars"
-quiet "$m" take-up "$toggle" --by claude
+quiet "$m" take-up "$toggle" --by mira
 
 # J6: extracted from J4 — the tea grew into a journey of its own, drawn on
 # J4's war table as one journey card.
