@@ -3,6 +3,7 @@ import { fetchJourney, retitleJourney, setNpc } from '../api'
 import JourneyMap from '../quest/JourneyMap'
 import { journeyModel } from '../quest/model'
 import { Banner, NoticePage } from '../quest/Notice'
+import { IdTag } from '../quest/wood'
 import { toJourneyData } from './adapt'
 import { Failed, Loading, StaleBanner } from './states'
 import { usePoll } from './usePoll'
@@ -24,7 +25,7 @@ export default function JourneyPage({ journeyKey }: { journeyKey: string }) {
     return (
       <NoticePage title="No such journey" back={{ href: '/', label: 'Atlas' }}>
         <p>
-          There is no journey <b className="font-mono">{journeyKey}</b>.
+          There is no journey <IdTag id={journeyKey} />.
         </p>
       </NoticePage>
     )

@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Ban, Check, Gem, Layers, Pencil } from 'lucide-react'
 import type { Item, Status } from './model'
+import { IdTag } from './wood'
 
 // Every colour is a theme variable (quest.css).
 
@@ -64,7 +65,7 @@ export function Npc() {
 /** The quest's key (Q142), the id people use for it, in front of everything else. */
 export function Key({ id }: { id?: string }) {
   if (!id) return null
-  return <span className="quest-key shrink-0 font-mono text-[12px] font-semibold text-[var(--ink-faint)]">{id}</span>
+  return <IdTag id={id} />
 }
 
 /** The kind tag in front of a title: the quest's key, then the issue's repo#n or what sort of quest it is. */
@@ -75,9 +76,7 @@ export function Label({ item, tag }: { item: Item; tag: string }) {
       <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold" style={{ color: stateColour.done }}>
         <Layers size={12} /> Journey
       </span>
-      <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={item.crowns.key}>
-        {item.crowns.key}
-      </span>
+      <IdTag id={item.crowns.key} title={item.crowns.title} />
     </span>
   ) : item.kind === 'wait' ? (
       <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--await)]">Petition</span>
@@ -330,7 +329,7 @@ export function RegionChip({ regionKey }: { regionKey: string }) {
       className="inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-[var(--plate-border)] px-2 py-0.5 font-sans text-[12px] font-semibold text-[var(--ink-soft)]"
       title="A region: a group of journeys"
     >
-      Region <span className="font-mono">{regionKey}</span>
+      Region <IdTag id={regionKey} />
     </span>
   )
 }
@@ -424,7 +423,7 @@ export function Cover({ status, name, style }: { status: Status; name?: string; 
       className="quest-cover pointer-events-none absolute inset-0 z-20 flex items-center justify-center gap-2 rounded-lg border-2"
     >
       {done ? <Check size={18} strokeWidth={3} /> : <Ban size={18} />}
-      {name && <span className="quest-cover-key font-mono text-[14px] font-bold">{name}</span>}
+      {name && (/^[JQR]\d+$/.test(name) ? <IdTag id={name} struck={!done} /> : <span className="quest-cover-key font-mono text-[14px] font-bold">{name}</span>)}
       <span className="quest-cover-word text-[11px] font-bold">{words[status]}</span>
     </div>
   )

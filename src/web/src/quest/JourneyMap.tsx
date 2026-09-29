@@ -37,6 +37,7 @@ import { Header } from './Header'
 import { ThemeContext, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
 import { JourneyProgress, journeyCardWord, journeyHref } from './JourneyCard'
+import { IdTag, IdText } from './wood'
 
 // ---- side panel ------------------------------------------------------------
 
@@ -241,7 +242,9 @@ function Glossary() {
             <span className="text-[15px] font-semibold text-[var(--ink)]">{t.term}</span>
             {t.also && <span className="text-[13px] text-[var(--ink-soft)]">or {t.also}, the same thing</span>}
           </dt>
-          <dd className="text-[14px] leading-snug text-[var(--ink-soft)]">{t.text}</dd>
+          <dd className="text-[14px] leading-snug text-[var(--ink-soft)]">
+            <IdText text={t.text} />
+          </dd>
           {t.cli && <dd className="mt-0.5 font-mono text-[12px] break-words text-[var(--ink-faint)]">{t.cli}</dd>}
         </div>
       ))}
@@ -291,7 +294,7 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1 font-mono text-[12px] text-[var(--ink-faint)]">
-            <Key id={item.key} /> · <Layers size={12} /> journey · {q.key}
+            <Key id={item.key} /> · <Layers size={12} /> journey · <IdTag id={q.key} />
             {q.archived && ' · archived'}
           </div>
           <div className="quest-display text-[16px] font-semibold">{q.title}</div>
@@ -319,7 +322,11 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
         </div>
       </div>
       <p className="rounded bg-[var(--chip)] p-2 text-[14px]">
-        A journey of its own, crowned by <b className="font-mono text-[13px]">{crownedBy}</b>. Here it counts as one quest;{' '}
+        A journey of its own, crowned by{' '}
+        <b className="font-mono text-[13px]">
+          <IdText text={crownedBy} />
+        </b>
+        . Here it counts as one quest;{' '}
         {status === 'done'
           ? 'it was fulfilled when that journey was.'
           : status === 'cancelled'
@@ -429,10 +436,12 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
           Found on{' '}
           {m.byId.has(item.foundWhile) ? (
             <button onClick={() => onPick(item.foundWhile!)} className="font-bold underline decoration-dotted underline-offset-2 hover:decoration-solid">
-              {m.short(item.foundWhile)}
+              <IdText text={m.short(item.foundWhile)} />
             </button>
           ) : (
-            <b>{m.short(item.foundWhile)}</b>
+            <b>
+              <IdText text={m.short(item.foundWhile)} />
+            </b>
           )}
           : {item.reason}
         </p>
@@ -453,7 +462,9 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
         <div className="mb-1 text-[12px] font-bold text-[var(--ink-faint)]">Opens</div>
         <ul className="space-y-0.5 text-[14px]">
           {item.sideOf ? (
-            <li>Nothing — optional polish on {m.short(item.sideOf)}.</li>
+            <li>
+              Nothing — optional polish on <IdText text={m.short(item.sideOf)} />.
+            </li>
           ) : opens.length ? (
             opens.map((i) => <QuestRow key={i.id} m={m} i={i} onPick={onPick} />)
           ) : (
@@ -541,7 +552,7 @@ function QuestMenu({
       className="fixed z-40 w-52 rounded-lg border border-[var(--panel-border)] bg-[var(--panel)] p-1 shadow-lg"
     >
       <div className="truncate px-3 pt-1 pb-1.5 text-[12px] text-[var(--ink-faint)]" title={titleOf(item)}>
-        {item.key && <span className="font-mono font-semibold">{item.key}</span>} {titleOf(item)}
+        {item.key && <IdTag id={item.key} />} {titleOf(item)}
       </div>
       <button
         autoFocus
@@ -1164,26 +1175,33 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
 
               {tab === 'chronicle' && (
                 <ol className="quest-chronicle space-y-2 border-l-2 border-[var(--panel-border)] pl-3">
-                  {log.map((e, k) => (
-                    // A new day is marked so the war table can set a little space above it; the other themes ignore it.
-                    <li key={k} data-newday={k > 0 && e.at !== log[k - 1].at ? '' : undefined} className="text-[14px] leading-snug">
-                      <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>
-                        {logIcon[e.kind] ?? '·'}
-                      </span>
-                      <span className="text-[var(--ink-faint)]">{e.at}</span>{' '}
-                      {e.id && (
-                        <button
-                          onClick={() => focus(e.id!)}
-                          className={`quest-ref font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
-                            e.kind === 'remove' ? 'line-through' : ''
-                          }`}
-                        >
-                          {logName(m, e.id)}
-                        </button>
-                      )}{' '}
-                      <span className="text-[var(--ink-soft)]">{e.text}</span>
-                    </li>
-                  ))}
+                  {log.map((e, k) => {
+                    const name = e.id && logName(m, e.id)
+                    // The quest the entry is about leads it, on its button; the text need not name it again.
+                    const text = name && e.text.startsWith(`${name} `) ? e.text.slice(name.length + 1) : e.text
+                    return (
+                      // A new day is marked so the war table can set a little space above it; the other themes ignore it.
+                      <li key={k} data-newday={k > 0 && e.at !== log[k - 1].at ? '' : undefined} className="text-[14px] leading-snug">
+                        <span className="mr-1 inline-block w-3 font-bold" style={{ color: logColour[e.kind] ?? 'var(--ink-faint)' }}>
+                          {logIcon[e.kind] ?? '·'}
+                        </span>
+                        <span className="text-[var(--ink-faint)]">{e.at}</span>{' '}
+                        {name && (
+                          <button
+                            onClick={() => focus(e.id!)}
+                            className={`quest-ref font-mono text-[13px] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)] ${
+                              e.kind === 'remove' ? 'line-through' : ''
+                            }`}
+                          >
+                            <IdText text={name} struck={e.kind === 'remove'} />
+                          </button>
+                        )}{' '}
+                        <span className="text-[var(--ink-soft)]">
+                          <IdText text={text} />
+                        </span>
+                      </li>
+                    )
+                  })}
                 </ol>
               )}
               </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, 
 import { Crown, Search as SearchIcon, Trophy } from 'lucide-react'
 import { fetchSearch, type Card, type JourneyInfo, type SearchResult } from '../api'
 import { ArchivedChip, JourneyStateChip, stateColour, words } from './look'
+import { IdTag } from './wood'
 
 // The search popup: journeys and quests by title, or straight to a journey or quest by its key
 // (J7, Q142) or an issue (owner/repo#n). Ctrl+K / ⌘K or "/" opens it from anywhere on the page.
@@ -138,7 +139,7 @@ function Popup({ here, select, close }: SearchProps & { close: () => void }) {
         onClick={() => go(h)}
         className={`flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 ${i === active ? 'bg-[var(--chip)]' : ''}`}
       >
-        {h.kind === 'journey' ? <JourneyHit j={h.journey} /> : <QuestHit d={h.quest} exact={h.exact} here={here} />}
+        {h.kind === 'journey' ? <JourneyHit j={h.journey} /> : <QuestHit d={h.quest} here={here} />}
       </div>
     )
   }
@@ -201,7 +202,9 @@ function JourneyHit({ j }: { j: JourneyInfo }) {
       <Trophy size={17} className="shrink-0 text-[var(--gold)]" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-semibold text-[var(--ink)]">{j.title}</span>
-        <span className="block truncate font-mono text-[12px] text-[var(--ink-faint)]">{j.key}</span>
+        <span className="block truncate">
+          <IdTag id={j.key} />
+        </span>
       </span>
       <JourneyStateChip state={j.state} />
       {j.archivedAt && <ArchivedChip />}
@@ -209,13 +212,13 @@ function JourneyHit({ j }: { j: JourneyInfo }) {
   )
 }
 
-function QuestHit({ d, exact, here }: { d: Card; exact: boolean; here?: string }) {
+function QuestHit({ d, here }: { d: Card; here?: string }) {
   const journeys = d.alsoIn ?? []
   const kind = d.kind === 'issue' ? d.ref : d.kind === 'awaiting' ? 'Petition' : 'Errand'
   return (
     <>
-      <span className={`w-14 shrink-0 font-mono text-[13px] font-semibold ${exact ? 'text-[var(--avail)]' : 'text-[var(--ink-soft)]'}`}>
-        {d.key}
+      <span className="w-14 shrink-0">
+        <IdTag id={d.key} />
       </span>
       <span className="min-w-0 flex-1">
         <span
@@ -230,7 +233,13 @@ function QuestHit({ d, exact, here }: { d: Card; exact: boolean; here?: string }
           {kind} ·{' '}
           {journeys.length === 0
             ? 'in no journey, so no chart to open'
-            : journeys.map((j) => (j.key === here ? `${j.key} ${j.title} (this chart)` : `${j.key} ${j.title}`)).join(', ')}
+            : journeys.map((j, k) => (
+                <span key={j.key}>
+                  {k > 0 && ', '}
+                  <IdTag id={j.key} /> {j.title}
+                  {j.key === here && ' (this chart)'}
+                </span>
+              ))}
         </span>
       </span>
       <span className="shrink-0 text-[12px] font-bold" style={{ color: stateColour[d.status] }}>

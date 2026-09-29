@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { fetchJourneys, fetchRegions, renameRegion } from '../api'
 import Atlas, { type AtlasRegion } from '../quest/Atlas'
 import { Banner, Cli, Notice, NoticePage } from '../quest/Notice'
+import { IdTag } from '../quest/wood'
 import { toAtlasJourney } from './adapt'
 import { Failed, Loading, StaleBanner } from './states'
 import { usePoll } from './usePoll'
@@ -36,7 +37,7 @@ export default function AtlasPage({ regionKey }: { regionKey?: string }) {
     return (
       <NoticePage title="No such region" back={{ href: '/', label: 'Atlas' }}>
         <p>
-          There is no region <b className="font-mono">{regionKey}</b>.
+          There is no region <IdTag id={regionKey} />.
         </p>
       </NoticePage>
     )

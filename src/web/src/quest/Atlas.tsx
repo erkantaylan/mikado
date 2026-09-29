@@ -6,6 +6,7 @@ import { Header } from './Header'
 import { JourneyStateChip, RegionChip, Renamable } from './look'
 import { useTheme } from './theme'
 import { VersionLine } from './VersionLine'
+import { IdTag } from './wood'
 
 // One journey on the Atlas, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
 export type AtlasJourney = {
@@ -118,7 +119,7 @@ function JourneyRow({ q, href, noMap, chip }: { q: AtlasJourney; href?: string; 
           {chip && <JourneyStateChip state={q.state} />}
         </div>
         <div className="truncate text-[13px] text-[var(--ink-soft)]">
-          <span className="font-mono">{q.key}</span>
+          <IdTag id={q.key} />
           {[...q.repos, `last move ${q.lastActivity}`].map((part) => ` · ${part}`)}
         </div>
         {(!!q.blockedBy?.length || !!q.blocks?.length) && (
@@ -253,7 +254,7 @@ function RegionRow({ region, href }: { region: AtlasRegion; href: string }) {
           {region.name}
         </a>
         <div className="truncate text-[13px] text-[var(--ink-soft)]">
-          <span className="font-mono">{region.key}</span>
+          <IdTag id={region.key} />
           {(region.journeys.length === 0
             ? ['no journeys yet']
             : [

@@ -4,6 +4,7 @@ import { Ban, Check, ExternalLink, Flag, Layers } from 'lucide-react'
 import type { Item, JourneyCard, Status } from './model'
 import { Cover, Gate, Key, Kinds, Working, glow, medal, plate, spentText, stateColour, words } from './look'
 import { useWarTable } from './theme'
+import { IdTag } from './wood'
 
 // A journey card: a quest on this chart that crowns another journey, drawn as one card standing for
 // that whole journey, its own quests folded behind it. It counts as one quest here.
@@ -103,9 +104,7 @@ export function JourneyCardView({ item, q, status, selected, covered }: Props) {
           >
             <Layers size={13} /> Journey
           </span>
-          <span className="min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={q.key}>
-            {q.key}
-          </span>
+          <IdTag id={q.key} />
           {q.archived && (
             <span className="shrink-0 text-[11px] font-semibold text-[var(--ink-faint)]">Archived</span>
           )}

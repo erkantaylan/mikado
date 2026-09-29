@@ -921,18 +921,12 @@
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-row > :last-child {
   margin-top: 1px;
 }
-/* Keys and issue refs: plain muted ink in the book face, no grey box. */
-.quest-theme[data-theme='wartable'] .quest-ledger :is(.quest-key, .quest-ref) {
+/* Issue refs: plain muted ink in the book face, no grey box. (Ids are on their tags, in monospace.) */
+.quest-theme[data-theme='wartable'] .quest-ledger .quest-ref {
   font-family: var(--font-body);
   font-size-adjust: var(--wt-adjust);
   font-variant-numeric: lining-nums tabular-nums;
   color: var(--ink-faint);
-}
-.quest-theme[data-theme='wartable'] .quest-ledger .quest-key {
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-.quest-theme[data-theme='wartable'] .quest-ledger .quest-ref {
   padding: 0;
   background: none;
   font-size: 12.5px;
@@ -1196,7 +1190,7 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate.quest-lit {
   --wt-paper: none;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-key, .quest-kind) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-kind) {
   color: #2a1a0c !important;
 }
 /* Awaiting reply: a petition held up by someone else. It is written on the same hand-cut sheet as the
@@ -1276,7 +1270,7 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-title {
   color: #2a1a0c;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-key, .quest-kind, .quest-status) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-kind, .quest-status) {
   color: #2a1a0c !important;
   text-shadow: 0 0 3px rgba(226, 208, 176, 0.8);
 }
