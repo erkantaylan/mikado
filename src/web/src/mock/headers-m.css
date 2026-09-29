@@ -1,0 +1,153 @@
+/* The merged header page (mock/HeaderMDemo). Every rule is scoped to .hm-page, so none reaches the
+   real pages. The page also carries .hd-page (header C's layout, the frames: headers.css) and .hc-page
+   (the wood: headers-c.css). */
+
+/* ---- the header ---- */
+/* The nameplate is one line (sign, title); the tally starts with the journey's id. */
+.hm-page.quest-theme .quest-header.hm-head .quest-tally .hc-idw {
+  margin-right: -2px;
+}
+.hm-page.quest-theme .quest-header.hm-head .hm-oneline .hc-sign {
+  flex: none;
+}
+
+/* ---- M2 · Single row: nameplate, tally, buttons ---- */
+.hm-page.quest-theme .quest-header.hm-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+/* The title gives way first, down to a stub; the tally takes what is left. */
+.hm-page.quest-theme .quest-header.hm-row .quest-nameplate {
+  flex: 0 1 auto;
+  min-width: 200px;
+  max-width: 36%;
+}
+.hm-page.quest-theme .quest-header.hm-row .quest-tally {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 12px;
+  min-width: 380px;
+  max-width: none;
+  padding: 7px 12px;
+}
+.hm-page.quest-theme .quest-header.hm-row .hm-bar {
+  flex: 1 1 0;
+  min-width: 120px;
+}
+/* The legend shrinks before the bar goes under its minimum; counts that do not fit drop off its end. */
+.hm-page.quest-theme .quest-header.hm-row .hm-fit {
+  display: flex;
+  flex: 0 1 auto;
+}
+.hm-page.quest-theme[data-theme='wartable'] .quest-header.hm-row .quest-nameplate {
+  flex: 0 1 auto;
+  min-width: 200px;
+  max-width: 36%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.hm-page.quest-theme[data-theme='wartable'] .quest-header.hm-row .quest-tally {
+  padding: 7px 18px;
+}
+/* The plaques sit in routed grooves: a little more oak above and below, clear of the brass lip. */
+.hm-page.quest-theme[data-theme='wartable'] .quest-header.hm-row {
+  padding-top: 12px;
+  padding-bottom: 14px;
+}
+
+/* ---- the chart's control stack (React Flow's Controls) and the side-panel button in it ---- */
+/* React Flow fills every icon in the stack (fine for its own, a blot for a lucide outline icon: see the
+   overview and finished-quest buttons); the panel button's icon stays an outline. */
+.hm-page .react-flow__controls-button.hm-panelbtn svg {
+  max-width: 14px;
+  max-height: 14px;
+  fill: none;
+}
+/* M4: the button heads the stack. It is the last child, so it takes back the rule under it and the
+   button above it (now the last) loses its own. */
+.hm-page .hm-stack-top .react-flow__controls-button.hm-panelbtn {
+  order: -1;
+  border-bottom: 1px solid var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default));
+}
+.hm-page .hm-stack-top .react-flow__controls-button:nth-last-child(2) {
+  border-bottom: none;
+}
+/* M1, M2: a gap above the button. The stack's shadow becomes a drop shadow, so the gap stays clear. */
+.hm-page :is(.hm-stack-gap, .hm-stack-rule) .react-flow__controls-button:has(+ .hm-stack-break) {
+  border-bottom: none;
+}
+.hm-page .hm-stack-gap .hm-stack-break {
+  height: 8px;
+}
+.hm-page .hm-stack-gap .react-flow__controls {
+  box-shadow: none;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.35));
+}
+.hm-page.quest-theme[data-theme='wartable'] .hm-stack-gap .react-flow__controls {
+  box-shadow: none;
+  filter: drop-shadow(0 2px 3px rgba(40, 25, 8, 0.45));
+}
+/* M3: joined to the stack, under a heavier rule. */
+.hm-page .hm-stack-rule .hm-stack-break {
+  height: 3px;
+  background: color-mix(in srgb, var(--ink-soft) 55%, transparent);
+}
+
+/* ---- the slice of the page under the header ---- */
+.hm-page .hm-ledger {
+  width: 400px;
+}
+.hm-page.quest-theme[data-theme='wartable'] .hm-ledger {
+  width: 400px;
+}
+
+/* ---- the war table ---- */
+/* The tally's id on brass: the tag keeps its pale wood and monospace (EB Garamond's old-style figures
+   would drop the 3 of J3 below the line). */
+.hm-page.quest-theme[data-theme='wartable'] .quest-header .quest-tally .hc-idw {
+  font-size-adjust: none;
+}
+/* The look-alike rows in the slice's ledger: the id tag and the words on one centre line. */
+.hm-page.quest-theme[data-theme='wartable'] .quest-ledger .quest-row.hm-row-look {
+  align-items: center;
+}
+
+/* ---- the header's side padding, halved (headers.css: 20px; on the war table 30px, of which the
+   brass end caps take 12px, so the gap between a cap and the plaques goes from 18px to 9px) ---- */
+.hm-page.quest-theme .quest-header.hm-head {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.hm-page.quest-theme[data-theme='wartable'] .quest-header.hm-head {
+  padding-left: 21px;
+  padding-right: 21px;
+}
+
+/* ---- the fold chevron at the tally's right end ---- */
+/* 24px square; it reaches a little past the tally's padding, so the tally keeps its height. */
+.hm-page.quest-theme .quest-header .quest-tally .hm-fold {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: -4px -6px -4px 0;
+  background: var(--panel);
+}
+/* On the war table: a brass button like the others (quest.css), clear of the plate's rivets. */
+.hm-page.quest-theme[data-theme='wartable'] .quest-header .quest-tally .hm-fold {
+  margin: -3px 0 -3px 2px;
+  border: 0;
+  background: linear-gradient(180deg, #faeab8 0%, #ecd08a 45%, #c9a052 100%);
+}
+/* Folded: the tally alone, the oak (or paper) even above and below it. */
+.hm-page.quest-theme .quest-header.hm-head[data-folded] {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.hm-page.quest-theme[data-theme='wartable'] .quest-header.hm-head[data-folded] {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}

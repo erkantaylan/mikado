@@ -1,0 +1,285 @@
+/* The header C variants page (mock/HeaderCDemo). Every rule is scoped to .hc-page, so none reaches
+   the real pages. The page also carries .hd-page, for header C's layout and the frames (headers.css). */
+
+/* ---- the materials, tuned per theme ----
+   Red: the way back, a flat cartoon plank in three tones with a dark outline (after the reference sign).
+   Pale: an id, the same style in light wood with red letters. Oak: the war table's dark oak (C3). */
+.hc-page {
+  --hc-red-lit: #de6536;
+  --hc-red-body: #c4461f;
+  --hc-red-shade: #9c3114;
+  --hc-red-edge: #5a1208;
+  --hc-red-grain: #8f2c12;
+  --hc-cream: #fff4e0;
+  --hc-cream-shadow: #3f0b03;
+
+  --hc-pale-lit: #fbe7bf;
+  --hc-pale-body: #f0cf92;
+  --hc-pale-shade: #dcb06b;
+  --hc-pale-edge: #7a3c14;
+  --hc-id-red: #a3180e;
+
+  --hc-oak-ink: #ff6b47;
+  --hc-oak-rim: rgba(255, 220, 160, 0.18);
+  --hc-oak-ring: transparent;
+}
+/* On the dark page the pale wood is a shade darker, so a row of ids does not glare; the red letters
+   darken with it. The oak takes a light ring, or it sinks into the navy. */
+.hc-page.quest-theme[data-theme='midnight'] {
+  --hc-pale-lit: #f1d9a9;
+  --hc-pale-body: #e4c083;
+  --hc-pale-shade: #c99b55;
+  --hc-pale-edge: #2a1204;
+  --hc-id-red: #93130a;
+  --hc-red-edge: #2a0802;
+  --hc-oak-ink: #ff7a57;
+  --hc-oak-ring: rgba(214, 170, 110, 0.45);
+}
+/* On the war table everything here sits on paper: the parchment's values hold, a touch warmer. */
+.hc-page.quest-theme[data-theme='wartable'] {
+  --hc-pale-lit: #f9e2b2;
+  --hc-pale-body: #ecc782;
+  --hc-pale-shade: #d4a45c;
+  --hc-id-red: #9c150b;
+}
+
+/* ---- the header: C without the emblem ---- */
+.hd-page.quest-theme .quest-header.hc-c .hc-crumbline {
+  min-height: 24px;
+}
+.hc-page .hc-backline {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.hc-page.quest-theme .quest-header .hc-aside {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---- wood drawn in SVG (HeaderCDemo's Wood) ---- */
+.hc-page .hc-wood {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.hc-page .hc-wood-art {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.hc-page .hc-wood-text {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.hc-page .hc-red .hc-w-lit {
+  fill: var(--hc-red-lit);
+}
+.hc-page .hc-red .hc-w-body {
+  fill: var(--hc-red-body);
+}
+.hc-page .hc-red .hc-w-shade {
+  fill: var(--hc-red-shade);
+}
+.hc-page .hc-red .hc-w-edge {
+  fill: none;
+  stroke: var(--hc-red-edge);
+  stroke-linejoin: round;
+}
+.hc-page .hc-w-grain {
+  fill: none;
+  stroke: var(--hc-red-grain);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+.hc-page .hc-pale .hc-w-lit {
+  fill: var(--hc-pale-lit);
+}
+.hc-page .hc-pale .hc-w-body {
+  fill: var(--hc-pale-body);
+}
+.hc-page .hc-pale .hc-w-shade {
+  fill: var(--hc-pale-shade);
+}
+.hc-page .hc-pale .hc-w-edge {
+  fill: none;
+  stroke: var(--hc-pale-edge);
+  stroke-linejoin: round;
+}
+.hc-page .hc-w-nail {
+  fill: #4a3a2c;
+  stroke: #2a1d12;
+  stroke-width: 0.6;
+}
+.hc-page .hc-w-nail-lit {
+  fill: #cdbfae;
+}
+
+/* The sign: cream letters with a dark shadow under them, on the red. */
+.hc-page .hc-sign {
+  height: 22px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--hc-cream);
+  text-shadow:
+    0 1px 0 var(--hc-cream-shadow),
+    0 0 1px var(--hc-cream-shadow);
+  cursor: pointer;
+}
+.hc-page .hc-sign.hc-wood-arrow {
+  height: 24px;
+  padding-left: 18px;
+}
+.hc-page .hc-sign:hover .hc-wood-art {
+  filter: brightness(1.07);
+}
+.hc-page .hc-arrow {
+  flex: none;
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 0 var(--hc-cream-shadow));
+}
+.hc-page .hc-oak-sign .hc-arrow {
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.8));
+}
+/* C4: the id set into the sign, after a seam. */
+.hc-page .hc-sign .hc-seam {
+  width: 2px;
+  height: 16px;
+  margin: 0 6px 0 8px;
+  background: var(--hc-red-edge);
+  box-shadow: 1px 0 0 var(--hc-red-lit);
+}
+.hc-page.hc-page .hc-sign .hc-chip {
+  height: 15px;
+  margin-right: -3px;
+  padding: 1px 4px 0;
+  font-size: 10.5px;
+  text-shadow: none;
+  border-width: 1px;
+}
+.hc-page .hc-c4 .hc-sign.hc-wood-arrow {
+  height: 26px;
+}
+
+/* ---- id chips ---- */
+.hc-page .hc-chip,
+.hc-page .hc-oak-chip,
+.hc-page .hc-idw {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 18px;
+  vertical-align: middle;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  padding-top: 1px; /* the mono face sits high in its box */
+}
+/* Pale wood, flat: a lit top, the body, a shaded foot, and a dark outline. */
+.hc-page .hc-chip {
+  padding-right: 5px;
+  padding-left: 5px;
+  border: 1.5px solid var(--hc-pale-edge);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--hc-pale-lit) 0 38%, var(--hc-pale-body) 38% 74%, var(--hc-pale-shade) 74%);
+  color: var(--hc-id-red);
+}
+/* C5: a tag with its nail. */
+.hc-page .hc-idw {
+  padding-right: 6px;
+  padding-left: 13px;
+  color: var(--hc-id-red);
+}
+/* C3: dark oak, bright vermilion letters. */
+.hc-page .hc-oak {
+  border: 1px solid #120903;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255, 220, 160, 0.14), transparent 45%, rgba(0, 0, 0, 0.3)),
+    linear-gradient(rgba(16, 9, 3, 0.3), rgba(16, 9, 3, 0.3)),
+    #2b190c url('../assets/wartable/oak-dark.webp') center / 320px;
+  box-shadow:
+    inset 0 1px 0 var(--hc-oak-rim),
+    0 0 0 1px var(--hc-oak-ring);
+  color: var(--hc-oak-ink);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+.hc-page .hc-oak-chip {
+  padding-right: 5px;
+  padding-left: 5px;
+}
+.hc-page .hc-oak-sign {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.hc-page .hc-chip[title],
+.hc-page .hc-oak-chip[title],
+.hc-page .hc-idw[title] {
+  cursor: pointer;
+}
+
+/* On the war table the signs take the book face, as everything on its paper does. The ids keep the
+   monospace: the bundled EB Garamond has only old-style figures, and a 9 or a 3 dropping below the line
+   looks broken on a chip. */
+.hc-page.quest-theme[data-theme='wartable'] :is(.hc-sign, .hc-oak-sign) {
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+/* ---- ids elsewhere: the look-alikes ---- */
+.hc-page .hc-else {
+  background: var(--bg);
+}
+.hc-page .hc-panel-head {
+  color: var(--ink);
+}
+.hc-page .hc-row {
+  color: var(--ink);
+}
+/* On the war table: the card is a sheet of paper on the map, the side panel and the Atlas row paper too. */
+.hc-page.quest-theme[data-theme='wartable'] .hc-card {
+  border-color: transparent !important;
+  background:
+    linear-gradient(rgba(255, 236, 190, 0.28), rgba(255, 236, 190, 0.28)),
+    url('../assets/wartable/paper-quest.webp') center / 100% 100% no-repeat !important;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.4));
+}
+.hc-page.quest-theme[data-theme='wartable'] .hc-card-title {
+  font-size: 16px;
+  color: #1d1208;
+}
+.hc-page.quest-theme[data-theme='wartable'] :is(.hc-panel, .hc-atlasrow) {
+  border-color: #9a7a48;
+  background:
+    linear-gradient(rgba(250, 244, 229, 0.55), rgba(250, 244, 229, 0.55)),
+    #f4ead0 url('../assets/wartable/paper-card.webp') center / 256px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+.hc-page.quest-theme[data-theme='wartable'] .hc-row {
+  border: 0;
+  background: transparent;
+  font-size: 15px;
+}
+.hc-page.quest-theme[data-theme='wartable'] .hc-panel-head {
+  font-size: 16px;
+}

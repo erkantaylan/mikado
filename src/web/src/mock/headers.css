@@ -1,0 +1,430 @@
+/* The header alternatives page (mock/HeaderDemo). Every rule is scoped to .hd-page, so none reaches
+   the real headers; each carries .quest-header so it outranks quest.css's war table rules. */
+
+/* ---- the page ---- */
+/* On the war table the page is paper, so its words read; the strips under the headers are the oak. */
+.hd-page.quest-theme[data-theme='wartable'] {
+  background: var(--bg);
+}
+.hd-page .hd-frame {
+  outline: 1px solid var(--panel-border);
+  box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.4);
+}
+.hd-page .hd-strip {
+  background: var(--bg);
+}
+.hd-page.quest-theme[data-theme='wartable'] .hd-strip {
+  background: #2a1a0e url('../assets/wartable/oak-dark.webp') center / 640px;
+}
+
+/* ---- shared ---- */
+/* A one-line row that drops whole items off its end when they do not fit: they wrap to a second
+   line, which is cut off. */
+.hd-page .hd-fit {
+  flex-wrap: wrap;
+  align-items: center;
+  height: 18px;
+  row-gap: 18px;
+  overflow: hidden;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header .hd-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+.hd-page.quest-theme .quest-header .hd-tools .quest-tool {
+  height: 36px;
+}
+.hd-page.quest-theme .quest-header .hd-small .quest-tool {
+  width: 32px;
+  height: 32px;
+}
+.hd-page.quest-theme .quest-header[class*='hd-'] {
+  flex-wrap: nowrap;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+/* The war table's brass end caps take 12px each side. */
+.hd-page.quest-theme[data-theme='wartable'] .quest-header[class*='hd-'] {
+  padding-left: 30px;
+  padding-right: 30px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header .hd-tools {
+  gap: 8px;
+}
+
+/* ---- B · Level ---- */
+.hd-page.quest-theme .quest-header.hd-b {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  height: 72px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.hd-page.quest-theme .quest-header.hd-b .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 45%;
+  min-width: 180px;
+}
+.hd-page.quest-theme .quest-header.hd-b .quest-tally {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  min-width: 260px;
+  max-width: none;
+  padding: 0 14px;
+}
+.hd-page.quest-theme .quest-header.hd-b .hd-tools {
+  align-items: stretch;
+}
+.hd-page.quest-theme .quest-header.hd-b .hd-tools > div {
+  display: flex;
+}
+.hd-page.quest-theme .quest-header.hd-b .hd-tools .quest-tool {
+  width: 44px;
+  height: auto;
+}
+.hd-page.quest-theme .quest-header.hd-b .hd-tools .hd-search {
+  width: auto;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-b .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 45%;
+  padding: 4px 26px 4px 16px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-b .quest-tally {
+  padding: 4px 20px;
+}
+
+/* ---- C · Two decks ---- */
+.hd-page.quest-theme .quest-header.hd-c {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  padding-bottom: 10px;
+}
+.hd-page.quest-theme .quest-header.hd-c .hd-deck {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header.hd-c .quest-nameplate {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header.hd-c .hd-tools {
+  margin-left: auto;
+}
+.hd-page.quest-theme .quest-header.hd-c .quest-tally {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 14px;
+  max-width: none;
+  padding: 4px 12px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-c {
+  gap: 12px;
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-c .quest-nameplate {
+  flex: 0 1 auto;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-c .quest-tally {
+  padding: 5px 20px;
+}
+
+/* ---- D · Title owns the row ---- */
+.hd-page.quest-theme .quest-header.hd-d {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.hd-page.quest-theme .quest-header.hd-d .quest-nameplate {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+.hd-page.quest-theme .quest-header.hd-d .quest-tally {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  max-width: none;
+  margin-left: auto;
+  padding: 6px 12px;
+  cursor: default;
+}
+/* The legend, shown while the tally is hovered or focused. */
+.hd-page.quest-theme .quest-header.hd-d .hd-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4);
+}
+.hd-page.quest-theme .quest-header.hd-d .quest-tally:is(:hover, :focus-visible) .hd-pop {
+  display: flex;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-d .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: none;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-d .quest-tally {
+  padding: 7px 18px 8px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-d .hd-pop {
+  border-color: #9a7a48;
+  background: #fcf6e6;
+}
+
+/* ---- E · Progress rule ---- */
+.hd-page.quest-theme .quest-header.hd-e {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+  padding-bottom: 16px;
+}
+.hd-page.quest-theme .quest-header.hd-e .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 60%;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header.hd-e .hd-status {
+  display: flex;
+  flex: 1 1 0;
+  align-self: flex-end;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 160px;
+  margin-bottom: -6px;
+}
+.hd-page.quest-theme .quest-header.hd-e .hd-status .hd-fit {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+}
+.hd-page.quest-theme .quest-header.hd-e .hd-rule {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5px;
+  border-radius: 0;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-e {
+  padding-bottom: 20px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-e .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 60%;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-e .hd-status {
+  font-size-adjust: 0.47;
+}
+/* The sealed swatch is the groove's colour: on the oak it needs a rim to show. */
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-e .hd-status .quest-share[data-share='sealed'] {
+  box-shadow: inset 0 0 0 1px rgba(255, 238, 200, 0.55);
+}
+/* A groove cut along the oak just above the brass lip. */
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-e .hd-rule {
+  --wt-groove: #140b04;
+  right: 12px;
+  bottom: 4px;
+  left: 12px;
+  height: 6px;
+  background: var(--wt-groove);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* ---- F · Tool rail ---- */
+.hd-page.quest-theme .quest-header.hd-f {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.hd-page.quest-theme .quest-header.hd-f .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 50%;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header.hd-f .quest-tally {
+  justify-content: center;
+  max-width: none;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-f .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 50%;
+}
+/* The rail: a strip of the header hung under its right end. */
+.hd-page.quest-theme .quest-header.hd-rail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-top: 0;
+  border-radius: 0 0 0 8px;
+  background: var(--panel);
+}
+.hd-page.quest-theme .quest-header.hd-rail .hd-tools {
+  flex-direction: column;
+}
+.hd-page.quest-theme .quest-header.hd-rail .hd-tools .quest-tool {
+  width: 40px;
+  height: 40px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-rail {
+  right: 12px;
+  background:
+    linear-gradient(rgba(16, 9, 3, 0.42), rgba(16, 9, 3, 0.42)),
+    #2b190c url('../assets/wartable/oak-dark.webp') center / 640px;
+  padding: 10px;
+  border: 0;
+  border-radius: 0 0 4px 4px;
+  z-index: 1;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-rail .hd-tools {
+  gap: 10px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-rail::before,
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-rail::after {
+  content: none;
+}
+
+/* ---- G · Stacked nameplate ---- */
+.hd-page.quest-theme .quest-header.hd-g {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.hd-page.quest-theme .quest-header.hd-g .quest-nameplate {
+  flex: 1 1 auto;
+  max-width: 880px;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header.hd-g .hd-gbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+  font-size: 12px;
+}
+.hd-page.quest-theme .quest-header.hd-g .hd-tools {
+  margin-left: auto;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-g .quest-nameplate {
+  flex: 1 1 auto;
+  max-width: 880px;
+  padding-bottom: 8px;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-g .quest-bar {
+  --wt-groove: #5a4128;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--wt-groove);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 250, 230, 0.8);
+}
+
+/* ---- H · Compact chips ---- */
+.hd-page.quest-theme .quest-header.hd-h {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.hd-page.quest-theme .quest-header.hd-h .quest-nameplate {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: baseline;
+  gap: 10px;
+  max-width: 42%;
+  min-width: 0;
+}
+.hd-page.quest-theme .quest-header.hd-h .hd-chips {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 30px 6px;
+  height: 26px;
+  min-width: 0;
+  overflow: hidden;
+}
+.hd-page.quest-theme .quest-header.hd-h .hd-sum {
+  margin-right: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+.hd-page.quest-theme .quest-header.hd-h .hd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 13%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.hd-page .hd-chip[data-chip='done'] {
+  --c: var(--gold);
+}
+.hd-page .hd-chip:is([data-chip='underway'], [data-chip='open']) {
+  --c: var(--avail);
+}
+.hd-page .hd-chip[data-chip='awaiting'] {
+  --c: var(--await);
+}
+.hd-page .hd-chip:is([data-chip='sealed'], [data-chip='cancelled']) {
+  --c: var(--ink-faint);
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-h .quest-nameplate {
+  flex: 0 1 auto;
+  max-width: 42%;
+  padding: 5px 24px 5px 18px;
+}
+/* On the oak the chips are small paper tags; the swatch carries the state. */
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-h .hd-chip {
+  border-color: #b98a3a;
+  background: #f3e9cf;
+  color: #22160a;
+  font-size-adjust: 0.47;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header.hd-h .hd-sum {
+  font-size: 13px;
+}

@@ -6,11 +6,17 @@ import JourneyPage from './live/JourneyPage.tsx'
 import MockPage from './mock/MockPage.tsx'
 import MockBoard from './mock/QuestBoard.tsx'
 import GlowDemo from './mock/GlowDemo.tsx'
+import HeaderDemo from './mock/HeaderDemo.tsx'
+import HeaderCDemo from './mock/HeaderCDemo.tsx'
+import HeaderMDemo from './mock/HeaderMDemo.tsx'
 import { NoticePage } from './quest/Notice.tsx'
 
 // Routing is the pathname, read once: every link is a full page load.
 function route(path: string) {
   if (path === '/mock/glow') return <GlowDemo />
+  if (path === '/mock/headers') return <HeaderDemo />
+  if (path === '/mock/headers-c') return <HeaderCDemo />
+  if (path === '/mock/headers-m') return <HeaderMDemo />
   if (path === '/mock') return <MockBoard />
   if (path.startsWith('/mock/quest/')) return <MockPage />
   if (path === '/') return <AtlasPage />
