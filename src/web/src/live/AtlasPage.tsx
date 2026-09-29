@@ -46,15 +46,7 @@ export default function AtlasPage({ regionKey }: { regionKey?: string }) {
       regions={region ? undefined : regions}
       regionHref={(r) => regionHref(r.key)}
       hrefOf={(q) => `/journey/${encodeURIComponent(q.key)}`}
-      eyebrow={
-        region ? (
-          <a href="/" className="hover:underline">
-            ← Atlas
-          </a>
-        ) : (
-          'mikado'
-        )
-      }
+      back={region ? { label: 'Atlas', href: '/' } : { label: 'mikado' }}
       title={region?.name}
       regionKey={region?.key}
       onRename={

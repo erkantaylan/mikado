@@ -2,9 +2,9 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Ban, Check, ChevronRight, Compass, Hourglass, Sparkles, Trophy } from 'lucide-react'
 import './quest.css'
 import type { JourneyState } from './model'
-import { JourneyStateChip, RegionChip, Renamable, Tally } from './look'
-import { Search } from './Search'
-import { ThemeMenu, useTheme } from './theme'
+import { Header } from './Header'
+import { JourneyStateChip, RegionChip, Renamable } from './look'
+import { useTheme } from './theme'
 import { VersionLine } from './VersionLine'
 
 // One journey on the Atlas, drawn as a row. `state`, `cancelled` and `inProgress` come from the API; the mock has none.
@@ -297,7 +297,7 @@ function RegionRow({ region, href }: { region: AtlasRegion; href: string }) {
 export type AtlasProps = {
   journeys: AtlasJourney[]
   hrefOf: (q: AtlasJourney) => string | undefined // undefined: the journey has no chart to open
-  eyebrow: ReactNode // the small line above the title
+  back: { label: string; href?: string } // the sign top left: the way back, or (no href) the app's name
   title?: string // the page's title: "Atlas" unless it shows one region
   regionKey?: string // set on a region's page: its title is the region's name, marked as a region
   onRename?: (name: string) => Promise<void> // renames the region, on its page
@@ -310,7 +310,7 @@ export type AtlasProps = {
   version?: string // the running server's version, shown small at the bottom; the mock has none
 }
 
-export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regionKey, onRename, regions, regionHref, noMap, banner, empty, search, version }: AtlasProps) {
+export default function Atlas({ journeys, hrefOf, back, title = 'Atlas', regionKey, onRename, regions, regionHref, noMap, banner, empty, search, version }: AtlasProps) {
   const [theme, setTheme] = useTheme()
   const shelved = journeys.filter((q) => !q.archivedAt)
   const archived = journeys.filter((q) => q.archivedAt)
@@ -322,34 +322,30 @@ export default function Atlas({ journeys, hrefOf, eyebrow, title = 'Atlas', regi
 
   return (
     <div data-theme={theme} className="quest-theme min-h-screen">
-      <header className="quest-header flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[var(--panel-border)] bg-[var(--panel)] px-6 py-4">
-        <div className="quest-nameplate">
-          <div className="quest-crumb text-[12px] font-bold text-[var(--ink-soft)]">{eyebrow}</div>
-          <h1 className="quest-display flex min-w-0 items-center gap-2 text-2xl font-semibold">
+      <Header
+        back={back}
+        title={
+          <>
             {regionKey ? <Renamable title={title} noun="region" idKey={regionKey} onRename={onRename} /> : title}
             {regionKey && <RegionChip regionKey={regionKey} />}
-          </h1>
-        </div>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
-          {/* The main quests of every journey underway, as one tally. */}
-          <Tally
-            title={`${active.length} ${active.length === 1 ? 'journey' : 'journeys'} underway`}
-            done={sum((q) => q.main.done)}
-            total={sum((q) => q.main.total)}
-            shares={[
-              { key: 'done', n: sum((q) => q.main.done), label: 'fulfilled' },
-              { key: 'open', n: sum((q) => q.available), label: 'open now' },
-              { key: 'awaiting', n: sum((q) => q.awaiting), label: 'awaiting reply' },
-              { key: 'sealed', n: sum((q) => Math.max(0, q.main.total - q.main.done - q.available - q.awaiting)), label: 'sealed' },
-            ]}
-          />
-          {/* The buttons, racked beside the tally as on a journey's header. */}
-          <div className="quest-tools grid shrink-0 grid-cols-1 gap-1.5">
-            {search && <Search />}
-            <ThemeMenu theme={theme} onChange={setTheme} />
-          </div>
-        </div>
-      </header>
+          </>
+        }
+        // The main quests of every journey underway, as one tally.
+        tally={{
+          title: `${active.length} ${active.length === 1 ? 'journey' : 'journeys'} underway`,
+          done: sum((q) => q.main.done),
+          total: sum((q) => q.main.total),
+          shares: [
+            { key: 'done', n: sum((q) => q.main.done), label: 'fulfilled' },
+            { key: 'open', n: sum((q) => q.available), label: 'open now' },
+            { key: 'awaiting', n: sum((q) => q.awaiting), label: 'awaiting reply' },
+            { key: 'sealed', n: sum((q) => Math.max(0, q.main.total - q.main.done - q.available - q.awaiting)), label: 'sealed' },
+          ],
+        }}
+        search={search ? {} : undefined}
+        theme={theme}
+        onTheme={setTheme}
+      />
       {banner}
 
       {journeys.length === 0 && empty ? (

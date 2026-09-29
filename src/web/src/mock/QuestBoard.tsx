@@ -7,7 +7,7 @@ export default function QuestBoard() {
     <SharedBoard
       journeys={quests}
       hrefOf={(q) => (hasMap(q.key) ? `/mock/quest/${q.key}` : undefined)}
-      eyebrow="mikado · mock"
+      back={{ label: 'mikado · mock' }}
       noMap="no chart in the mock"
     />
   )

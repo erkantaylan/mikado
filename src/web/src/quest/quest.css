@@ -142,22 +142,54 @@
   background: var(--char-plate);
   box-shadow: inset 0 0 0 1px var(--char-border);
 }
-/* The tally takes the header's free width; the buttons rack beside it in two rows, search on top. */
-.quest-header .quest-tally {
-  flex: 1 1 auto;
-  max-width: 920px;
+/* ---- the header (Header.tsx): two decks ----
+   The way back and the title on one line, Search and the theme on the right; under them the tally
+   across the whole width, its fold button at the right end. Folded, the tally is all there is. */
+.quest-header.quest-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
 }
-.quest-tools > :first-child {
-  grid-column: 1 / -1;
+.quest-header.quest-decks[data-folded] {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
-.quest-tools .quest-tool {
-  width: 100%;
-  min-width: 40px;
-  height: 30px;
-  justify-content: center;
+.quest-decks .quest-deck {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
-.quest-tally-item[data-zero] {
-  opacity: 0.5;
+.quest-decks .quest-nameplate {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.quest-decks .quest-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.quest-decks .quest-tools .quest-tool {
+  height: 36px;
+}
+.quest-decks .quest-tally {
+  flex: none;
+  gap: 14px;
+  padding: 4px 12px;
+}
+.quest-decks .quest-tally .quest-id {
+  margin-right: -2px;
+}
+/* 24px square; it reaches a little past the tally's padding, so the tally keeps its height. */
+.quest-decks .quest-fold {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: -4px -6px -4px 0;
+  background: var(--panel);
 }
 
 /* ---- the chart's control stack (React Flow's Controls) ---- */
@@ -179,6 +211,153 @@
 .quest-theme .react-flow__controls {
   box-shadow: none;
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.35));
+}
+
+/* ---- wood (wood.tsx) ----
+   Flat cartoon wood in three tones with a dark outline: the way back is a red sign with cream
+   letters, every id (J7, Q142, R2) a small nailed tag of light wood with red letters. */
+.quest-theme {
+  --wood-red-lit: #de6536;
+  --wood-red-body: #c4461f;
+  --wood-red-shade: #9c3114;
+  --wood-red-edge: #5a1208;
+  --wood-red-grain: #8f2c12;
+  --wood-cream: #fff4e0;
+  --wood-cream-shadow: #3f0b03;
+  --wood-pale-lit: #fbe7bf;
+  --wood-pale-body: #f0cf92;
+  --wood-pale-shade: #dcb06b;
+  --wood-pale-edge: #7a3c14;
+  --wood-id-red: #a3180e;
+}
+/* On the dark page the pale wood is a shade darker, so a row of ids does not glare. */
+.quest-theme[data-theme='midnight'] {
+  --wood-pale-lit: #f1d9a9;
+  --wood-pale-body: #e4c083;
+  --wood-pale-shade: #c99b55;
+  --wood-pale-edge: #2a1204;
+  --wood-id-red: #93130a;
+  --wood-red-edge: #2a0802;
+}
+/* On the war table the wood sits on paper and brass: a touch warmer. */
+.quest-theme[data-theme='wartable'] {
+  --wood-pale-lit: #f9e2b2;
+  --wood-pale-body: #ecc782;
+  --wood-pale-shade: #d4a45c;
+  --wood-id-red: #9c150b;
+}
+.wood {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.wood-art {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.wood-text {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.wood-red .wood-lit {
+  fill: var(--wood-red-lit);
+}
+.wood-red .wood-body {
+  fill: var(--wood-red-body);
+}
+.wood-red .wood-shade {
+  fill: var(--wood-red-shade);
+}
+.wood-red .wood-edge {
+  fill: none;
+  stroke: var(--wood-red-edge);
+  stroke-linejoin: round;
+}
+.wood-grain {
+  fill: none;
+  stroke: var(--wood-red-grain);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+.wood-pale .wood-lit {
+  fill: var(--wood-pale-lit);
+}
+.wood-pale .wood-body {
+  fill: var(--wood-pale-body);
+}
+.wood-pale .wood-shade {
+  fill: var(--wood-pale-shade);
+}
+.wood-pale .wood-edge {
+  fill: none;
+  stroke: var(--wood-pale-edge);
+  stroke-linejoin: round;
+}
+.wood-nail {
+  fill: #4a3a2c;
+  stroke: #2a1d12;
+  stroke-width: 0.6;
+}
+.wood-nail-lit {
+  fill: #cdbfae;
+}
+/* The way back: cream letters with a dark shadow under them, on the red. On the Atlas, with no way
+   back, a plain plank. */
+.quest-sign {
+  height: 22px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wood-cream);
+  text-shadow:
+    0 1px 0 var(--wood-cream-shadow),
+    0 0 1px var(--wood-cream-shadow);
+}
+.quest-sign.wood-arrow {
+  height: 24px;
+  padding-left: 18px;
+}
+/* A long place name is cut short, so it never takes the title's room; the tooltip has it whole. */
+.quest-sign {
+  max-width: 280px;
+}
+.quest-sign .wood-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.quest-sign.wood-arrow:hover .wood-art {
+  filter: brightness(1.07);
+}
+/* An id: monospace in every theme (the war table's EB Garamond has only old-style figures, and a 3
+   dropping below the line looks broken on a tag). */
+.quest-id {
+  height: 18px;
+  padding: 1px 6px 0 13px; /* the mono face sits high in its box */
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-size-adjust: none;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wood-id-red);
+  text-shadow: none;
+}
+.quest-id-struck .wood-text {
+  text-decoration: line-through;
+}
+.quest-tally-item[data-zero] {
+  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -426,19 +605,6 @@
   color: #1d1208;
   text-shadow: 0 1px 0 rgba(255, 250, 230, 0.7);
 }
-/* Above the title, the way back in rubric red; below it, what the journey holds. */
-.quest-theme[data-theme='wartable'] .quest-header .quest-crumb {
-  font-size: 14px;
-  color: #8e2414 !important;
-  text-shadow: none;
-}
-.quest-theme[data-theme='wartable'] .quest-header .quest-subtitle {
-  font-size: 15px;
-  color: var(--ink-soft);
-}
-.quest-theme[data-theme='wartable'] .quest-header .quest-emblem {
-  margin-left: 2px;
-}
 
 /* The tally: one polished brass plate, the bar a groove engraved into it and
    filled with enamel per state, the counts engraved beneath. */
@@ -505,13 +671,6 @@
 .quest-theme[data-theme='wartable'] .quest-share[data-share='cancelled'] {
   background: linear-gradient(180deg, #b3ada3, #37332d);
 }
-/* The group of the tally and the buttons may break too, rather than run off the edge. */
-.quest-theme[data-theme='wartable'] .quest-header > :has(> .quest-tally) {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  row-gap: 8px;
-  flex-shrink: 1;
-}
 /* The buttons: small brass plates of their own, set into the oak like the tally. */
 .quest-theme[data-theme='wartable'] .quest-header .quest-tool {
   border: 0;
@@ -535,15 +694,36 @@
   color: #4b3620;
   border-color: rgba(96, 62, 14, 0.5);
 }
-/* The journey's emblem: a round brass medallion. */
-.quest-theme[data-theme='wartable'] .quest-emblem {
-  border-color: #4a3110 !important;
-  color: #3d2708 !important;
-  background: radial-gradient(circle at 35% 30%, #fbe7a6 0%, #d6a649 42%, #8a5f1c 100%);
-  box-shadow:
-    inset 0 0 0 3px rgba(255, 236, 178, 0.35),
-    inset 0 -3px 6px rgba(60, 35, 5, 0.45),
-    0 2px 5px rgba(0, 0, 0, 0.6);
+/* The two decks on the oak: the plaques sit in routed grooves, a little more oak above and below them,
+   clear of the brass lip; 9px of oak between a brass end cap (12px) and the plaques. */
+.quest-theme[data-theme='wartable'] .quest-header.quest-decks {
+  flex-wrap: nowrap; /* a wrapping column would size to its content, not the page */
+  gap: 12px;
+  padding: 10px 21px 12px;
+}
+.quest-theme[data-theme='wartable'] .quest-header.quest-decks[data-folded] {
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+.quest-theme[data-theme='wartable'] .quest-decks .quest-nameplate {
+  flex: 0 1 auto;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.quest-theme[data-theme='wartable'] .quest-decks .quest-tally {
+  padding: 5px 20px;
+}
+.quest-theme[data-theme='wartable'] .quest-decks .quest-tools {
+  gap: 8px;
+}
+/* The fold button: a brass button like the others, clear of the tally's rivets. */
+.quest-theme[data-theme='wartable'] .quest-decks .quest-fold {
+  margin: -3px 0 -3px 2px;
+}
+/* The sign takes the book face, as everything on the paper does. */
+.quest-theme[data-theme='wartable'] .quest-sign {
+  font-family: var(--font-body);
+  font-size: 14px;
 }
 
 /* ---- the leather-bound ledger (side panel) ---- */
@@ -1386,17 +1566,6 @@
   height: 32px;
   background: url('../assets/wartable/crown-castle.webp') center bottom / contain no-repeat;
   filter: drop-shadow(0 1px 1.5px rgba(40, 24, 8, 0.45));
-}
-
-/* The header's quest medallion. */
-.quest-theme[data-theme='wartable'] .quest-emblem {
-  border: 0 !important;
-  background: url('../assets/wartable/emblem.webp') center / contain no-repeat;
-  box-shadow: none;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
-}
-.quest-theme[data-theme='wartable'] .quest-emblem > svg {
-  display: none;
 }
 
 /* The mini-map, in the paper's colours: sealed a cool grey, awaiting ochre, abandoned faint sepia. */

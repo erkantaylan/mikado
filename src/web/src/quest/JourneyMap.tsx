@@ -11,10 +11,10 @@ import {
   useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles, Trophy } from 'lucide-react'
+import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles } from 'lucide-react'
 import './quest.css'
 import { titleOf, type Item, type JourneyCard, type JourneyModel, type JourneyState, type Status } from './model'
-import { ArchivedChip, Gate, Renamable, Jester, Key, KindMark, Label, Npc, Tally, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
+import { ArchivedChip, Gate, Renamable, Jester, Key, KindMark, Label, Npc, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
   AlsoIn,
@@ -33,8 +33,8 @@ import {
   type QuestNode,
 } from './graph'
 import { RailwaySample } from './railway'
-import { Search } from './Search'
-import { ThemeContext, ThemeMenu, useTheme } from './theme'
+import { Header } from './Header'
+import { ThemeContext, useTheme } from './theme'
 import { VersionLine } from './VersionLine'
 import { JourneyProgress, journeyCardWord, journeyHref } from './JourneyCard'
 
@@ -75,8 +75,6 @@ function logName(m: JourneyModel, id: string): string {
   if (!i) return id.startsWith('card:') ? 'quest' : m.short(id)
   return m.refOf(i) ? m.short(id) : (i.key ?? 'quest')
 }
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -966,70 +964,45 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
   return (
     <ThemeContext value={theme}>
       <div data-theme={theme} className="quest-theme flex h-screen flex-col">
-        <header className="quest-header flex items-center gap-x-5 border-b border-[var(--panel-border)] bg-[var(--panel)] px-5 py-3">
-          <div className="quest-nameplate flex min-w-0 items-center gap-3">
-            <span className="quest-emblem grid size-11 shrink-0 place-items-center rounded-full border-2" style={{ borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-              <Trophy size={20} />
-            </span>
-            <div className="min-w-0">
-              <a href={atlasHref} className="quest-crumb text-[12px] font-bold hover:underline" style={{ color: stateColour.done }}>
-                ← {atlasLabel}{journeyKey && <span className="ml-2 font-mono text-[var(--ink-soft)]">{journeyKey}</span>}
-              </a>
-              <h1 className="quest-display flex min-w-0 items-center gap-2 text-xl font-semibold">
-                <Renamable title={goal.title} noun="journey" idKey={journeyKey} onRename={onRetitle} />
-                <JourneyStateChip state={state} />
-                {archived && <ArchivedChip />}
-              </h1>
-              <div className="quest-subtitle truncate text-[14px] text-[var(--ink-soft)]">
-                {goal.doneWhen ? (
-                  <>
-                    Crowned by{' '}
-                    <button
-                      onClick={() => focus(goal.doneWhen!)}
-                      title={m.byId.get(goal.doneWhen)?.title}
-                      className="font-mono font-semibold text-[var(--ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--avail)]"
-                    >
-                      {logName(m, goal.doneWhen)}
-                    </button>
-                  </>
-                ) : (
-                  'No crowning quest yet'
-                )}{' '}
-                · {plural(items.filter(m.counted).length, 'quest')} · {plural(sideQuests.length, 'side quest')}
-              </div>
-            </div>
-          </div>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-4">
-            <Tally
-              title="Main quest"
-              done={count('done')}
-              total={items.filter(m.counted).length}
-              shares={[
-                { key: 'done', n: count('done'), label: 'fulfilled' },
-                { key: 'underway', n: working, label: 'underway' },
-                { key: 'open', n: idle('available'), label: 'open' },
-                { key: 'awaiting', n: idle('awaiting'), label: 'awaiting reply' },
-                { key: 'sealed', n: idle('locked'), label: 'sealed' },
-              ]}
-              extra={count('cancelled') ? [{ key: 'cancelled', n: count('cancelled'), label: 'abandoned' }] : []}
-            />
-            {/* The buttons, racked beside the tally: search on top, the theme below. */}
-            <div className="quest-tools grid shrink-0 grid-cols-1 gap-1.5">
-              {journeyKey && (
-                <Search
-                  here={journeyKey}
-                select={(key) => {
-                  const id = `c${key.slice(1)}`
-                  if (!m.byId.has(id)) return false
-                  focus(id)
-                  return true
-                }}
-                />
-              )}
-              <ThemeMenu theme={theme} onChange={setTheme} />
-            </div>
-          </div>
-        </header>
+        <Header
+          back={{ label: atlasLabel, href: atlasHref }}
+          title={
+            <>
+              <Renamable title={goal.title} noun="journey" idKey={journeyKey} onRename={onRetitle} />
+              <JourneyStateChip state={state} />
+              {archived && <ArchivedChip />}
+            </>
+          }
+          tally={{
+            title: 'Main quest',
+            done: count('done'),
+            total: items.filter(m.counted).length,
+            shares: [
+              { key: 'done', n: count('done'), label: 'fulfilled' },
+              { key: 'underway', n: working, label: 'underway' },
+              { key: 'open', n: idle('available'), label: 'open' },
+              { key: 'awaiting', n: idle('awaiting'), label: 'awaiting reply' },
+              { key: 'sealed', n: idle('locked'), label: 'sealed' },
+            ],
+            extra: count('cancelled') ? [{ key: 'cancelled', n: count('cancelled'), label: 'abandoned' }] : [],
+          }}
+          journey={journeyKey ? { key: journeyKey, title: goal.title } : undefined}
+          search={
+            journeyKey
+              ? {
+                  here: journeyKey,
+                  select: (key) => {
+                    const id = `c${key.slice(1)}`
+                    if (!m.byId.has(id)) return false
+                    focus(id)
+                    return true
+                  },
+                }
+              : undefined
+          }
+          theme={theme}
+          onTheme={setTheme}
+        />
         {banner}
 
         <div className="flex min-h-0 flex-1">

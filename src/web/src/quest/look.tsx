@@ -136,21 +136,44 @@ export function Working({ compact = false, by }: { compact?: boolean; by?: strin
 /** One share of a tally: how many quests are in one state. Its colour is the key's, in quest.css. */
 export type Share = { key: 'done' | 'underway' | 'open' | 'awaiting' | 'sealed' | 'cancelled'; n: number; label: string }
 
-/**
- * The header's tally: one bar split into the states the quests are in, so how far along it is and
- * what is still ahead read as one thing, with the counts as its legend. What is still sealed is the
- * bar's empty groove. `extra` counts sit beside it but are no share of it: abandoned quests count for
- * nothing.
- */
-export function Tally({ title, done, total, shares, extra = [] }: { title: string; done: number; total: number; shares: Share[]; extra?: Share[] }) {
-  const pct = total ? Math.round((done / total) * 100) : 0
-  const sealed = shares.find((s) => s.key === 'sealed')?.n ?? 0
-  const item = (s: Share) => (
-    <span key={s.key} data-zero={s.n === 0 || undefined} className="quest-tally-item flex items-center gap-1.5 whitespace-nowrap">
+/** A tally's counts: the main quest's (or the journeys') title, how many are fulfilled, and the shares of the bar. */
+export type TallyProps = { title: string; done: number; total: number; shares: Share[]; extra?: Share[] }
+
+/** One count of a tally's legend, with its swatch. */
+function TallyItem({ s }: { s: Share }) {
+  return (
+    <span data-zero={s.n === 0 || undefined} className="quest-tally-item flex items-center gap-1.5 whitespace-nowrap">
       <span data-share={s.key} className="quest-share quest-swatch size-2.5 shrink-0 rounded-sm" />
       <b className="tabular-nums">{s.n}</b> {s.label}
     </span>
   )
+}
+
+/** The tally's bar: one share per state; what is still sealed stays the empty groove. */
+function TallyBar({ title, done, total, shares, className }: TallyProps & { className: string }) {
+  const sealed = shares.find((s) => s.key === 'sealed')?.n ?? 0
+  return (
+    <div className={`quest-bar flex gap-[2px] overflow-hidden rounded-full bg-[var(--chip)] ${className}`} role="img" aria-label={`${title}: ${done} of ${total}`}>
+      {shares
+        .filter((s) => s.n > 0 && s.key !== 'sealed')
+        .map((s) => (
+          <span key={s.key} data-share={s.key} className="quest-share h-full" style={{ flexGrow: s.n, flexBasis: 0 }} title={`${s.n} ${s.label}`} />
+        ))}
+      {!!sealed && <span className="h-full" style={{ flexGrow: sealed, flexBasis: 0 }} />}
+    </div>
+  )
+}
+
+const pctOf = (done: number, total: number) => (total ? Math.round((done / total) * 100) : 0)
+
+/**
+ * A tally in a block: one bar split into the states the quests are in, so how far along it is and
+ * what is still ahead read as one thing, with the counts as its legend. What is still sealed is the
+ * bar's empty groove. `extra` counts sit beside it but are no share of it: abandoned quests count for
+ * nothing. (The header now uses TallyLine; the header mock pages still show this one.)
+ */
+export function Tally(t: TallyProps) {
+  const { title, done, total, shares, extra = [] } = t
   return (
     <div className="quest-tally flex min-w-[360px] flex-col gap-1.5 rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-3 py-1.5">
       <div className="flex items-baseline gap-2 text-[12px] font-bold">
@@ -158,21 +181,49 @@ export function Tally({ title, done, total, shares, extra = [] }: { title: strin
         <span className="quest-tally-count text-[15px] text-[var(--ink)] tabular-nums">
           {done}/{total}
         </span>
-        <span className="quest-tally-pct text-[var(--ink-faint)] tabular-nums">{pct}%</span>
-        {extra.length > 0 && <span className="quest-tally-legend ml-auto flex gap-3 text-[var(--ink-soft)]">{extra.map(item)}</span>}
+        <span className="quest-tally-pct text-[var(--ink-faint)] tabular-nums">{pctOf(done, total)}%</span>
+        {extra.length > 0 && (
+          <span className="quest-tally-legend ml-auto flex gap-3 text-[var(--ink-soft)]">
+            {extra.map((s) => (
+              <TallyItem key={s.key} s={s} />
+            ))}
+          </span>
+        )}
       </div>
-      <div className="quest-bar flex h-2.5 gap-[2px] overflow-hidden rounded-full bg-[var(--chip)]" role="img" aria-label={`${title}: ${done} of ${total}`}>
-        {shares
-          .filter((s) => s.n > 0 && s.key !== 'sealed')
-          .map((s) => (
-            <span key={s.key} data-share={s.key} className="quest-share h-full" style={{ flexGrow: s.n, flexBasis: 0 }} title={`${s.n} ${s.label}`} />
-          ))}
-        {/* What is still sealed stays the empty groove. */}
-        {!!sealed && <span className="h-full" style={{ flexGrow: sealed, flexBasis: 0 }} />}
-      </div>
+      <TallyBar {...t} className="h-2.5" />
       <div className="quest-tally-legend flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12px] font-semibold text-[var(--ink-soft)]">
-        {shares.map(item)}
+        {shares.map((s) => (
+          <TallyItem key={s.key} s={s} />
+        ))}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The header's tally, on one line across the page: the title, count and percentage, the bar, and the
+ * legend (the `extra` counts, abandoned, at its end: they are no share of the bar). `lead` goes
+ * first (a journey's id), `end` last (the header's fold button).
+ */
+export function TallyLine({ lead, end, ...t }: TallyProps & { lead?: ReactNode; end?: ReactNode }) {
+  const { title, done, total, shares, extra = [] } = t
+  return (
+    <div className="quest-tally flex items-center rounded-md border border-[var(--panel-border)] bg-[var(--plate)]">
+      {lead}
+      <div className="flex shrink-0 items-baseline gap-2 text-[12px] font-bold whitespace-nowrap">
+        <span className="quest-tally-title text-[var(--ink-soft)]">{title}</span>
+        <span className="quest-tally-count text-[15px] text-[var(--ink)] tabular-nums">
+          {done}/{total}
+        </span>
+        <span className="quest-tally-pct text-[var(--ink-faint)] tabular-nums">{pctOf(done, total)}%</span>
+      </div>
+      <TallyBar {...t} className="h-2 min-w-[120px] flex-1" />
+      <div className="quest-tally-legend flex shrink-0 gap-x-3.5 text-[12px] font-semibold text-[var(--ink-soft)]">
+        {[...shares, ...extra].map((s) => (
+          <TallyItem key={s.key} s={s} />
+        ))}
+      </div>
+      {end}
     </div>
   )
 }

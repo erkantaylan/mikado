@@ -1,6 +1,48 @@
 /* The header alternatives page (mock/HeaderDemo). Every rule is scoped to .hd-page, so none reaches
    the real headers; each carries .quest-header so it outranks quest.css's war table rules. */
 
+/* ---- the old header's rules ----
+   The real header lost its rack of buttons, the crumb and subtitle and the emblem; the variants here
+   still draw them, so their rules live on here. */
+.hd-page .quest-header .quest-tally {
+  flex: 1 1 auto;
+  max-width: 920px;
+}
+.hd-page .quest-tools > :first-child {
+  grid-column: 1 / -1;
+}
+.hd-page .quest-tools .quest-tool {
+  width: 100%;
+  min-width: 40px;
+  height: 30px;
+  justify-content: center;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header .quest-crumb {
+  font-size: 14px;
+  color: #8e2414 !important;
+  text-shadow: none;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header .quest-subtitle {
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header .quest-emblem {
+  margin-left: 2px;
+  border: 0 !important;
+  background: url('../assets/wartable/emblem.webp') center / contain no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header .quest-emblem > svg {
+  display: none;
+}
+.hd-page.quest-theme[data-theme='wartable'] .quest-header > :has(> .quest-tally) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 8px;
+  flex-shrink: 1;
+}
+
 /* ---- the page ---- */
 /* On the war table the page is paper, so its words read; the strips under the headers are the oak. */
 .hd-page.quest-theme[data-theme='wartable'] {

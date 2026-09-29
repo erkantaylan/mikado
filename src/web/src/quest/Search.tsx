@@ -22,8 +22,11 @@ export type SearchProps = {
   select?: (key: string) => boolean // select a quest on that chart; false if it is not there
 }
 
-/** compact: the button shows only its icon (the chart's header is crowded); the tooltip keeps the shortcut. */
-export function Search({ here, select, compact }: SearchProps & { compact?: boolean }) {
+/**
+ * compact: the button shows only its icon; the tooltip keeps the shortcut. button false: no button at all
+ * (the header is folded), only the shortcut and the popup.
+ */
+export function Search({ here, select, compact, button = true }: SearchProps & { compact?: boolean; button?: boolean }) {
   const [open, setOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,20 +44,22 @@ export function Search({ here, select, compact }: SearchProps & { compact?: bool
   }, [])
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Search journeys and quests"
-        title={`Search journeys and quests (${mac ? '⌘' : 'Ctrl'} K)`}
-        className={`quest-tool flex h-10 shrink-0 items-center gap-2 rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)] ${compact ? 'w-10 justify-center' : 'px-3'}`}
-      >
-        <SearchIcon size={17} />
-        {!compact && (
-          <>
-            <span className="hidden text-[14px] sm:inline">Search</span>
-            <kbd className="hidden rounded border border-[var(--panel-border)] px-1 font-mono text-[11px] sm:inline">{mac ? '⌘K' : 'Ctrl K'}</kbd>
-          </>
-        )}
-      </button>
+      {button && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Search journeys and quests"
+          title={`Search journeys and quests (${mac ? '⌘' : 'Ctrl'} K)`}
+          className={`quest-tool flex h-10 shrink-0 items-center gap-2 rounded-md border border-[var(--panel-border)] text-[var(--ink-soft)] hover:text-[var(--ink)] ${compact ? 'w-10 justify-center' : 'px-3'}`}
+        >
+          <SearchIcon size={17} />
+          {!compact && (
+            <>
+              <span className="hidden text-[14px] sm:inline">Search</span>
+              <kbd className="hidden rounded border border-[var(--panel-border)] px-1 font-mono text-[11px] sm:inline">{mac ? '⌘K' : 'Ctrl K'}</kbd>
+            </>
+          )}
+        </button>
+      )}
       {open && <Popup here={here} select={select} close={() => setOpen(false)} />}
     </>
   )
