@@ -102,10 +102,18 @@ balcony=$("$m" add "Pour the neighbours tea with a plate of baklava on the balco
 quiet "$m" require "$balcony" J6
 quiet "$m" add "Buy a tray of pistachio baklava from the bakery" --opens "$balcony"
 
+# J8: a journey already fulfilled that brunch's table waited on, so J4's chart
+# shows a fulfilled journey card beside the open ones.
+quiet "$m" journey new "Find a dining table that seats four" 2>/dev/null
+carry=$("$m" add "Carry the second-hand oak table up to the flat" --crowns J8 --json | key)
+market=$("$m" add "Pick a table at the flea market on Saturday" --opens "$carry" --json | key)
+for q in "$market" "$carry"; do quiet "$m" fulfil "$q"; done
+
 # Regions: the kitchen journeys wait on each other, so they move together; the
 # rest stay in R1, Personal.
 quiet "$m" region new "Kitchen"
-quiet "$m" region move Kitchen J3 J4 J6 J7
+quiet "$m" region move Kitchen J3 J4 J6 J7 J8
+quiet "$m" require "$table" J8
 quiet "$m" region new "Side projects"
 quiet "$m" region move "Side projects" J5
 
