@@ -176,7 +176,7 @@ function CardView({ data }: NodeProps<CardNode>) {
         {wt && item.kind === 'wait' && <Jester />}
         {/* The key would sit under the corner medal, so the row starts clear of it. */}
         <div className={`flex min-w-0 items-center gap-1.5 ${item.key ? (side ? 'pl-1.5' : 'pl-2.5') : ''}`}>
-          <Label item={item} tag={tag} />
+          <Label item={item} link />
           {item.final && (
             <span className="shrink-0 text-[12px] font-bold whitespace-nowrap" style={{ color: stateColour.done }}>
               · Crowning quest

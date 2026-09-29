@@ -13,7 +13,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { Ban, Check, Crown, ExternalLink, Eye, EyeOff, Gem, Hourglass, Layers, Map as MapIcon, PanelRightClose, PanelRightOpen, Sparkles } from 'lucide-react'
 import './quest.css'
-import { titleOf, type Item, type JourneyCard, type JourneyModel, type JourneyState, type Status } from './model'
+import { hrefOf, titleOf, type Item, type JourneyCard, type JourneyModel, type JourneyState, type Status } from './model'
 import { ArchivedChip, Gate, Renamable, Jester, Key, KindMark, Label, Npc, JourneyStateChip, Working, medal, sideMedal, stateColour, words } from './look'
 import { glossary } from './glossary'
 import {
@@ -69,12 +69,9 @@ const logColour: Record<string, string> = {
   final: 'var(--gold)',
 }
 
-// How the chronicle names a quest: an issue by repo#n, another quest by its key. A quest that has
-// left the journey is only known by its id.
+// How the chronicle names a quest: by its key. A quest that has left the journey is only known by its id.
 function logName(m: JourneyModel, id: string): string {
-  const i = m.byId.get(id)
-  if (!i) return id.startsWith('card:') ? 'quest' : m.short(id)
-  return m.refOf(i) ? m.short(id) : (i.key ?? 'quest')
+  return m.byId.get(id)?.key ?? 'quest'
 }
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
@@ -86,7 +83,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function Row({ m, item, onPick, right }: { m: JourneyModel; item: Item; onPick: (id: string) => void; right?: ReactNode }) {
+function Row({ item, onPick, right }: { item: Item; onPick: (id: string) => void; right?: ReactNode }) {
   return (
     <li>
       <button
@@ -96,7 +93,7 @@ function Row({ m, item, onPick, right }: { m: JourneyModel; item: Item; onPick: 
         {/* Two spans so the war table can set the labels and the title on lines of their own; elsewhere they run inline as one. */}
         <span className="quest-row-text min-w-0 truncate">
           <span className="quest-row-meta">
-            <Label item={item} tag={m.short(item.id)} />
+            <Label item={item} />
           </span>{' '}
           <span className="quest-row-title">{titleOf(item).replace(/^Polish: /, '')}</span>
         </span>
@@ -174,11 +171,7 @@ function WarLegend() {
       </Panel>
       <Panel title="Top line: what is it?">
         <ul className="space-y-2.5">
-          {row(
-            <span className="quest-ref rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]">repo#12</span>,
-            'Issue: a GitHub issue, by its repo and number',
-          )}
-          {row(<span className="quest-kind text-[12px] font-bold text-[var(--ink-soft)]">Errand</span>, 'Errand: a real step, not worth an issue')}
+          {row(<span className="quest-mark font-mono text-[12px] text-[var(--ink-soft)]">#12</span>, 'A mark: a short note by the key, a link when the quest has one')}
           {row(<span className="quest-kind text-[12px] font-bold text-[var(--await)]">Petition</span>, 'Petition: waiting on a reply from someone')}
           {row(<Jester />, 'A jester: a petition — someone else must answer it')}
         </ul>
@@ -264,7 +257,7 @@ function QuestRow({ m, i, onPick }: { m: JourneyModel; i: Item; onPick: (id: str
       >
         <span className="min-w-0 flex-1">
           <span className="whitespace-nowrap">
-            <Label item={i} tag={m.short(i.id)} />
+            <Label item={i} />
           </span>{' '}
           {titleOf(i)}
         </span>{' '}
@@ -288,7 +281,7 @@ function JourneyDetails({ m, item, q, onPick, onClose }: DetailsProps & { q: Jou
   const over = status === 'done' || status === 'cancelled'
   const others = (item.alsoIn ?? []).filter((r) => r.key !== q.key)
   const heading = 'mb-1 text-[12px] font-bold text-[var(--ink-faint)]'
-  const crownedBy = m.refOf(item) ? m.short(item.id) : (item.key ?? item.title)
+  const crownedBy = item.key ?? item.title
   return (
     <section className="quest-details space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
       <div className="flex items-start justify-between gap-2">
@@ -377,40 +370,33 @@ function QuestDetails({ m, item, onPick, onClose }: DetailsProps) {
   const status = m.statusOf(item)
   const before = m.needs.filter((n) => n.from === item.id).flatMap((n) => m.byId.get(n.to) ?? [])
   const opens = m.needs.filter((n) => n.to === item.id).flatMap((n) => m.byId.get(n.from) ?? [])
-  const ref = m.refOf(item)
-  const url = ref ? m.urlOf(item) : undefined
+  const url = hrefOf(item.url)
   return (
     <section className="quest-details space-y-3 rounded-lg border-2 border-[var(--panel-border)] bg-[var(--plate)] p-3">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="quest-ref font-mono text-[12px] text-[var(--ink-faint)]">
-            {item.key && (
-              <>
-                <Key id={item.key} />
-                {' · '}
-              </>
-            )}
-            {!ref ? (
-              item.kind === 'wait' ? 'Petition' : 'Errand'
-            ) : url ? (
-              <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--ink)] hover:underline">
-                {ref}
+        <div className="min-w-0">
+          {(item.key || item.mark || item.kind === 'wait') && (
+            <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-[var(--ink-faint)]">
+              <Label item={item} link />
+            </div>
+          )}
+          <div className="text-[16px] font-semibold [overflow-wrap:anywhere]">
+            {url ? (
+              // The quest's link: its title opens it, so it is always a click away, mark or not.
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={item.url}
+                className="underline decoration-[var(--ink-faint)] decoration-1 underline-offset-3 hover:decoration-[var(--ink)]"
+              >
+                {item.title}
+                <ExternalLink size={13} className="ml-1 inline-block align-[-1px] text-[var(--ink-faint)]" aria-label="opens in a new tab" />
               </a>
             ) : (
-              ref
+              item.title
             )}
           </div>
-          <div className="text-[16px] font-semibold">{item.title}</div>
-          {url && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-md border-2 border-[var(--ink)] bg-[var(--ink)] px-2.5 py-1 text-[13px] font-semibold text-[var(--bg)] hover:opacity-85"
-            >
-              Open on GitHub <ExternalLink size={14} />
-            </a>
-          )}
         </div>
         <button onClick={onClose} className="text-[var(--ink-faint)] hover:text-[var(--ink)]" aria-label="Close details">
           ✕
@@ -487,7 +473,7 @@ export type JourneyMapProps = {
   onSetNpc?: (item: Item, npc: boolean) => Promise<void> // turns on the quest's right-click menu. The mock has none
   atlasHref: string
   atlasLabel?: string // what the back link names: the journey's region, else the Atlas
-  banner?: ReactNode // e.g. a GitHub warning, shown under the header
+  banner?: ReactNode // e.g. a stale-data warning, shown under the header
   version?: string // the running server's version, shown small under the side panel; the mock has none
   lineTypes?: typeof edgeTypes // other line designs to draw instead; only the mock tries them
 }
@@ -1131,7 +1117,6 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                   {available.map((i) => (
                     <Row
                       key={i.id}
-                      m={m}
                       item={i}
                       onPick={focus}
                       right={i.working && <Working compact by={i.workingBy} />}
@@ -1145,7 +1130,6 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
                   {awaiting.map((i) => (
                     <Row
                       key={i.id}
-                      m={m}
                       item={i}
                       onPick={focus}
                       right={
@@ -1161,7 +1145,7 @@ function JourneyMapInner({ model: m, state, archived, journeyKey, onRetitle, onS
               <Panel title="Side quests — achievements">
                 <ul className="quest-rows space-y-1.5">
                   {sideQuests.map((q) => (
-                    <Row key={q.id} m={m} item={q} onPick={focus} />
+                    <Row key={q.id} item={q} onPick={focus} />
                   ))}
                 </ul>
               </Panel>

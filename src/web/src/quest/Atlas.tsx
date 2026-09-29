@@ -17,7 +17,6 @@ export type AtlasJourney = {
   available: number
   awaiting: number
   heroes: string[]
-  repos: string[]
   lastActivity: string
   state?: JourneyState
   cancelled?: number
@@ -120,7 +119,7 @@ function JourneyRow({ q, href, noMap, chip }: { q: AtlasJourney; href?: string; 
         </div>
         <div className="truncate text-[13px] text-[var(--ink-soft)]">
           <IdTag id={q.key} />
-          {[...q.repos, `last move ${q.lastActivity}`].map((part) => ` · ${part}`)}
+          {` · last move ${q.lastActivity}`}
         </div>
         {(!!q.blockedBy?.length || !!q.blocks?.length) && (
           <div className="flex gap-3 truncate text-[13px] text-[var(--ink-soft)]">
@@ -305,7 +304,7 @@ export type AtlasProps = {
   regions?: AtlasRegion[] // set on the home page: the regions as cards instead of the journeys' shelves
   regionHref?: (r: AtlasRegion) => string
   noMap?: string // what a journey without a chart says about it
-  banner?: ReactNode // e.g. a GitHub warning, shown under the header
+  banner?: ReactNode // e.g. a stale-data warning, shown under the header
   empty?: ReactNode // shown instead of the shelves when there are no journeys at all
   search?: boolean // the live atlas searches the API; the mock has none
   version?: string // the running server's version, shown small at the bottom; the mock has none

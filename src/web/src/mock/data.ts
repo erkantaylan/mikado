@@ -1,18 +1,17 @@
 import type { AtlasJourney } from '../quest/Atlas'
 // A made-up goal used to agree on the workflow before any real data exists.
-// Repos, people and numbers are fictional.
+// People and numbers are fictional; the ids are only names for the nodes.
 
-// An item is either a GitHub issue or a card that lives only in mikado:
-// a `wait` is something we are waiting on someone for, a `task` is a real step
-// that is too small or too big to be worth an issue.
-export type Kind = 'issue' | 'wait' | 'task'
+// Every quest is one kind of thing; a `wait` (a petition) awaits a reply from someone.
+export type Kind = 'quest' | 'wait'
 
 export type Item = {
-  id: string // issues: owner/repo#n, cards: card:<slug>
+  id: string // a name for the node: studio/<area>#n or card:<slug>
   kind: Kind
   title: string
   done: boolean
-  assignee?: string // GitHub login (issues) or whoever owns the card
+  mark?: string // a short note shown by the key: #13, 234g45a
+  assignee?: string // the hero: whoever is responsible for it
   waitingOn?: string // waits: who we are waiting for — may be outside the team
   since?: string // waits: when the wait started
   final?: boolean // the item whose completion means the goal is reached
@@ -41,23 +40,25 @@ const winterGoal = {
 }
 
 const winterItems: Item[] = [
-  { id: 'studio/game#140', kind: 'issue', title: 'Ship the winter update to every platform', done: false, assignee: 'ada', final: true },
-  { id: 'studio/game#138', kind: 'issue', title: 'Winter map: snow tiles, then the frozen-lake level', done: false, assignee: 'bo' },
-  { id: 'studio/saves#88', kind: 'issue', title: 'Save migration for the winter items — old saves upgraded on load, a backup kept beside each one, one migration per save slot', done: false, assignee: 'cyd' },
-  { id: 'studio/net#93', kind: 'issue', title: 'Cloud-save sync client with retry', done: true, assignee: 'cyd' },
-  { id: 'studio/build#22', kind: 'issue', title: 'Upload the release builds to every store', done: false, assignee: 'ada' },
+  { id: 'studio/game#140', kind: 'quest', mark: '#140', title: 'Ship the winter update to every platform', done: false, assignee: 'ada', final: true },
+  { id: 'studio/game#138', kind: 'quest', mark: '#138', title: 'Winter map: snow tiles, then the frozen-lake level', done: false, assignee: 'bo' },
+  { id: 'studio/saves#88', kind: 'quest', mark: '#88', title: 'Save migration for the winter items — old saves upgraded on load, a backup kept beside each one, one migration per save slot', done: false, assignee: 'cyd' },
+  { id: 'studio/net#93', kind: 'quest', mark: '#93', title: 'Cloud-save sync client with retry', done: true, assignee: 'cyd' },
+  { id: 'studio/build#22', kind: 'quest', mark: '#22', title: 'Upload the release builds to every store', done: false, assignee: 'ada' },
   {
     id: 'studio/saves#95',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#95',
     title: 'Split-screen co-op',
     done: false,
     assignee: 'cyd',
     cancelled: true,
-    cancelReason: 'Closed on GitHub as not planned — out of scope for this quest.',
+    cancelReason: 'Out of scope for this journey.',
   },
   {
     id: 'studio/saves#91',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#91',
     title: 'Old save files crash the loader',
     done: false,
     assignee: 'cyd',
@@ -66,7 +67,8 @@ const winterItems: Item[] = [
   },
   {
     id: 'studio/saves#45',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#45',
     title: 'The save format has no version field',
     done: false,
     foundWhile: 'studio/saves#91',
@@ -86,7 +88,7 @@ const winterItems: Item[] = [
   },
   {
     id: 'card:feature-slot',
-    kind: 'task',
+    kind: 'quest',
     title: 'Book the store-page feature slot with the platform',
     done: false,
     assignee: 'ada',
@@ -99,7 +101,8 @@ const winterItems: Item[] = [
 const winterSideQuests: Item[] = [
   {
     id: 'studio/game#141',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#141',
     title: 'Polish: snowfall particles on the title screen',
     done: false,
     assignee: 'bo',
@@ -107,7 +110,8 @@ const winterSideQuests: Item[] = [
   },
   {
     id: 'studio/saves#97',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#97',
     title: 'Polish: a friendlier message when a save is upgraded',
     done: false,
     sideOf: 'studio/saves#88',
@@ -138,16 +142,16 @@ const winterLog: LogEntry[] = [
   { at: 'Sep 11', kind: 'add', id: 'studio/saves#95', text: 'added — split-screen co-op needs its own save slots' },
   { at: 'Sep 12', kind: 'assign', id: 'studio/saves#88', text: 'assigned to @cyd' },
   { at: 'Sep 14', kind: 'add', id: 'card:key-art', text: 'petition to the freelance artist — unearthed while on build#22' },
-  { at: 'Sep 15', kind: 'done', id: 'studio/net#93', text: 'fulfilled (closed on GitHub)' },
+  { at: 'Sep 15', kind: 'done', id: 'studio/net#93', text: 'fulfilled' },
   { at: 'Sep 16', kind: 'add', id: 'studio/saves#91', text: 'unearthed while on #88: old saves crash the loader' },
   { at: 'Sep 17', kind: 'add', id: 'studio/game#141', text: 'side quest on game#138 — nice to have, doesn’t block' },
   { at: 'Sep 18', kind: 'add', id: 'studio/saves#45', text: 'unearthed while on #91: the save format has no version field' },
   { at: 'Sep 19', kind: 'add', id: 'studio/saves#97', text: 'side quest on saves#88' },
-  { at: 'Sep 19', kind: 'cancel', id: 'studio/saves#95', text: 'abandoned — closed on GitHub as not planned' },
+  { at: 'Sep 19', kind: 'cancel', id: 'studio/saves#95', text: 'abandoned — out of scope for this journey' },
 ]
 
 // ---- a second map: the quest line of building mikado's first real slice ----
-// mikado has no GitHub repo yet, so every step is an errand. Updated as the work lands.
+// mikado's own first slice, every step a plain quest.
 
 const buildGoal = {
   title: 'mikado runs on real data: quests from the CLI, drawn on the map',
@@ -155,27 +159,27 @@ const buildGoal = {
 }
 
 const buildItems: Item[] = [
-  { id: 'card:stack', kind: 'task', title: 'Pick the stack: Go binary, React Flow + ELK, Tailwind', done: true, assignee: 'claude' },
-  { id: 'card:mock', kind: 'task', title: 'Agree the workflow on a mock: Quest Board and chart', done: true, assignee: 'erkan' },
-  { id: 'card:commit-mock', kind: 'task', title: 'Commit the mock as the agreed reference', done: true, assignee: 'claude' },
-  { id: 'card:storage', kind: 'task', title: 'Decide storage: SQLite, owned by mikado serve, CLI over HTTP', done: true, assignee: 'erkan' },
+  { id: 'card:stack', kind: 'quest', title: 'Pick the stack: Go binary, React Flow + ELK, Tailwind', done: true, assignee: 'claude' },
+  { id: 'card:mock', kind: 'quest', title: 'Agree the workflow on a mock: Quest Board and chart', done: true, assignee: 'erkan' },
+  { id: 'card:commit-mock', kind: 'quest', title: 'Commit the mock as the agreed reference', done: true, assignee: 'claude' },
+  { id: 'card:storage', kind: 'quest', title: 'Decide storage: SQLite, owned by mikado serve, CLI over HTTP', done: true, assignee: 'erkan' },
   {
     id: 'card:port',
-    kind: 'task',
+    kind: 'quest',
     title: 'Move the default port to 47291',
     done: true,
     assignee: 'claude',
     foundWhile: 'card:storage',
     reason: 'Every standard port on this machine is already taken.',
   },
-  { id: 'card:store', kind: 'task', title: 'SQLite store: schema, migrations and the chronicle', done: true, assignee: 'claude' },
-  { id: 'card:github', kind: 'task', title: 'GitHub reads through gh: batched, cached, validated on add', done: true, assignee: 'claude' },
-  { id: 'card:api', kind: 'task', title: 'JSON API: quests, deeds, requirements, assignees', done: true, assignee: 'claude' },
-  { id: 'card:cli', kind: 'task', title: 'CLI: quest new/show, add, errand, petition, require, fulfil, assign', done: true, assignee: 'claude' },
-  { id: 'card:tests', kind: 'task', title: 'Store unit tests and an end-to-end smoke run', done: true, assignee: 'claude' },
+  { id: 'card:store', kind: 'quest', title: 'SQLite store: schema, migrations and the chronicle', done: true, assignee: 'claude' },
+  { id: 'card:github', kind: 'quest', title: 'GitHub reads through gh: batched, cached, validated on add', done: true, assignee: 'claude' },
+  { id: 'card:api', kind: 'quest', title: 'JSON API: quests, deeds, requirements, assignees', done: true, assignee: 'claude' },
+  { id: 'card:cli', kind: 'quest', title: 'CLI: quest new/show, add, errand, petition, require, fulfil, assign', done: true, assignee: 'claude' },
+  { id: 'card:tests', kind: 'quest', title: 'Store unit tests and an end-to-end smoke run', done: true, assignee: 'claude' },
   {
     id: 'card:props',
-    kind: 'task',
+    kind: 'quest',
     title: 'Make the chart page take its quest as data instead of reading the mock',
     done: false,
     assignee: 'claude',
@@ -183,11 +187,11 @@ const buildItems: Item[] = [
     foundWhile: 'card:this-map',
     reason: 'The mock reads module-level data; real quests arrive from the API.',
   },
-  { id: 'card:this-map', kind: 'task', title: 'Put this build on the mock as its own quest line', done: true, assignee: 'claude' },
-  { id: 'card:real-map', kind: 'task', title: 'Quest Board and chart read the real API', done: false, assignee: 'claude', working: true },
+  { id: 'card:this-map', kind: 'quest', title: 'Put this build on the mock as its own quest line', done: true, assignee: 'claude' },
+  { id: 'card:real-map', kind: 'quest', title: 'Quest Board and chart read the real API', done: false, assignee: 'claude', working: true },
   {
     id: 'card:start-stop',
-    kind: 'task',
+    kind: 'quest',
     title: '`mikado take-up` / `set-down` so "underway" is real, not mock-only',
     done: true,
     assignee: 'claude',
@@ -196,7 +200,7 @@ const buildItems: Item[] = [
   },
   {
     id: 'card:cancel',
-    kind: 'task',
+    kind: 'quest',
     title: 'Abandoned deeds: won’t-do stays on the chart, like GitHub’s “not planned”',
     done: true,
     assignee: 'claude',
@@ -223,13 +227,13 @@ const buildItems: Item[] = [
     waitingOn: 'erkan',
     since: 'Sep 24',
   },
-  { id: 'card:commit-slice', kind: 'task', title: 'Commit slice 1', done: false, assignee: 'claude', final: true },
+  { id: 'card:commit-slice', kind: 'quest', title: 'Commit slice 1', done: false, assignee: 'claude', final: true },
 ]
 
 const buildSideQuests: Item[] = [
-  { id: 'card:panel-memory', kind: 'task', title: 'Polish: the side panel remembers whether it was open', done: false, sideOf: 'card:real-map' },
-  { id: 'card:ascii-map', kind: 'task', title: 'Polish: `mikado quest show` draws a small text chart', done: false, sideOf: 'card:cli' },
-  { id: 'card:bulb', kind: 'task', title: 'Polish: the selected deed glows from its edges', done: true, assignee: 'claude', sideOf: 'card:real-map' },
+  { id: 'card:panel-memory', kind: 'quest', title: 'Polish: the side panel remembers whether it was open', done: false, sideOf: 'card:real-map' },
+  { id: 'card:ascii-map', kind: 'quest', title: 'Polish: `mikado quest show` draws a small text chart', done: false, sideOf: 'card:cli' },
+  { id: 'card:bulb', kind: 'quest', title: 'Polish: the selected deed glows from its edges', done: true, assignee: 'claude', sideOf: 'card:real-map' },
 ]
 
 const buildNeeds: Need[] = [
@@ -290,29 +294,31 @@ const buildLog: LogEntry[] = [
 const linesGoal = { title: 'The spring festival goes live', doneWhen: 'card:festival' }
 
 const linesItems: Item[] = [
-  { id: 'card:festival', kind: 'task', title: 'Open the spring festival to every player', done: false, assignee: 'ada', final: true },
-  { id: 'studio/game#200', kind: 'issue', title: 'Lantern shader', done: true, assignee: 'bo' },
-  { id: 'studio/game#201', kind: 'issue', title: 'Festival lanterns in every town', done: false, assignee: 'bo', working: true },
-  { id: 'studio/net#290', kind: 'issue', title: 'Rate limiter for score uploads', done: false, assignee: 'cyd' },
-  { id: 'studio/net#300', kind: 'issue', title: 'Score API', done: true, assignee: 'cyd' },
-  { id: 'studio/net#305', kind: 'issue', title: 'Anti-cheat check on festival scores', done: false },
+  { id: 'card:festival', kind: 'quest', title: 'Open the spring festival to every player', done: false, assignee: 'ada', final: true },
+  { id: 'studio/game#200', kind: 'quest', mark: '#200', title: 'Lantern shader', done: true, assignee: 'bo' },
+  { id: 'studio/game#201', kind: 'quest', mark: '#201', title: 'Festival lanterns in every town', done: false, assignee: 'bo', working: true },
+  { id: 'studio/net#290', kind: 'quest', mark: '#290', title: 'Rate limiter for score uploads', done: false, assignee: 'cyd' },
+  { id: 'studio/net#300', kind: 'quest', mark: '#300', title: 'Score API', done: true, assignee: 'cyd' },
+  { id: 'studio/net#305', kind: 'quest', mark: '#305', title: 'Anti-cheat check on festival scores', done: false },
   { id: 'card:legal', kind: 'wait', title: 'Legal sign-off on the prize rules', done: false, waitingOn: 'legal', since: 'Sep 20' },
-  { id: 'studio/net#310', kind: 'issue', title: 'Festival leaderboard', done: false, assignee: 'cyd' },
-  { id: 'studio/build#49', kind: 'issue', title: 'Build scripts for the festival branch', done: true, assignee: 'ada' },
-  { id: 'studio/build#50', kind: 'issue', title: 'Festival build branch', done: true, assignee: 'ada' },
+  { id: 'studio/net#310', kind: 'quest', mark: '#310', title: 'Festival leaderboard', done: false, assignee: 'cyd' },
+  { id: 'studio/build#49', kind: 'quest', mark: '#49', title: 'Build scripts for the festival branch', done: true, assignee: 'ada' },
+  { id: 'studio/build#50', kind: 'quest', mark: '#50', title: 'Festival build branch', done: true, assignee: 'ada' },
   {
     id: 'studio/game#190',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#190',
     title: 'Paid lantern skins',
     done: false,
     cancelled: true,
     cancelReason: 'No paid items during the festival.',
   },
-  { id: 'card:rewards', kind: 'task', title: 'Free rewards instead of paid skins', done: false, npc: true },
+  { id: 'card:rewards', kind: 'quest', title: 'Free rewards instead of paid skins', done: false, npc: true },
   // Long titles, to see how cards wrap and how the lines route around taller cards.
   {
     id: 'studio/game#212',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#212',
     title:
       "The lantern keeper's three errands: record and mix the voice lines in all four voices, place the reward chest in every festival town so it cannot be reached before the third errand, add a fallback path for players who meet the keeper while he is off-screen or asleep, and make sure the errands still complete for players who started the festival on an older save from the launch build",
     done: false,
@@ -329,7 +335,8 @@ const linesItems: Item[] = [
   },
   {
     id: 'studio/net#315',
-    kind: 'issue',
+    kind: 'quest',
+    mark: '#315',
     title:
       "Leaderboard pages time out for players with more than two thousand friends, because the query loads every friend's score at once instead of the page being viewed, the cache is keyed by player rather than by page so it never warms, and the retry on timeout sends the same full query again, which doubles the load exactly when the servers are already struggling",
     done: true,
@@ -340,8 +347,8 @@ const linesItems: Item[] = [
 ]
 
 const linesSideQuests: Item[] = [
-  { id: 'studio/game#205', kind: 'issue', title: 'Polish: lanterns flicker in the wind', done: false, sideOf: 'studio/game#201' },
-  { id: 'studio/net#302', kind: 'issue', title: 'Polish: a toast when your score is saved', done: true, assignee: 'cyd', sideOf: 'studio/net#300' },
+  { id: 'studio/game#205', kind: 'quest', mark: '#205', title: 'Polish: lanterns flicker in the wind', done: false, sideOf: 'studio/game#201' },
+  { id: 'studio/net#302', kind: 'quest', mark: '#302', title: 'Polish: a toast when your score is saved', done: true, assignee: 'cyd', sideOf: 'studio/net#300' },
 ]
 
 const linesNeeds: Need[] = [
@@ -374,7 +381,7 @@ export const maps: Record<string, QuestData> = {
 
 export const hasMap = (slug: string) => slug in maps
 
-const summarise = (slug: string, heroes: string[], repos: string[]): QuestSummary => {
+const summarise = (slug: string, heroes: string[]): QuestSummary => {
   const q = maps[slug]
   const byId = new Map([...q.items, ...q.sideQuests].map((i) => [i.id, i]))
   const open = (i: Item) => q.needs.some((n) => n.from === i.id && !byId.get(n.to)?.done && !byId.get(n.to)?.cancelled)
@@ -386,7 +393,6 @@ const summarise = (slug: string, heroes: string[], repos: string[]): QuestSummar
     available: q.items.filter((i) => !i.done && i.kind !== 'wait' && !open(i)).length,
     awaiting: q.items.filter((i) => !i.done && i.kind === 'wait' && !open(i)).length,
     heroes,
-    repos,
     lastActivity: 'Sep 24',
   }
 }
@@ -397,7 +403,7 @@ const summarise = (slug: string, heroes: string[], repos: string[]): QuestSummar
 export type QuestSummary = AtlasJourney
 
 export const quests: QuestSummary[] = [
-  summarise('mikado-slice-1', ['claude', 'erkan'], ['mikado']),
+  summarise('mikado-slice-1', ['claude', 'erkan']),
   {
     key: 'winter-update',
     title: 'The winter update ships to every player',
@@ -409,7 +415,6 @@ export const quests: QuestSummary[] = [
     inProgress: 2,
     cancelled: 1,
     heroes: ['ada', 'bo', 'cyd'],
-    repos: ['game', 'saves', 'net', 'build'],
     lastActivity: 'Sep 19',
     blockedBy: [{ key: 'controller-support', title: 'Controller support on every platform', state: 'active' }],
   },
@@ -422,7 +427,6 @@ export const quests: QuestSummary[] = [
     awaiting: 0,
     inProgress: 1,
     heroes: ['bo', 'dex'],
-    repos: ['input', 'game'],
     lastActivity: 'Sep 23',
     state: 'active',
     blocks: [{ key: 'winter-update', title: 'The winter update ships to every player', state: 'active' }],
@@ -435,7 +439,6 @@ export const quests: QuestSummary[] = [
     available: 2,
     awaiting: 0,
     heroes: ['cyd'],
-    repos: ['editor', 'build'],
     lastActivity: 'Sep 21',
     state: 'complete',
   },
@@ -447,7 +450,6 @@ export const quests: QuestSummary[] = [
     available: 0,
     awaiting: 2,
     heroes: ['ada'],
-    repos: ['build', 'net', 'saves'],
     lastActivity: 'Sep 12',
   },
   {
@@ -458,7 +460,6 @@ export const quests: QuestSummary[] = [
     available: 0,
     awaiting: 0,
     heroes: ['cyd', 'dex'],
-    repos: ['net'],
     lastActivity: 'Sep 02',
     state: 'complete',
   },
@@ -472,7 +473,6 @@ export const quests: QuestSummary[] = [
     awaiting: 0,
     cancelled: 5,
     heroes: ['bo'],
-    repos: ['game', 'net'],
     lastActivity: 'Aug 30',
   },
   {
@@ -484,7 +484,6 @@ export const quests: QuestSummary[] = [
     available: 0,
     awaiting: 0,
     heroes: [],
-    repos: ['launcher'],
     lastActivity: 'Jul 14',
     archivedAt: '2026-08-01',
   },

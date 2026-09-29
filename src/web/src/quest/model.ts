@@ -2,10 +2,8 @@
 // from the API. Pages build a JourneyModel from JourneyData once per version of
 // the data; everything that used to read module-level mock state reads the model.
 
-// An item is either a GitHub issue or a card that lives only in mikado:
-// a `wait` is something we are waiting on someone for, a `task` is a real step
-// that is too small or too big to be worth an issue.
-export type Kind = 'issue' | 'wait' | 'task'
+// Every quest is one kind of thing; a `wait` (a petition) is one that awaits a reply from someone.
+export type Kind = 'quest' | 'wait'
 
 // Completed: done. Available: everything before it is done. Locked: something
 // before it is still open. Awaiting: an available card that waits on someone else.
@@ -13,14 +11,14 @@ export type Kind = 'issue' | 'wait' | 'task'
 export type Status = 'done' | 'available' | 'locked' | 'awaiting' | 'cancelled'
 
 export type Item = {
-  id: string // the node id: mock issues use owner/repo#n, mock cards card:<name>, API cards c<id>
+  id: string // the node id: API cards c<id>; the mock uses names of its own
   key?: string // the key people use for the quest (Q142)
   kind: Kind
   title: string
   done: boolean
-  ref?: string // issues: owner/repo#n, when the id is not the ref itself
-  url?: string // issues: the GitHub page
-  assignee?: string // GitHub login (issues) or whoever owns the card
+  url?: string // any link: the details panel links the title to it, a card its mark
+  mark?: string // a short free text shown after the key: #13, 234g45a, PROJ-88
+  assignee?: string // the hero: whoever is responsible for it
   waitingOn?: string // waits: who we are waiting for — may be outside the team
   since?: string // waits: when the wait started, as shown ("Sep 14")
   sinceDays?: number // waits: whole days since then
@@ -56,6 +54,18 @@ export type JourneyCard = {
 /** How a quest is titled: a journey card by its journey's title, any other quest by its own. */
 export const titleOf = (i: Item) => i.crowns?.title ?? i.title
 
+/**
+ * A quest's link as an href: an address with a scheme of its own is kept only when it is a web or mail
+ * one (never javascript: or data:), and one without is taken for a web address.
+ */
+export function hrefOf(url?: string): string | undefined {
+  const u = url?.trim()
+  if (!u) return undefined
+  const scheme = u.match(/^([a-z][a-z0-9+.-]*):/i)?.[1].toLowerCase()
+  if (!scheme) return `https://${u}`
+  return ['http', 'https', 'mailto'].includes(scheme) ? u : undefined
+}
+
 // `from` needs `to` before it can be done.
 export type Need = { from: string; to: string }
 
@@ -63,7 +73,7 @@ export type LogEntry = {
   at: string // as shown ("Sep 24")
   text: string
   id?: string // the item it is about, which may no longer be on the journey
-  kind: string // create, add, remove, assign, done, cancel, … — unknown kinds get a plain bullet
+  kind: string // create, add, remove, done, cancel, … — unknown kinds get a plain bullet
 }
 
 export type Goal = {
@@ -79,17 +89,11 @@ export type JourneyModel = JourneyData & {
   byId: Map<string, Item>
   statusOf: (i: Item) => Status
   openBefore: (i: Item) => number
-  /** How an item is named in running text: repo#n for issues, the title for cards. */
+  /** How an item is named in running text: its title (its id when it is not on the chart). */
   short: (id: string) => string
-  /** The issue ref to show on an item, if it is an issue. */
-  refOf: (i: Item) => string | undefined
-  /** The issue's GitHub page: the server's url, else built from the ref (the mock has none). */
-  urlOf: (i: Item) => string | undefined
   daysSince: (i: Item) => number
   counted: (i: Item) => boolean
 }
-
-const afterOwner = (ref: string) => ref.slice(ref.indexOf('/') + 1)
 
 export function journeyModel(data: JourneyData): JourneyModel {
   const { items, sideQuests, needs } = data
@@ -107,20 +111,7 @@ export function journeyModel(data: JourneyData): JourneyModel {
     return i.kind === 'wait' ? 'awaiting' : 'available'
   }
 
-  const refOf = (i: Item) => i.ref ?? (i.kind === 'issue' ? i.id : undefined)
+  const short = (id: string) => byId.get(id)?.title ?? id
 
-  function urlOf(i: Item): string | undefined {
-    if (i.url) return i.url
-    const m = refOf(i)?.match(/^([^/\s]+)\/([^#\s]+)#(\d+)$/)
-    return m ? `https://github.com/${m[1]}/${m[2]}/issues/${m[3]}` : undefined
-  }
-
-  function short(id: string): string {
-    const i = byId.get(id)
-    if (!i) return id.includes('/') ? afterOwner(id) : id
-    const ref = refOf(i)
-    return ref ? afterOwner(ref) : i.title
-  }
-
-  return { ...data, byId, statusOf, openBefore, short, refOf, urlOf, daysSince: (i) => i.sinceDays ?? 0, counted }
+  return { ...data, byId, statusOf, openBefore, short, daysSince: (i) => i.sinceDays ?? 0, counted }
 }

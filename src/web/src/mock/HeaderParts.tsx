@@ -212,7 +212,6 @@ function Card({ Id }: { Id: IdView }) {
       <div className="relative flex min-w-0 flex-col gap-1.5">
         <div className="flex items-center gap-1.5 pl-2.5 text-[12px]">
           <Id k="Q16" plain="quest-key font-mono font-semibold text-[var(--ink-faint)]" />
-          <span className="quest-kind font-bold text-[var(--ink-soft)]">Errand</span>
         </div>
         <div className="hc-card-title text-[15px] leading-snug font-semibold">Buy a box of eggs from the corner shop</div>
         <div className="text-[12px] font-bold" style={{ color: stateColour.available }}>
@@ -223,13 +222,11 @@ function Card({ Id }: { Id: IdView }) {
   )
 }
 
-function Row({ Id, k, kind, title }: { Id: IdView; k: string; kind: 'Errand' | 'Petition'; title: string }) {
+function Row({ Id, k, petition, title }: { Id: IdView; k: string; petition?: boolean; title: string }) {
   return (
     <li className="hc-row flex items-center gap-1.5 overflow-hidden rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-[14px] whitespace-nowrap">
       <Id k={k} plain="quest-key font-mono text-[12px] font-semibold text-[var(--ink-faint)]" />
-      <span className="quest-kind shrink-0 text-[12px] font-bold" style={{ color: kind === 'Petition' ? 'var(--await)' : 'var(--ink-soft)' }}>
-        {kind}
-      </span>
+      {petition && <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--await)]">Petition</span>}
       <span className="min-w-0 truncate">{title}</span>
     </li>
   )
@@ -240,8 +237,8 @@ function Panel({ Id }: { Id: IdView }) {
     <div className="hc-panel w-[400px] shrink-0 rounded-md border border-[var(--panel-border)] bg-[var(--panel)] p-3">
       <div className="hc-panel-head mb-2 text-[13px] font-semibold">Open now</div>
       <ul className="space-y-1.5">
-        <Row Id={Id} k="Q11" kind="Errand" title="Heat a knob of butter in the pan until it foams but doesn’t brown" />
-        <Row Id={Id} k="Q18" kind="Petition" title="Ask your flatmate whether the cheddar is still good" />
+        <Row Id={Id} k="Q11" title="Heat a knob of butter in the pan until it foams but doesn’t brown" />
+        <Row Id={Id} k="Q18" petition title="Ask your flatmate whether the cheddar is still good" />
       </ul>
     </div>
   )

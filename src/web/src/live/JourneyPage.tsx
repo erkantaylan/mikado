@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { fetchJourney, retitleJourney, setNpc } from '../api'
 import JourneyMap from '../quest/JourneyMap'
 import { journeyModel } from '../quest/model'
-import { Banner, NoticePage } from '../quest/Notice'
+import { NoticePage } from '../quest/Notice'
 import { IdTag } from '../quest/wood'
 import { toJourneyData } from './adapt'
 import { Failed, Loading, StaleBanner } from './states'
@@ -50,7 +50,6 @@ export default function JourneyPage({ journeyKey }: { journeyKey: string }) {
       banner={
         <>
           {error && <StaleBanner error={error} />}
-          {data.github && <Banner>GitHub: {data.github}</Banner>}
         </>
       }
     />

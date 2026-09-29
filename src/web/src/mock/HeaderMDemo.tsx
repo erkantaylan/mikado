@@ -194,12 +194,10 @@ function Slice({ look, open, onToggle }: { look: Look; open: boolean; onToggle: 
             <ul className="quest-rows space-y-1.5">
               <li className="quest-row hm-row-look flex items-center gap-1.5 overflow-hidden rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-[14px] whitespace-nowrap">
                 <Tag k="Q11" />
-                <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--ink-soft)]">Errand</span>
                 <span className="min-w-0 truncate">Heat a knob of butter in the pan until it foams</span>
               </li>
               <li className="quest-row hm-row-look flex items-center gap-1.5 overflow-hidden rounded-md border border-[var(--panel-border)] bg-[var(--plate)] px-2.5 py-2 text-[14px] whitespace-nowrap">
                 <Tag k="Q16" />
-                <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--ink-soft)]">Errand</span>
                 <span className="min-w-0 truncate">Buy a box of eggs from the corner shop</span>
               </li>
             </ul>

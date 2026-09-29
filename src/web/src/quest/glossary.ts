@@ -32,26 +32,26 @@ export const glossary: Term[] = [
     id: 'G4',
     term: 'Quest',
     also: 'Task',
-    text: 'Any unit on the chart, named by its key, like Q142. "Task" means exactly the same; either word works.',
-    cli: 'mikado show Q',
+    text: 'Any unit on the chart, named by its key, like Q142: a title, and a status set by hand. "Task" means exactly the same; either word works.',
+    cli: 'mikado add "title" · mikado show Q',
   },
   {
     id: 'G5',
-    term: 'Issue',
-    text: 'A quest that is a GitHub issue (owner/repo#n). Its title, state and assignees come from GitHub; it is fulfilled when the issue is closed.',
-    cli: 'mikado add owner/repo#n',
+    term: 'Link',
+    text: 'A quest can carry one link, to anywhere: a recipe, a ticket, a document. Its title in the details opens it, and so does its mark on the chart.',
+    cli: '--url U · mikado set Q --url U',
   },
   {
     id: 'G6',
-    term: 'Errand',
-    text: 'A quest that is a real step but not worth a GitHub issue, like booking a release window.',
-    cli: 'mikado errand "title"',
+    term: 'Mark',
+    text: 'A short note shown right after a quest’s key, at most 15 characters: #13, 234g45a, PROJ-88. It is kept as written, with or without a link.',
+    cli: '--mark M · mikado set Q --mark M',
   },
   {
     id: 'G7',
     term: 'Petition',
-    text: 'A quest that waits on someone, often outside the team, like a production token from a vendor. It says whom it awaits a reply from, and since when.',
-    cli: 'mikado petition "title" --on WHO',
+    text: 'A quest that awaits a reply from someone, often outside the team, like a production token from a vendor. It says from whom, and since when; without that it is a plain quest again.',
+    cli: 'mikado add "title" --on WHO · mikado set Q --on WHO',
   },
   {
     id: 'G8',
@@ -90,7 +90,7 @@ export const glossary: Term[] = [
   {
     id: 'G14',
     term: 'Fulfilled',
-    text: 'Status: finished. An issue is fulfilled when it closes on GitHub; an errand or a petition when it is marked so.',
+    text: 'Status: finished, when it is marked so.',
     cli: 'mikado fulfil Q',
   },
   {
@@ -111,7 +111,7 @@ export const glossary: Term[] = [
   {
     id: 'G18',
     term: 'Abandoned',
-    text: 'Status: won’t be done. It stays on the chart, blocks nothing and counts in no total; its side quests are abandoned with it. An issue closed on GitHub as not planned or duplicate reads as abandoned.',
+    text: 'Status: won’t be done. It stays on the chart, blocks nothing and counts in no total; its side quests are abandoned with it.',
     cli: 'mikado abandon Q --reason "why" · mikado unabandon Q',
   },
   {
@@ -147,7 +147,7 @@ export const glossary: Term[] = [
   {
     id: 'G25',
     term: 'Extract',
-    text: 'Moving quests of a journey into a new journey of their own, crowned by a new errand. The old chart shows the new journey as one card where they were.',
+    text: 'Moving quests of a journey into a new journey of their own, crowned by a new quest. The old chart shows the new journey as one card where they were.',
     cli: 'mikado journey extract J Q… --title T',
   },
   {

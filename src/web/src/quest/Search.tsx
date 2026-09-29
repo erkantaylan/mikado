@@ -5,7 +5,7 @@ import { ArchivedChip, JourneyStateChip, stateColour, words } from './look'
 import { IdTag } from './wood'
 
 // The search popup: journeys and quests by title, or straight to a journey or quest by its key
-// (J7, Q142) or an issue (owner/repo#n). Ctrl+K / ⌘K or "/" opens it from anywhere on the page.
+// (J7, Q142). Ctrl+K / ⌘K or "/" opens it from anywhere on the page.
 
 type Hit = { kind: 'journey'; journey: JourneyInfo } | { kind: 'quest'; quest: Card; exact: boolean }
 
@@ -214,7 +214,6 @@ function JourneyHit({ j }: { j: JourneyInfo }) {
 
 function QuestHit({ d, here }: { d: Card; here?: string }) {
   const journeys = d.alsoIn ?? []
-  const kind = d.kind === 'issue' ? d.ref : d.kind === 'awaiting' ? 'Petition' : 'Errand'
   return (
     <>
       <span className="w-14 shrink-0">
@@ -230,7 +229,8 @@ function QuestHit({ d, here }: { d: Card; here?: string }) {
           <span className="truncate">{d.title}</span>
         </span>
         <span className="block truncate text-[12px] text-[var(--ink-faint)]">
-          {kind} ·{' '}
+          {d.mark && <span className="quest-mark font-mono text-[var(--ink-soft)]">{d.mark} · </span>}
+          {d.kind === 'awaiting' && <span className="font-bold text-[var(--await)]">Petition · </span>}
           {journeys.length === 0
             ? 'in no journey, so no chart to open'
             : journeys.map((j, k) => (

@@ -883,7 +883,7 @@
 .quest-theme[data-theme='wartable'] .quest-ledger :is(.quest-display, .quest-tab, .font-mono) {
   font-size-adjust: none;
 }
-/* A list row: the key and the issue on a small first line, the title under
+/* A list row: the key and the mark on a small first line, the title under
    it in full, wrapping to a second line before it gives way. */
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-row {
   align-items: flex-start;
@@ -921,7 +921,7 @@
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-row > :last-child {
   margin-top: 1px;
 }
-/* Issue refs: plain muted ink in the book face, no grey box. (Ids are on their tags, in monospace.) */
+/* Quest names in the chronicle: plain muted ink in the book face, no grey box. (Ids are on their tags, in monospace.) */
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-ref {
   font-family: var(--font-body);
   font-size-adjust: var(--wt-adjust);
@@ -937,7 +937,7 @@
   color: var(--ink);
   text-decoration-color: rgba(110, 80, 40, 0.45);
 }
-/* Errand, Petition: the same small, quiet label as an issue ref. */
+/* Petition: a small, quiet label. */
 .quest-theme[data-theme='wartable'] .quest-ledger .quest-kind {
   font-size: 11.5px;
   font-weight: 600;
@@ -1190,7 +1190,7 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate.quest-lit {
   --wt-paper: none;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-kind) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='done'] .quest-plate:not(.quest-lit) :is(.quest-title, .quest-status, .quest-kind, .quest-mark) {
   color: #2a1a0c !important;
 }
 /* Awaiting reply: a petition held up by someone else. It is written on the same hand-cut sheet as the
@@ -1211,7 +1211,7 @@
 }
 /* The paper carries the red, so the small red words on it (Petition, the status) turn dark brown,
    and the title too, all with a pale halo that lifts them off a drop where they cross one. */
-.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-kind, .quest-status) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='awaiting'] :is(.quest-kind, .quest-status, .quest-mark) {
   color: #3d1a0c !important;
   text-shadow:
     0 0 2px rgba(246, 236, 214, 0.95),
@@ -1270,7 +1270,7 @@
 .quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] .quest-title {
   color: #2a1a0c;
 }
-.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-kind, .quest-status) {
+.quest-theme[data-theme='wartable'] .quest-item[data-status='cancelled'] :is(.quest-kind, .quest-status, .quest-mark) {
   color: #2a1a0c !important;
   text-shadow: 0 0 3px rgba(226, 208, 176, 0.8);
 }

@@ -114,7 +114,7 @@ export function IdTag({ id, title, struck }: { id: string; title?: string; struc
 
 const ID = /\b([JQR]\d+)\b/
 
-/** Text with every id in it (J7, Q142, R2) set on its tag: a chronicle line, a glossary entry, a quest named by key or issue. */
+/** Text with every id in it (J7, Q142, R2) set on its tag: a chronicle line, a glossary entry, a quest named by key. */
 export function IdText({ text, struck }: { text: string; struck?: boolean }) {
   const parts = text.split(ID)
   if (parts.length === 1) return text

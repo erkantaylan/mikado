@@ -2,7 +2,8 @@
 
 export type Health = { status: string; version: string }
 
-export type CardKind = 'issue' | 'errand' | 'awaiting'
+/** A quest's kind: only a petition (awaiting a reply from someone) has one. */
+export type CardKind = 'awaiting'
 export type CardStatus = 'cancelled' | 'done' | 'locked' | 'awaiting' | 'available'
 export type JourneyState = 'active' | 'complete' | 'cancelled'
 
@@ -27,7 +28,6 @@ export type JourneySummary = {
   cancelled: number
   inProgress: number
   heroes: string[]
-  repos: string[] // owner/repo
   lastActivity: string // RFC 3339
   archivedAt?: string // RFC 3339, set while archived
   blockedBy: JourneyLink[] // journeys whose crowning quests are on this journey's chart as journey cards
@@ -58,18 +58,16 @@ export type Crowns = {
 /** Another journey the same card belongs to. */
 export type JourneyRef = { key: string; title: string }
 
-/** A card — a quest — with what GitHub says about it and its computed status (store.Card). */
+/** A card — a quest — with its computed status (store.Card). */
 export type Card = {
   id: number
   key: string // the key people use (Q142)
-  kind: CardKind
-  ref?: string // issues: owner/repo#n
-  url?: string
+  kind?: CardKind // set on a petition only
   title: string
+  url?: string // any link
+  mark?: string // a short free text shown by the key: #13, 234g45a, PROJ-88
   done: boolean
-  state?: string // issues: GitHub's open / closed
-  assignees: string[]
-  owner?: string
+  owner?: string // the hero
   waitingOn?: string
   since?: string // awaiting: YYYY-MM-DD
   final: boolean
@@ -79,7 +77,6 @@ export type Card = {
   npc: boolean
   cancelled: boolean
   cancelReason?: string
-  stateReason?: string
   working: boolean
   workingSince?: string
   workingBy?: string
@@ -116,7 +113,6 @@ export type JourneyView = {
   cards: Card[]
   needs: Need[]
   log: LogEvent[]
-  github?: string // set when GitHub could not be reached and cached data is shown
 }
 
 /**
@@ -135,7 +131,7 @@ export class ApiError extends Error {
   }
 }
 
-async function get<T>(path: string, signal?: AbortSignal): Promise<{ body: T; res: Response }> {
+async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
     res = await fetch(path, { headers: { Accept: 'application/json' }, signal })
@@ -154,7 +150,7 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<{ body: T; re
     const msg = typeof body === 'object' && body !== null && 'error' in body ? String(body.error) : `HTTP ${res.status}`
     throw new ApiError(res.status, msg, false)
   }
-  return { body: body as T, res }
+  return body as T
 }
 
 /** A change: a JSON body (the API refuses anything else), the JSON answer back. */
@@ -184,13 +180,12 @@ export async function setNpc(id: number, npc: boolean): Promise<Card> {
 }
 
 export async function fetchHealth(): Promise<Health> {
-  return (await get<Health>('/api/health')).body
+  return get<Health>('/api/health')
 }
 
-/** The atlas, and GitHub's warning if its data is stale. */
-export async function fetchJourneys(): Promise<{ journeys: JourneySummary[]; github?: string }> {
-  const { body, res } = await get<JourneySummary[]>('/api/journeys')
-  return { journeys: body, github: res.headers.get('X-Mikado-GitHub') ?? undefined }
+/** The atlas. */
+export async function fetchJourneys(): Promise<JourneySummary[]> {
+  return get<JourneySummary[]>('/api/journeys')
 }
 
 export async function renameRegion(key: string, name: string): Promise<Region> {
@@ -198,16 +193,16 @@ export async function renameRegion(key: string, name: string): Promise<Region> {
 }
 
 export async function fetchRegions(): Promise<Region[]> {
-  return (await get<Region[]>('/api/regions')).body
+  return get<Region[]>('/api/regions')
 }
 
-/** What the search popup finds (store.SearchResult). `exact` is the quest the query names by key or issue. */
+/** What the search popup finds (store.SearchResult). `exact` is the quest the query names by key. */
 export type SearchResult = { journeys: JourneyInfo[]; quests: Card[]; exact?: Card }
 
 export async function fetchSearch(q: string, signal?: AbortSignal): Promise<SearchResult> {
-  return (await get<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`, signal)).body
+  return get<SearchResult>(`/api/search?q=${encodeURIComponent(q)}`, signal)
 }
 
 export async function fetchJourney(key: string): Promise<JourneyView> {
-  return (await get<JourneyView>(`/api/journeys/${encodeURIComponent(key)}`)).body
+  return get<JourneyView>(`/api/journeys/${encodeURIComponent(key)}`)
 }

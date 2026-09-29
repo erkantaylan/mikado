@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { fetchJourneys, fetchRegions, renameRegion } from '../api'
 import Atlas, { type AtlasRegion } from '../quest/Atlas'
-import { Banner, Cli, Notice, NoticePage } from '../quest/Notice'
+import { Cli, Notice, NoticePage } from '../quest/Notice'
 import { IdTag } from '../quest/wood'
 import { toAtlasJourney } from './adapt'
 import { Failed, Loading, StaleBanner } from './states'
@@ -9,8 +9,8 @@ import { usePoll } from './usePoll'
 import { useVersion } from './useVersion'
 
 const load = async () => {
-  const [atlas, regions] = await Promise.all([fetchJourneys(), fetchRegions()])
-  return { ...atlas, regions }
+  const [journeys, regions] = await Promise.all([fetchJourneys(), fetchRegions()])
+  return { journeys, regions }
 }
 
 const regionHref = (key: string) => `/region/${encodeURIComponent(key)}`
@@ -62,7 +62,6 @@ export default function AtlasPage({ regionKey }: { regionKey?: string }) {
       banner={
         <>
           {error && <StaleBanner error={error} />}
-          {data.github && <Banner>GitHub: {data.github}</Banner>}
         </>
       }
       empty={

@@ -1,9 +1,7 @@
 // Turns the API's JSON into the shapes the shared pages draw.
 import type { Card, JourneySummary, JourneyView, LogEvent } from '../api'
 import type { AtlasJourney } from '../quest/Atlas'
-import type { Item, JourneyData, Kind } from '../quest/model'
-
-const kinds: Record<Card['kind'], Kind> = { issue: 'issue', errand: 'task', awaiting: 'wait' }
+import type { Item, JourneyData } from '../quest/model'
 
 /** A node id for a card. */
 export const cardId = (id: number) => `c${id}`
@@ -33,13 +31,12 @@ export function toItem(c: Card): Item {
   return {
     id: cardId(c.id),
     key: c.key,
-    kind: kinds[c.kind],
+    kind: c.kind === 'awaiting' ? 'wait' : 'quest',
     title: c.title,
     done: c.done,
-    ref: c.ref,
     url: c.url,
-    // The hero is whoever GitHub has it assigned to, else the card's owner.
-    assignee: c.assignees[0] ?? (c.owner || undefined),
+    mark: c.mark,
+    assignee: c.owner || undefined,
     waitingOn: c.waitingOn,
     since: c.since ? dayLabel(c.since) : undefined,
     sinceDays: c.since ? daysSince(c.since) : undefined,
@@ -81,11 +78,7 @@ export function toJourneyData(v: JourneyView): JourneyData {
   }
 }
 
-/** A journey on the atlas; repos are shown by name, as the atlas has room for. */
+/** A journey on the atlas. */
 export function toAtlasJourney(q: JourneySummary): AtlasJourney {
-  return {
-    ...q,
-    repos: [...new Set(q.repos.map((r) => r.slice(r.indexOf('/') + 1)))],
-    lastActivity: dayLabel(q.lastActivity),
-  }
+  return { ...q, lastActivity: dayLabel(q.lastActivity) }
 }

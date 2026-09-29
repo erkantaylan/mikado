@@ -1,6 +1,6 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Ban, Check, Gem, Layers, Pencil } from 'lucide-react'
-import type { Item, Status } from './model'
+import { hrefOf, type Item, type Status } from './model'
 import { IdTag } from './wood'
 
 // Every colour is a theme variable (quest.css).
@@ -68,30 +68,57 @@ export function Key({ id }: { id?: string }) {
   return <IdTag id={id} />
 }
 
-/** The kind tag in front of a title: the quest's key, then the issue's repo#n or what sort of quest it is. */
-export function Label({ item, tag }: { item: Item; tag: string }) {
-  const kind = item.crowns ? (
-    // A journey card: named by the journey it stands for.
-    <span className="flex min-w-0 items-center gap-1">
-      <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold" style={{ color: stateColour.done }}>
-        <Layers size={12} /> Journey
-      </span>
-      <IdTag id={item.crowns.key} title={item.crowns.title} />
-    </span>
-  ) : item.kind === 'wait' ? (
-      <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--await)]">Petition</span>
-    ) : item.kind === 'task' ? (
-      <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--ink-soft)]">Errand</span>
-    ) : (
-      // A long repo name is what gives way when the row is tight, never the labels after it.
-      <span className="quest-ref min-w-0 truncate rounded bg-[var(--chip)] px-1 font-mono text-[12px] text-[var(--ink-soft)]" title={tag}>
-        {tag}
-      </span>
+/**
+ * A quest's mark (#13, 234g45a, PROJ-88): small plain monospace text in the soft ink, after its key.
+ * With `link` and a url it opens that in a new tab, without also picking the card it sits on.
+ */
+export function Mark({ item, link }: { item: Item; link?: boolean }) {
+  if (!item.mark) return null
+  const href = link ? hrefOf(item.url) : undefined
+  const cls = 'quest-mark shrink-0 font-mono text-[12px] text-[var(--ink-soft)]'
+  if (!href) return <span className={cls}>{item.mark}</span>
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={item.url}
+      className={`${cls} nodrag nopan underline decoration-dotted underline-offset-2 hover:text-[var(--ink)] hover:decoration-solid`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {item.mark}
+    </a>
+  )
+}
+
+/**
+ * What goes in front of a title: the quest's key, its mark, and "Petition" for a petition; a plain quest
+ * has no kind label. `link` makes the mark a link to the quest's url (not inside another button).
+ */
+export function Label({ item, link }: { item: Item; link?: boolean }) {
+  if (item.crowns)
+    return (
+      // A journey card: named by the journey it stands for.
+      <>
+        <Key id={item.key} />{' '}
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="flex shrink-0 items-center gap-0.5 text-[12px] font-bold" style={{ color: stateColour.done }}>
+            <Layers size={12} /> Journey
+          </span>
+          <IdTag id={item.crowns.key} title={item.crowns.title} />
+        </span>
+      </>
     )
-  if (!item.key) return kind
   return (
     <>
-      <Key id={item.key} /> {kind}
+      <Key id={item.key} />
+      {item.mark && <> <Mark item={item} link={link} /></>}
+      {item.kind === 'wait' && (
+        <>
+          {' '}
+          <span className="quest-kind shrink-0 text-[12px] font-bold text-[var(--await)]">Petition</span>
+        </>
+      )}
     </>
   )
 }
